@@ -28,23 +28,31 @@ local Config = {
 		ColorMedium = Color3.fromRGB(0, 120, 255), -- Vibrant blue for medium fossils
 		ColorRare = Color3.fromRGB(255, 165, 0), -- Gold/Orange for rare fossils (Amber/Sphere)
 	},
-	TeleportBelow = {
+	Corpses = {
 		Enabled = false,
+		Color = Color3.fromRGB(128, 128, 128), -- Gray
+	},
+	TeleportBelow = {
+		Enabled = true,
+		TpKey = "T",
 	},
 }
 
 local Workspace = game:GetService("Workspace") or game.Workspace
 local RunService = game:GetService("RunService") or game.RunService
 local Players = game:GetService("Players") or game.Players
-local Lighting = game:GetService("Lighting") or game.Lighting
 local UserInputService = game:GetService("UserInputService")
 local localPlayer = Players and Players.LocalPlayer
 
 local espCache = {}
 local fossilCache = {}
+local corpseCache = {}
 local aimbotActive = false
+local tpBelowActive = false
 local aimbotSnapline = Drawing.new("Line")
 local aimbotKeybindWidget = nil
+local tpKeybindWidget = nil
+local tpToggleWidget = nil
 
 local teleportState = {
 	active = false,
@@ -59,7 +67,12 @@ local hasMatchaUI = typeof(UI) == "table" and typeof(UI.AddTab) == "function"
 local function getRobloxEnum(enumName, itemName)
 	local enum = Enum[enumName]
 	if enum then
-		return enum[itemName]
+		local success, result = pcall(function()
+			return enum[itemName]
+		end)
+		if success then
+			return result
+		end
 	end
 	return nil
 end
@@ -98,6 +111,16 @@ local function resolveKey(key)
 			return getRobloxEnum("KeyCode", name)
 		end
 	end
+	if typeof(key) == "string" then
+		local keyCode = getRobloxEnum("KeyCode", key)
+		if keyCode then
+			return keyCode
+		end
+		local uiType = getRobloxEnum("UserInputType", key)
+		if uiType then
+			return uiType
+		end
+	end
 	return nil
 end
 
@@ -134,12 +157,13 @@ if hasMatchaUI then
 			local espSec = tab:Section("ESP Settings", "Left")
 			espSec:Toggle("esp_enabled", "ESP Main", Config.ESP.Enabled)
 			espSec:Toggle("fossil_enabled", "Fossil ESP", Config.Fossils.Enabled)
+			espSec:Toggle("corpse_enabled", "Corpse ESP", Config.Corpses.Enabled)
 			-- Right Column: Aimbot
 			local aimSec = tab:Section("Aimbot Settings", "Right")
 			aimSec:Toggle("aim_enabled", "Aimbot Enabled", Config.Aimbot.Enabled)
 
 			-- Keybind for Aimbot (linked under toggle)
-			local defaultKey = 0x51 -- Q Key
+			local defaultKey = resolveKey(Config.Aimbot.AimKey) or 0x51
 			local kb = aimSec:Keybind("aim_kb", defaultKey, "hold")
 			aimbotKeybindWidget = kb
 			kb:AddToHotkey("Aimbot Lock", "aim_enabled")
@@ -149,7 +173,13 @@ if hasMatchaUI then
 
 			-- Teleport Below
 			local tpSec = tab:Section("Escape", "Right")
-			tpSec:Toggle("tp_below_enabled", "Teleport Below (-50 Y)", Config.TeleportBelow.Enabled)
+			local tpToggle = tpSec:Toggle("tp_below_enabled", "Teleport Below (-50 Y)", Config.TeleportBelow.Enabled)
+			tpToggleWidget = tpToggle
+
+			local defaultTpKey = resolveKey(Config.TeleportBelow.TpKey) or 0x54
+			local tpKb = tpSec:Keybind("tp_kb", defaultTpKey, "toggle")
+			tpKeybindWidget = tpKb
+			tpKb:AddToHotkey("Teleport Below", "tp_below_enabled")
 		end)
 	end)
 end
@@ -165,6 +195,25 @@ local function getAimKeyEnum()
 			return key
 		end
 		-- Try UserInputType
+		local success2, key2 = pcall(function()
+			return Enum.UserInputType[keyStr]
+		end)
+		if success2 and key2 then
+			return key2
+		end
+	end
+	return keyStr
+end
+
+local function getTpKeyEnum()
+	local keyStr = Config.TeleportBelow.TpKey
+	if typeof(keyStr) == "string" then
+		local success, key = pcall(function()
+			return Enum.KeyCode[keyStr]
+		end)
+		if success and key then
+			return key
+		end
 		local success2, key2 = pcall(function()
 			return Enum.UserInputType[keyStr]
 		end)
@@ -247,13 +296,19 @@ local function getTargetPart(character)
 end
 
 local function getLocalPlayerPosition()
-	if localPlayer and localPlayer.Character then
-		local character = localPlayer.Character
-		local primaryPart = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
-		if primaryPart then
-			local pos = primaryPart.Position
-			if typeof(pos) == "Vector3" then
-				return pos
+	-- In Prior Extinction, the dino model is at Workspace.Characters[localPlayer.Name]
+	if localPlayer then
+		local chars = Workspace:FindFirstChild("Characters")
+		local character = chars and chars:FindFirstChild(localPlayer.Name)
+		if character then
+			local primaryPart = character.PrimaryPart
+				or character:FindFirstChild("HumanoidRootPart")
+				or character:FindFirstChildWhichIsA("BasePart")
+			if primaryPart then
+				local pos = primaryPart.Position
+				if typeof(pos) == "Vector3" then
+					return pos
+				end
 			end
 		end
 	end
@@ -473,7 +528,6 @@ local cachedFossilList = {}
 local function updateFossilEsp()
 	local folder = Workspace:FindFirstChild("SpawnedFossils")
 
-	local espEnabled = getValue("esp_enabled", { "ESP", "Enabled" })
 	local fossilsEnabled = getValue("fossil_enabled", { "Fossils", "Enabled" })
 	if not fossilsEnabled or not folder then
 		for fossil, textLabels in pairs(fossilCache) do
@@ -575,6 +629,134 @@ local function updateFossilEsp()
 	end
 end
 
+local corpseUpdateTick = 0
+local cachedCorpseList = {}
+
+local function updateCorpseEsp()
+	local espEnabled = getValue("esp_enabled", { "ESP", "Enabled" })
+	local corpsesEnabled = getValue("corpse_enabled", { "Corpses", "Enabled" })
+
+	local charIgnore = Workspace:FindFirstChild("CharacterIgnore")
+	local ragdollsFolder = charIgnore and charIgnore:FindFirstChild("Ragdolls")
+
+	if not corpsesEnabled or not espEnabled or not ragdollsFolder then
+		for corpse, textLabels in pairs(corpseCache) do
+			for _, label in ipairs(textLabels) do
+				label:Remove()
+			end
+			corpseCache[corpse] = nil
+		end
+		return
+	end
+
+	-- 1. Gather all active corpses efficiently (Update list once per second)
+	local currentTime = os.clock()
+	if currentTime > corpseUpdateTick then
+		cachedCorpseList = {}
+		for _, host in ipairs(ragdollsFolder:GetChildren()) do
+			if host.Name == "Host" then
+				local physics = host:FindFirstChild("Physics")
+				if physics and physics:FindFirstChild("HumanoidRootPart") then
+					table.insert(cachedCorpseList, host)
+				end
+			end
+		end
+		corpseUpdateTick = currentTime + 1
+	end
+
+	local activeCorpses = {}
+	for _, host in ipairs(cachedCorpseList) do
+		if host.Parent then
+			activeCorpses[host] = true
+			if not corpseCache[host] then
+				corpseCache[host] = {}
+			end
+		end
+	end
+
+	local localPosition = getLocalPlayerPosition()
+
+	-- 2. Process cache
+	for host, textLabels in pairs(corpseCache) do
+		if not activeCorpses[host] then
+			for _, label in ipairs(textLabels) do
+				label:Remove()
+			end
+			corpseCache[host] = nil
+			continue
+		end
+
+		local physics = host:FindFirstChild("Physics")
+		local rootPart = physics and physics:FindFirstChild("HumanoidRootPart")
+
+		if not rootPart then
+			for _, label in ipairs(textLabels) do
+				label.Visible = false
+			end
+			continue
+		end
+
+		local tPos
+		pcall(function()
+			tPos = rootPart.Position
+		end)
+
+		if typeof(tPos) ~= "Vector3" or typeof(localPosition) ~= "Vector3" then
+			for _, label in ipairs(textLabels) do
+				label.Visible = false
+			end
+			continue
+		end
+
+		local distanceInStuds = (tPos - localPosition).Magnitude
+		local distanceInMeters = math.floor(distanceInStuds * 0.28)
+
+		local screenPosition, isOnScreen = worldToScreen(tPos)
+
+		if isOnScreen then
+			-- Read attributes
+			local weight = physics:GetAttribute("Weight") or host:GetAttribute("Weight") or "?"
+			local species = physics:GetAttribute("Species") or host:GetAttribute("Species") or "Unknown"
+
+			local weightStr = tostring(weight)
+			if type(weight) == "number" then
+				weightStr = string.format("%d", math.floor(weight))
+			end
+
+			local lines = {
+				"Corpse",
+				string.format("%s lbs", weightStr),
+				tostring(species),
+				string.format("%d m", distanceInMeters),
+			}
+
+			while #textLabels < #lines do
+				table.insert(textLabels, createEspLabel())
+			end
+			while #textLabels > #lines do
+				local label = table.remove(textLabels)
+				label:Remove()
+			end
+
+			local lineHeight = Config.ESP.TextSize + 2
+			local yOffset = screenPosition.Y
+
+			for i, textLabel in ipairs(textLabels) do
+				textLabel.Text = lines[i]
+				textLabel.Color = Config.Corpses.Color
+				textLabel.Outline = Config.ESP.TextOutline
+				textLabel.Size = Config.ESP.TextSize
+				textLabel.Position = Vector2.new(screenPosition.X, yOffset + (i - 1) * lineHeight)
+				textLabel.Visible = true
+			end
+		else
+			for _, label in ipairs(textLabels) do
+				label.Visible = false
+			end
+		end
+	end
+end
+
 local function getMouseLocation()
 	local success, pos = pcall(function()
 		return UserInputService:GetMouseLocation()
@@ -647,14 +829,16 @@ local function applyAimbot()
 	-- Update active state from Matcha UI if available
 	local isAiming = false
 	if hasMatchaUI and aimbotKeybindWidget then
-		pcall(function()
-			local bindType = aimbotKeybindWidget:GetType()
-			if bindType == "always" then
-				isAiming = true
-			else
-				isAiming = aimbotActive
-			end
+		local success, enabled = pcall(function()
+			return aimbotKeybindWidget:IsEnabled()
 		end)
+		if success then
+			isAiming = enabled
+		else
+			pcall(function()
+				isAiming = aimbotKeybindWidget.value
+			end)
+		end
 	else
 		isAiming = aimbotActive
 	end
@@ -714,8 +898,44 @@ local function applyAimbot()
 	end
 end
 
+local tpDebounce = false
+
 -- Input Listeners for Toggle and Hold support (ignoring gameProcessed so keys always register)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	-- Teleport Below Keybind Handling
+	local tpKey = nil
+	if hasMatchaUI and tpKeybindWidget then
+		pcall(function()
+			tpKey = resolveKey(tpKeybindWidget:GetKey())
+		end)
+	end
+	if not tpKey then
+		tpKey = getTpKeyEnum()
+	end
+
+	if tpKey then
+		local tpMatch = false
+		pcall(function()
+			if input.UserInputType == tpKey or input.KeyCode == tpKey then
+				tpMatch = true
+			end
+		end)
+		if tpMatch then
+			local bindType = "toggle"
+			if hasMatchaUI and tpKeybindWidget then
+				pcall(function()
+					bindType = tpKeybindWidget:GetType()
+				end)
+			end
+
+			if bindType == "toggle" or bindType == "click" then
+				tpBelowActive = not tpBelowActive
+			else
+				tpBelowActive = true
+			end
+		end
+	end
+
 	local aimEnabled = getValue("aim_enabled", { "Aimbot", "Enabled" })
 	if not aimEnabled then
 		return
@@ -765,6 +985,39 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 UserInputService.InputEnded:Connect(function(input, gameProcessed)
+	-- Teleport Below Keybind Handling
+	local tpKey = nil
+	if hasMatchaUI and tpKeybindWidget then
+		pcall(function()
+			tpKey = resolveKey(tpKeybindWidget:GetKey())
+		end)
+	end
+	if not tpKey then
+		tpKey = getTpKeyEnum()
+	end
+
+	if tpKey then
+		local tpMatch = false
+		pcall(function()
+			if input.UserInputType == tpKey or input.KeyCode == tpKey then
+				tpMatch = true
+			end
+		end)
+		if tpMatch then
+			local bindType = "hold"
+			if hasMatchaUI and tpKeybindWidget then
+				pcall(function()
+					bindType = tpKeybindWidget:GetType()
+				end)
+			else
+				bindType = "toggle"
+			end
+			if bindType == "hold" then
+				tpBelowActive = false
+			end
+		end
+	end
+
 	-- Resolve target key dynamically from Matcha UI keybind if available, else fallback
 	local targetKey = nil
 	if hasMatchaUI and aimbotKeybindWidget then
@@ -819,23 +1072,50 @@ if not successBind then
 end
 
 local function applyTeleportBelow()
-	local tpEnabled = getValue("tp_below_enabled", { "TeleportBelow", "Enabled" }) == true
-
-	local folder = Workspace:FindFirstChild("Characters") or Workspace:FindFirstChild("SpawnedAI") or Workspace
-
-	local myCharacter = nil
-	if localPlayer and folder then
-		myCharacter = folder:FindFirstChild(localPlayer.Name)
+	local shouldBeTeleported = false
+	if hasMatchaUI and tpToggleWidget and tpKeybindWidget then
+		-- When UI is present, read the master switch and the keybind active state directly from the UI widgets.
+		local tpEnabled = tpToggleWidget:GetValue() == true
+		local isActive = false
+		local success, enabled = pcall(function()
+			return tpKeybindWidget:IsEnabled()
+		end)
+		if success then
+			isActive = enabled
+		else
+			pcall(function()
+				isActive = tpKeybindWidget.value
+			end)
+		end
+		shouldBeTeleported = tpEnabled and isActive
+	else
+		-- No UI: use the manual config switch and manually tracked keybind state
+		local tpEnabled = getValue("tp_below_enabled", { "TeleportBelow", "Enabled" })
+		shouldBeTeleported = (tpEnabled == true) and (tpBelowActive == true)
 	end
-	if not myCharacter then
-		myCharacter = localPlayer.Character
+
+	-- Dino model lives at Workspace.Characters[localPlayer.Name] in Prior Extinction
+	local myCharacter = nil
+	if localPlayer then
+		local chars = Workspace:FindFirstChild("Characters")
+		if chars then
+			myCharacter = chars:FindFirstChild(localPlayer.Name)
+		end
+		if not myCharacter then
+			local spawnedAI = Workspace:FindFirstChild("SpawnedAI")
+			if spawnedAI then
+				myCharacter = spawnedAI:FindFirstChild(localPlayer.Name)
+			end
+		end
 	end
 
 	if not myCharacter then
 		return
 	end
 
-	local primaryPart = myCharacter.PrimaryPart or myCharacter:FindFirstChild("HumanoidRootPart")
+	local primaryPart = myCharacter.PrimaryPart
+		or myCharacter:FindFirstChild("HumanoidRootPart")
+		or myCharacter:FindFirstChildWhichIsA("BasePart")
 	if not primaryPart then
 		return
 	end
@@ -852,7 +1132,7 @@ local function applyTeleportBelow()
 		table.clear(teleportState.anchoredParts)
 	end
 
-	if tpEnabled and not teleportState.active then
+	if shouldBeTeleported and not teleportState.active then
 		-- Save state
 		teleportState.character = myCharacter
 		teleportState.originalCFrame = primaryPart.CFrame
@@ -875,7 +1155,7 @@ local function applyTeleportBelow()
 		pcall(function()
 			primaryPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
 		end)
-	elseif not tpEnabled and teleportState.active then
+	elseif not shouldBeTeleported and teleportState.active then
 		-- Restore state and teleport up
 		if teleportState.originalCFrame then
 			primaryPart.CFrame = teleportState.originalCFrame
@@ -898,23 +1178,6 @@ local function applyTeleportBelow()
 		teleportState.active = false
 		teleportState.originalCFrame = nil
 		teleportState.character = nil
-	end
-
-	-- Lock position forcefully
-	if teleportState.active and teleportState.originalCFrame then
-		primaryPart.CFrame = teleportState.originalCFrame * CFrame.new(0, -50, 0)
-		pcall(function()
-			primaryPart.Velocity = Vector3.new(0, 0, 0)
-		end)
-		pcall(function()
-			primaryPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-		end)
-
-		local hum = teleportState.character and teleportState.character:FindFirstChildOfClass("Humanoid")
-		if hum then
-			hum.WalkSpeed = 0
-			hum.JumpPower = 0
-		end
 	end
 end
 
@@ -949,6 +1212,7 @@ local function mainLoop()
 	updateEsp()
 	applyTeleportBelow()
 	updateFossilEsp()
+	updateCorpseEsp()
 end
 
 -- Bind other features directly to RenderStepped to avoid executor BindToRenderStep throttling/lag
