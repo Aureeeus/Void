@@ -48,6 +48,12 @@ getgenv().Config = getgenv().Config
 		},
 		Combat = {
 			NoRecoil = false,
+			RapidFire = false,
+			RapidFireValue = 5,
+		},
+		Mods = {
+			Fullbright = false,
+			NoFog = false,
 		},
 	}
 
@@ -75,6 +81,11 @@ local VisualsTab = Window:Tab({
 local CombatTab = Window:Tab({
 	Title = "Combat",
 	Icon = "solar:target-bold",
+})
+
+local ModsTab = Window:Tab({
+	Title = "Mods",
+	Icon = "solar:box-bold",
 })
 
 local ESPSettingsSection = VisualsTab:Section({
@@ -106,8 +117,6 @@ ESPSettingsSection:Colorpicker({
 		getgenv().Config.ESP.OutlineColor = color
 	end,
 })
-
-ESPSettingsSection:Space()
 
 ESPSettingsSection:Slider({
 	Title = "Text Size",
@@ -298,6 +307,54 @@ CombatSection:Toggle({
 })
 
 -- ==========================================
+-- Mods Configuration UI
+-- ==========================================
+local ModsSection = ModsTab:Section({
+	Title = "Gun Mods",
+})
+
+ModsSection:Toggle({
+	Title = "Rapid Fire",
+	Value = getgenv().Config.Combat.RapidFire,
+	Callback = function(state)
+		getgenv().Config.Combat.RapidFire = state
+	end,
+})
+
+ModsSection:Slider({
+	Title = "Rapid Fire Multiplier",
+	Step = 1,
+	Value = {
+		Min = 1,
+		Max = 20,
+		Default = getgenv().Config.Combat.RapidFireValue,
+	},
+	Callback = function(value)
+		getgenv().Config.Combat.RapidFireValue = value
+	end,
+})
+
+local WorldModsSection = ModsTab:Section({
+	Title = "World Settings",
+})
+
+WorldModsSection:Toggle({
+	Title = "Fullbright",
+	Value = getgenv().Config.Mods.Fullbright,
+	Callback = function(state)
+		getgenv().Config.Mods.Fullbright = state
+	end,
+})
+
+WorldModsSection:Toggle({
+	Title = "No Fog",
+	Value = getgenv().Config.Mods.NoFog,
+	Callback = function(state)
+		getgenv().Config.Mods.NoFog = state
+	end,
+})
+
+-- ==========================================
 
 -- ==========================================
 -- UI Settings Tab
@@ -381,15 +438,22 @@ function CharacterManager.GetActiveCharacters()
 		end
 
 		local humanoid = characterModel:FindFirstChild("Humanoid")
-		local rootPart = characterModel:FindFirstChild("HumanoidRootPart")
+		local rootPart = characterModel.PrimaryPart or characterModel:FindFirstChild("HumanoidRootPart")
 		local head = characterModel:FindFirstChild("Head")
 
-		if humanoid and rootPart and head and humanoid.Health > 0 then
-			activeCharacters[characterModel] = {
-				Player = player,
-				Head = head,
-				RootPart = rootPart,
-			}
+		if humanoid and rootPart and head then
+			local health = rootPart:GetAttribute("Health")
+			if health == nil then
+				health = humanoid.Health
+			end
+
+			if health > 0 then
+				activeCharacters[characterModel] = {
+					Player = player,
+					Head = head,
+					RootPart = rootPart,
+				}
+			end
 		end
 	end
 
@@ -562,6 +626,11 @@ function ESPManager.Update()
 	end
 
 	for character, playerData in pairs(activeCharacters) do
+		local isVisible3D = false
+		if config.VisibleCheck and (config.Enabled or config.ChamsEnabled) then
+			isVisible3D = CharacterManager.IsVisible(playerData.Head, character)
+		end
+
 		-- Handle Text ESP
 		if config.Enabled then
 			local textDrawing = ESPManager.Cache[character]
@@ -579,7 +648,7 @@ function ESPManager.Update()
 
 				textDrawing.Text = ESPManager.FormatPlayerText(playerData, distanceInMeters)
 				textDrawing.Position = Vector2.new(screenPosition.X, screenPosition.Y)
-				textDrawing.Color = config.TextColor
+				textDrawing.Color = isVisible3D and config.VisibleColor or config.TextColor
 				textDrawing.OutlineColor = config.OutlineColor
 				textDrawing.Size = config.TextSize
 				textDrawing.Font = config.Font
@@ -601,8 +670,7 @@ function ESPManager.Update()
 				ESPManager.ChamsCache[character] = highlight
 			end
 
-			local isVisible = config.VisibleCheck and CharacterManager.IsVisible(playerData.Head, character)
-			highlight.FillColor = isVisible and config.VisibleColor or config.ChamsFillColor
+			highlight.FillColor = isVisible3D and config.VisibleColor or config.ChamsFillColor
 			highlight.OutlineColor = config.ChamsOutlineColor
 		end
 	end
@@ -643,14 +711,6 @@ function BulletTracerManager.AddTracer(origin, hitPos)
 		Part = part,
 		ExpireTime = os.clock() + 2,
 	})
-
-	print(
-		string.format(
-			"[Tracer Debug] Added 3D Tracer! Distance: %.2f | Color: %s",
-			distance,
-			tostring(config.TracerColor)
-		)
-	)
 end
 
 function BulletTracerManager.Update()
@@ -697,19 +757,48 @@ if BulletMod then
 						and ReplicatedStorage:WaitForChild("AmmoTypes", 2):FindFirstChild(ammoName)
 					local muzzleVelocity = ammoType and ammoType:GetAttribute("MuzzleVelocity") or 3000
 
-					local origin = Camera.CFrame.Position
-					local distance = (targetHead.Position - origin).Magnitude
-					local timeToHit = distance / muzzleVelocity
+					local FunctionLibraryExtension = require(
+						ReplicatedStorage:WaitForChild("Modules", 10):WaitForChild("FunctionLibraryExtension", 10)
+					)
+					local origin = FunctionLibraryExtension
+							and FunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
+						or Camera.CFrame.Position
 
 					local targetVelocity = targetRoot.AssemblyLinearVelocity
-					local drop = 0.5 * 70 * (timeToHit ^ 2)
+					local v = muzzleVelocity
+					local G = 70
 
-					TargetManager.PredictedPosition = targetHead.Position
-						+ (targetVelocity * timeToHit)
-						+ Vector3.new(0, drop, 0)
+					-- Exact quadratic formula solver for projectile motion
+					local timeToHit = (targetHead.Position - origin).Magnitude / v
+					for i = 1, 3 do
+						local targetPos = targetHead.Position + targetVelocity * timeToHit
+						local A = targetPos - origin
+						local a = 0.25 * G * G
+						local b = A.Y * G - v * v
+						local c = A.Magnitude * A.Magnitude
+						local discriminant = b * b - 4 * a * c
+
+						if discriminant >= 0 then
+							local u1 = (-b - math.sqrt(discriminant)) / (2 * a)
+							local u2 = (-b + math.sqrt(discriminant)) / (2 * a)
+							local u = u1
+							if u < 0 then
+								u = u2
+							end
+							if u > 0 then
+								timeToHit = math.sqrt(u)
+							end
+						end
+					end
+
+					local finalPredictedPos = targetHead.Position + targetVelocity * timeToHit
+					local finalDrop = 0.5 * G * (timeToHit ^ 2)
+					local aimPos = finalPredictedPos + Vector3.new(0, finalDrop, 0)
+
+					TargetManager.PredictedPosition = finalPredictedPos
 
 					args[5] = {
-						CFrame = CFrame.lookAt(origin, TargetManager.PredictedPosition),
+						CFrame = CFrame.lookAt(origin, aimPos),
 					}
 
 					if getgenv().Config.SilentAim.BulletTracers then
@@ -717,7 +806,12 @@ if BulletMod then
 					end
 				else
 					if getgenv().Config.SilentAim.BulletTracers then
-						local origin = Camera.CFrame.Position
+						local FunctionLibraryExtension = require(
+							ReplicatedStorage:WaitForChild("Modules", 10):WaitForChild("FunctionLibraryExtension", 10)
+						)
+						local origin = FunctionLibraryExtension
+								and FunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
+							or Camera.CFrame.Position
 						local params = RaycastParams.new()
 						params.FilterType = Enum.RaycastFilterType.Exclude
 						params.FilterDescendantsInstances = { LocalPlayer.Character, Camera }
@@ -740,44 +834,52 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
 	local method = getnamecallmethod()
 	local args = { ... }
 
-	if method == "GetAttribute" and getgenv().Config.Combat.NoRecoil then
+	if method == "GetAttribute" then
 		local attrName = args[1]
-		if
-			attrName == "RecoilStrength"
-			or attrName == "AccuracyDeviation"
-			or attrName == "Recoil"
-			or attrName == "HRecoilMod"
-			or attrName == "VRecoilMod"
-		then
-			return 0
+
+		if getgenv().Config.Combat.NoRecoil then
+			if
+				attrName == "RecoilStrength"
+				or attrName == "AccuracyDeviation"
+				or attrName == "Recoil"
+				or attrName == "HRecoilMod"
+				or attrName == "VRecoilMod"
+			then
+				return 0
+			end
+		end
+
+		if getgenv().Config.Combat.RapidFire and attrName == "FireRate" then
+			local originalValue = oldNamecall(self, unpack(args))
+			if type(originalValue) == "number" then
+				local newValue
+				if originalValue < 10 then
+					-- Cooldown style (e.g. 0.1s delay between shots)
+					newValue = originalValue / getgenv().Config.Combat.RapidFireValue
+				else
+					-- RPM style (e.g. 600 rounds per minute)
+					newValue = originalValue * getgenv().Config.Combat.RapidFireValue
+				end
+				print(
+					"[RapidFire Debug] Original:",
+					originalValue,
+					"| Modded:",
+					newValue,
+					"| Multiplier:",
+					getgenv().Config.Combat.RapidFireValue
+				)
+				return newValue
+			end
 		end
 	end
 
 	if not checkcaller() and getgenv().Config.SilentAim.Enabled and TargetManager.CurrentTarget then
-		local targetHead = TargetManager.CurrentTarget.Head
-
 		if method == "FireServer" or method == "InvokeServer" then
-			-- Override ProjectileInflict (which actually applies the damage to a player)
-			-- args[1] = Target Instance, args[2] = Local Offset (ObjectSpace)
 			if self.Name == "ProjectileInflict" then
-				args[1] = targetHead
-				args[2] = Vector3.new(0, 0, 0) -- Dead center of the head
-				return oldNamecall(self, unpack(args))
-			end
-		end
-
-		-- Hook Workspace:Raycast() to spoof bullet visual tracers and local hits
-		if method == "Raycast" and (self == workspace or self.Name == "Workspace") then
-			local origin = args[1]
-			local originalDir = args[2]
-			local raycastParams = args[3]
-
-			if typeof(raycastParams) == "RaycastParams" and raycastParams.CollisionGroup == "WeaponRay" then
-				local targetPos = TargetManager.PredictedPosition or targetHead.Position
-				local newDirection = (targetPos - origin).Unit * originalDir.Magnitude
-
-				args[2] = newDirection
-				return oldNamecall(self, unpack(args))
+				print("[Damage Debug] ProjectileInflict Fired! Physical bullet naturally hit:", tostring(args[1]))
+				-- We no longer spoof this to "Head". We let the game send the exact part it hit to the server.
+				-- If the bullet hit the RightUpperArm on the client, it will also hit the RightUpperArm on the server's trajectory simulation.
+				-- If we lie and say we hit the Head when the Arm was in the way, the server's anti-cheat rejects the damage completely!
 			end
 		end
 	end
@@ -786,10 +888,36 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
 end)
 
 -- ==========================================
+-- WorldMods Manager
+-- ==========================================
+local WorldModsManager = {}
+
+function WorldModsManager.Update()
+	local Lighting = game:GetService("Lighting")
+
+	if getgenv().Config.Mods.Fullbright then
+		Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+		Lighting.Brightness = 2
+		Lighting.ClockTime = 14
+		Lighting.GlobalShadows = false
+	end
+
+	if getgenv().Config.Mods.NoFog then
+		Lighting.FogEnd = 100000
+		for _, child in ipairs(Lighting:GetChildren()) do
+			if child:IsA("Atmosphere") then
+				child.Density = 0
+			end
+		end
+	end
+end
+
+-- ==========================================
 -- Main Loop
 -- ==========================================
 RunService.RenderStepped:Connect(function()
 	ESPManager.Update()
 	CombatManager.Update()
 	BulletTracerManager.Update()
+	WorldModsManager.Update()
 end)
