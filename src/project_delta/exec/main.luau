@@ -76,9 +76,9 @@ getgenv().Config = getgenv().Config
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-	Title = ".ftgs hub  |  Project Delta",
+	Title = "Skibidi Hub |  Project Delta",
 	Icon = "solar:ghost-bold",
-	Folder = "ProjectDeltaHub",
+	Folder = "Skibidi Hub",
 	HideSearchBar = true,
 	Topbar = {
 		Height = 44,
@@ -102,11 +102,12 @@ local ModsTab = Window:Tab({
 })
 
 local ESPSettingsSection = VisualsTab:Section({
-	Title = "ESP Configuration",
+	Title = "ESP",
 })
 
 ESPSettingsSection:Toggle({
 	Title = "Enable ESP",
+	Flag = "EnableESP",
 	Value = getgenv().Config.ESP.Enabled,
 	Callback = function(state)
 		getgenv().Config.ESP.Enabled = state
@@ -117,6 +118,7 @@ ESPSettingsSection:Space()
 
 ESPSettingsSection:Colorpicker({
 	Title = "Text Color",
+	Flag = "TextColor",
 	Default = getgenv().Config.ESP.TextColor,
 	Callback = function(color)
 		getgenv().Config.ESP.TextColor = color
@@ -125,6 +127,7 @@ ESPSettingsSection:Colorpicker({
 
 ESPSettingsSection:Colorpicker({
 	Title = "Outline Color",
+	Flag = "OutlineColor",
 	Default = getgenv().Config.ESP.OutlineColor,
 	Callback = function(color)
 		getgenv().Config.ESP.OutlineColor = color
@@ -133,6 +136,7 @@ ESPSettingsSection:Colorpicker({
 
 ESPSettingsSection:Slider({
 	Title = "Text Size",
+	Flag = "TextSize",
 	Step = 1,
 	Value = {
 		Min = 8,
@@ -148,6 +152,7 @@ ESPSettingsSection:Space()
 
 ESPSettingsSection:Dropdown({
 	Title = "ESP Font",
+	Flag = "ESPFont",
 	Values = {
 		"UI",
 		"System",
@@ -170,6 +175,7 @@ ESPSettingsSection:Space()
 
 ESPSettingsSection:Toggle({
 	Title = "Enable Chams",
+	Flag = "EnableChams",
 	Value = getgenv().Config.ESP.ChamsEnabled,
 	Callback = function(state)
 		getgenv().Config.ESP.ChamsEnabled = state
@@ -178,6 +184,7 @@ ESPSettingsSection:Toggle({
 
 ESPSettingsSection:Colorpicker({
 	Title = "Chams Fill Color",
+	Flag = "ChamsFillColor",
 	Default = getgenv().Config.ESP.ChamsFillColor,
 	Callback = function(color)
 		getgenv().Config.ESP.ChamsFillColor = color
@@ -186,6 +193,7 @@ ESPSettingsSection:Colorpicker({
 
 ESPSettingsSection:Colorpicker({
 	Title = "Chams Outline Color",
+	Flag = "ChamsOutlineColor",
 	Default = getgenv().Config.ESP.ChamsOutlineColor,
 	Callback = function(color)
 		getgenv().Config.ESP.ChamsOutlineColor = color
@@ -196,6 +204,7 @@ ESPSettingsSection:Space()
 
 ESPSettingsSection:Toggle({
 	Title = "Visible Check",
+	Flag = "VisibleCheck",
 	Value = getgenv().Config.ESP.VisibleCheck,
 	Callback = function(state)
 		getgenv().Config.ESP.VisibleCheck = state
@@ -204,6 +213,7 @@ ESPSettingsSection:Toggle({
 
 ESPSettingsSection:Colorpicker({
 	Title = "Visible Color",
+	Flag = "VisibleColor",
 	Default = getgenv().Config.ESP.VisibleColor,
 	Callback = function(color)
 		getgenv().Config.ESP.VisibleColor = color
@@ -214,6 +224,7 @@ ESPSettingsSection:Space()
 
 ESPSettingsSection:Toggle({
 	Title = "Enable Corpse ESP",
+	Flag = "EnableCorpseESP",
 	Value = getgenv().Config.ESP.CorpseESPEnabled,
 	Callback = function(state)
 		getgenv().Config.ESP.CorpseESPEnabled = state
@@ -222,6 +233,7 @@ ESPSettingsSection:Toggle({
 
 ESPSettingsSection:Colorpicker({
 	Title = "Corpse Text Color",
+	Flag = "CorpseTextColor",
 	Default = getgenv().Config.ESP.CorpseTextColor,
 	Callback = function(color)
 		getgenv().Config.ESP.CorpseTextColor = color
@@ -230,6 +242,7 @@ ESPSettingsSection:Colorpicker({
 
 ESPSettingsSection:Colorpicker({
 	Title = "Corpse Outline Color",
+	Flag = "CorpseOutlineColor",
 	Default = getgenv().Config.ESP.CorpseOutlineColor,
 	Callback = function(color)
 		getgenv().Config.ESP.CorpseOutlineColor = color
@@ -240,6 +253,7 @@ ESPSettingsSection:Space()
 
 ESPSettingsSection:Toggle({
 	Title = "Enable Exit ESP",
+	Flag = "EnableExitESP",
 	Value = getgenv().Config.ESP.ExitESPEnabled,
 	Callback = function(state)
 		getgenv().Config.ESP.ExitESPEnabled = state
@@ -248,6 +262,7 @@ ESPSettingsSection:Toggle({
 
 ESPSettingsSection:Colorpicker({
 	Title = "Exit Text Color",
+	Flag = "ExitTextColor",
 	Default = getgenv().Config.ESP.ExitTextColor,
 	Callback = function(color)
 		getgenv().Config.ESP.ExitTextColor = color
@@ -256,6 +271,7 @@ ESPSettingsSection:Colorpicker({
 
 ESPSettingsSection:Colorpicker({
 	Title = "Exit Outline Color",
+	Flag = "ExitOutlineColor",
 	Default = getgenv().Config.ESP.ExitOutlineColor,
 	Callback = function(color)
 		getgenv().Config.ESP.ExitOutlineColor = color
@@ -268,6 +284,7 @@ local BulletTracersSection = VisualsTab:Section({
 
 BulletTracersSection:Toggle({
 	Title = "Enable Bullet Tracers",
+	Flag = "EnableBulletTracers",
 	Value = getgenv().Config.SilentAim.BulletTracers,
 	Callback = function(state)
 		getgenv().Config.SilentAim.BulletTracers = state
@@ -276,6 +293,7 @@ BulletTracersSection:Toggle({
 
 BulletTracersSection:Colorpicker({
 	Title = "Tracer Color",
+	Flag = "TracerColor",
 	Default = getgenv().Config.SilentAim.TracerColor,
 	Callback = function(color)
 		getgenv().Config.SilentAim.TracerColor = color
@@ -284,6 +302,7 @@ BulletTracersSection:Colorpicker({
 
 BulletTracersSection:Slider({
 	Title = "Tracer Transparency",
+	Flag = "TracerTransparency",
 	Step = 0.05,
 	Value = {
 		Min = 0,
@@ -301,6 +320,7 @@ local InventoryViewerSection = VisualsTab:Section({
 
 InventoryViewerSection:Toggle({
 	Title = "Enable Inventory Viewer",
+	Flag = "EnableInventoryViewer",
 	Value = getgenv().Config.ESP.InventoryViewer,
 	Callback = function(state)
 		getgenv().Config.ESP.InventoryViewer = state
@@ -316,6 +336,7 @@ local CombatSection = CombatTab:Section({
 
 CombatSection:Toggle({
 	Title = "Instant Hit",
+	Flag = "InstantHit",
 	Value = getgenv().Config.Combat.InstantHit,
 	Callback = function(state)
 		getgenv().Config.Combat.InstantHit = state
@@ -324,6 +345,7 @@ CombatSection:Toggle({
 
 CombatSection:Toggle({
 	Title = "No Recoil & Spread",
+	Flag = "NoRecoilSpread",
 	Value = getgenv().Config.Combat.NoRecoil,
 	Callback = function(state)
 		getgenv().Config.Combat.NoRecoil = state
@@ -331,11 +353,12 @@ CombatSection:Toggle({
 })
 
 local SilentAimSection = CombatTab:Section({
-	Title = "Silent Aim Configuration",
+	Title = "Silent Aim",
 })
 
 SilentAimSection:Toggle({
 	Title = "Enable Silent Aim",
+	Flag = "EnableSilentAim",
 	Value = getgenv().Config.SilentAim.Enabled,
 	Callback = function(state)
 		getgenv().Config.SilentAim.Enabled = state
@@ -346,6 +369,7 @@ SilentAimSection:Space()
 
 SilentAimSection:Toggle({
 	Title = "Show FOV Circle",
+	Flag = "ShowFOVCircle",
 	Value = getgenv().Config.SilentAim.ShowFOV,
 	Callback = function(state)
 		getgenv().Config.SilentAim.ShowFOV = state
@@ -354,6 +378,7 @@ SilentAimSection:Toggle({
 
 SilentAimSection:Toggle({
 	Title = "Show Snapline",
+	Flag = "ShowSnapline",
 	Value = getgenv().Config.SilentAim.ShowSnapline,
 	Callback = function(state)
 		getgenv().Config.SilentAim.ShowSnapline = state
@@ -364,6 +389,7 @@ SilentAimSection:Space()
 
 SilentAimSection:Slider({
 	Title = "FOV Radius",
+	Flag = "FOVRadius",
 	Step = 1,
 	Value = {
 		Min = 10,
@@ -379,6 +405,7 @@ SilentAimSection:Space()
 
 SilentAimSection:Toggle({
 	Title = "Visible Check (Snapline)",
+	Flag = "VisibleCheckSnapline",
 	Value = getgenv().Config.SilentAim.VisibleCheck,
 	Callback = function(state)
 		getgenv().Config.SilentAim.VisibleCheck = state
@@ -387,6 +414,7 @@ SilentAimSection:Toggle({
 
 SilentAimSection:Colorpicker({
 	Title = "Snapline Color",
+	Flag = "SnaplineColor",
 	Default = getgenv().Config.SilentAim.VisibleColor,
 	Callback = function(color)
 		getgenv().Config.SilentAim.VisibleColor = color
@@ -402,6 +430,7 @@ local ModsSection = ModsTab:Section({
 
 ModsSection:Toggle({
 	Title = "Rapid Fire",
+	Flag = "RapidFire",
 	Value = getgenv().Config.Combat.RapidFire,
 	Callback = function(state)
 		getgenv().Config.Combat.RapidFire = state
@@ -410,6 +439,7 @@ ModsSection:Toggle({
 
 ModsSection:Slider({
 	Title = "Rapid Fire Multiplier",
+	Flag = "RapidFireMultiplier",
 	Step = 1,
 	Value = {
 		Min = 1,
@@ -422,11 +452,12 @@ ModsSection:Slider({
 })
 
 local WorldModsSection = ModsTab:Section({
-	Title = "World Settings",
+	Title = "World",
 })
 
 WorldModsSection:Toggle({
 	Title = "Fullbright",
+	Flag = "Fullbright",
 	Value = getgenv().Config.Mods.Fullbright,
 	Callback = function(state)
 		getgenv().Config.Mods.Fullbright = state
@@ -435,6 +466,7 @@ WorldModsSection:Toggle({
 
 WorldModsSection:Toggle({
 	Title = "No Fog",
+	Flag = "NoFog",
 	Value = getgenv().Config.Mods.NoFog,
 	Callback = function(state)
 		getgenv().Config.Mods.NoFog = state
@@ -442,20 +474,53 @@ WorldModsSection:Toggle({
 })
 
 local HitsoundSection = ModsTab:Section({
-	Title = "Hitsound Settings",
+	Title = "Hitsound",
 })
+
+local originalHitsoundVolumes = {}
+
+local function UpdateDefaultHitsounds(mute)
+	local RS = game:GetService("ReplicatedStorage")
+	local paths = {
+		{"SFX", "Hits", "MeleeHits", "Blood", "Hit"},
+		{"SFX", "Hits", "ProjectileHits", "Blood", "Hit"},
+		{"SFX", "Hits", "ProjectileHits", "Default", "Hit"}
+	}
+	
+	for _, path in ipairs(paths) do
+		local current = RS
+		for _, name in ipairs(path) do
+			if current then
+				current = current:FindFirstChild(name)
+			end
+		end
+		
+		if current and current:IsA("Sound") then
+			if not originalHitsoundVolumes[current] then
+				originalHitsoundVolumes[current] = current.Volume
+			end
+			current.Volume = mute and 0 or originalHitsoundVolumes[current]
+		end
+	end
+end
 
 HitsoundSection:Toggle({
 	Title = "Enable Hitsound",
+	Flag = "EnableHitsound",
 	Value = getgenv().Config.Mods.Hitsound,
 	Callback = function(state)
 		getgenv().Config.Mods.Hitsound = state
+		UpdateDefaultHitsounds(state)
 	end,
 })
 
+-- Sync initial state
+UpdateDefaultHitsounds(getgenv().Config.Mods.Hitsound)
+
 HitsoundSection:Dropdown({
 	Title = "Hitsound Type",
-	Values = {"Rust", "Custom"},
+	Flag = "HitsoundType",
+	Values = { "Rust", "Minecraft", "Custom" },
 	Value = getgenv().Config.Mods.HitsoundType,
 	Callback = function(option)
 		getgenv().Config.Mods.HitsoundType = option
@@ -464,6 +529,7 @@ HitsoundSection:Dropdown({
 
 HitsoundSection:Input({
 	Title = "Custom Sound (Asset ID or Local File)",
+	Flag = "CustomSoundAssetIDorLocalFile",
 	Placeholder = "e.g. 160432334 or hit.mp3",
 	Value = getgenv().Config.Mods.HitsoundCustomId,
 	Callback = function(value)
@@ -473,6 +539,7 @@ HitsoundSection:Input({
 
 HitsoundSection:Slider({
 	Title = "Hitsound Volume",
+	Flag = "HitsoundVolume",
 	Step = 0.1,
 	Value = {
 		Min = 0.1,
@@ -495,17 +562,117 @@ local SettingsTab = Window:Tab({
 })
 
 local UISection = SettingsTab:Section({
-	Title = "UI Configuration",
+	Title = "UI",
 })
 
 UISection:Keybind({
 	Title = "Toggle Menu Key",
+	Flag = "ToggleMenuKey",
 	Desc = "Change the keybind to hide/show the interface",
 	Value = "RightControl",
 	Callback = function(keyName)
 		pcall(function()
 			Window:SetToggleKey(Enum.KeyCode[keyName])
 		end)
+	end,
+})
+
+local ConfigSection = SettingsTab:Section({
+	Title = "Config",
+})
+
+local ConfigManager = Window.ConfigManager
+local currentConfigName = "Default"
+local MyConfig = ConfigManager:CreateConfig(currentConfigName)
+
+local function GetConfigs()
+	local configs = ConfigManager:AllConfigs()
+	if type(configs) == "table" and #configs > 0 then
+		return configs
+	end
+	return { "Default" }
+end
+
+local function NotifyWithSound(title, content)
+	task.spawn(function()
+		pcall(function()
+			local sound = Instance.new("Sound")
+			sound.SoundId = "rbxassetid://98797174600699"
+			sound.Volume = 1
+			sound.PlayOnRemove = true
+			sound.Parent = safeGetService("SoundService")
+			sound:Play()
+			sound:Destroy()
+		end)
+	end)
+	WindUI:Notify({
+		Title = title,
+		Content = content,
+		Duration = 3,
+	})
+end
+
+local ConfigDropdown
+ConfigDropdown = ConfigSection:Dropdown({
+	Title = "Select Config",
+	Values = GetConfigs(),
+	Value = currentConfigName,
+	Callback = function(option)
+		currentConfigName = option
+		MyConfig = ConfigManager:CreateConfig(currentConfigName)
+	end,
+})
+
+ConfigSection:Input({
+	Title = "New Config Name",
+	Placeholder = "Enter name...",
+	Callback = function(value)
+		if value and value ~= "" then
+			currentConfigName = value
+			MyConfig = ConfigManager:CreateConfig(currentConfigName)
+			ConfigDropdown:Refresh(GetConfigs())
+			ConfigDropdown:Select(value)
+		end
+	end,
+})
+
+ConfigSection:Button({
+	Title = "Save / Overwrite Configuration",
+	Callback = function()
+		if MyConfig then
+			MyConfig:Save()
+			ConfigDropdown:Refresh(GetConfigs())
+			NotifyWithSound("Config Saved", "Saved configuration: " .. currentConfigName)
+		end
+	end,
+})
+
+ConfigSection:Button({
+	Title = "Load Configuration",
+	Callback = function()
+		if MyConfig then
+			MyConfig:Load()
+			NotifyWithSound("Config Loaded", "Loaded configuration: " .. currentConfigName)
+		end
+	end,
+})
+
+ConfigSection:Button({
+	Title = "Delete Configuration",
+	Callback = function()
+		if MyConfig then
+			MyConfig:Delete()
+			ConfigDropdown:Refresh(GetConfigs())
+			NotifyWithSound("Config Deleted", "Deleted configuration: " .. currentConfigName)
+		end
+	end,
+})
+
+ConfigSection:Button({
+	Title = "Refresh Config List",
+	Callback = function()
+		ConfigDropdown:Refresh(GetConfigs())
+		NotifyWithSound("Config List Refreshed", "The configuration list has been updated.")
 	end,
 })
 
@@ -601,7 +768,9 @@ task.spawn(function()
 					local head = child:FindFirstChild("Head")
 					if humanoid and head then
 						local health = child:GetAttribute("Health")
-						if health == nil then health = humanoid.Health end
+						if health == nil then
+							health = humanoid.Health
+						end
 						if health <= 0 then
 							newCorpses[child] = {
 								Head = head,
@@ -623,7 +792,9 @@ task.spawn(function()
 			if exitLocations then
 				for _, child in ipairs(exitLocations:GetChildren()) do
 					if child.Name == "Exit" and (child:IsA("Model") or child:IsA("BasePart")) then
-						local part = child:IsA("Model") and (child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart")) or child
+						local part = child:IsA("Model")
+								and (child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart"))
+							or child
 						if part then
 							newExits[child] = {
 								Head = part,
@@ -919,26 +1090,28 @@ function BulletTracerManager.AddTracer(origin, hitPos)
 		return
 	end
 
-	local distance = (hitPos - origin).Magnitude
+	local attachment0 = Instance.new("Attachment")
+	attachment0.WorldPosition = origin
+	attachment0.Parent = Workspace.Terrain
 
-	local part = Instance.new("Part")
-	part.Name = "Tracer"
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CastShadow = false
-	part.Shape = Enum.PartType.Block -- Block acts perfectly like a laser/cylinder line when scaled thinly
-	part.Material = Enum.Material.Neon
-	part.Color = config.TracerColor
-	part.Transparency = config.TracerTransparency
+	local attachment1 = Instance.new("Attachment")
+	attachment1.WorldPosition = hitPos
+	attachment1.Parent = Workspace.Terrain
 
-	-- Create laser cylinder line stretching from origin to hitPos
-	part.Size = Vector3.new(0.05, 0.05, distance)
-	part.CFrame = CFrame.lookAt(origin, hitPos) * CFrame.new(0, 0, -distance / 2)
-	part.Parent = Workspace.Terrain
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = attachment0
+	beam.Attachment1 = attachment1
+	beam.FaceCamera = true
+	beam.Color = ColorSequence.new(config.TracerColor)
+	beam.Transparency = NumberSequence.new(config.TracerTransparency)
+	beam.Width0 = 0.05
+	beam.Width1 = 0.05
+	beam.Parent = Workspace.Terrain
 
 	table.insert(BulletTracerManager.Tracers, {
-		Part = part,
+		Beam = beam,
+		A0 = attachment0,
+		A1 = attachment1,
 		ExpireTime = os.clock() + 2,
 	})
 end
@@ -950,14 +1123,14 @@ function BulletTracerManager.Update()
 	for i = #BulletTracerManager.Tracers, 1, -1 do
 		local tracer = BulletTracerManager.Tracers[i]
 		if now > tracer.ExpireTime or not config.BulletTracers then
-			if tracer.Part then
-				tracer.Part:Destroy()
-			end
+			if tracer.Beam then tracer.Beam:Destroy() end
+			if tracer.A0 then tracer.A0:Destroy() end
+			if tracer.A1 then tracer.A1:Destroy() end
 			table.remove(BulletTracerManager.Tracers, i)
 		else
-			if tracer.Part then
-				tracer.Part.Color = config.TracerColor
-				tracer.Part.Transparency = config.TracerTransparency
+			if tracer.Beam then
+				tracer.Beam.Color = ColorSequence.new(config.TracerColor)
+				tracer.Beam.Transparency = NumberSequence.new(config.TracerTransparency)
 			end
 		end
 	end
@@ -1106,7 +1279,14 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
 			then
 				print("[Hitscan Outgoing] ->", method, "called on:", self.Name)
 				for i, v in ipairs(args) do
-					print(string.format("   Arg[%d] (%s): %s", i, typeof(v), typeof(v) == "Instance" and v:GetFullName() or tostring(v)))
+					print(
+						string.format(
+							"   Arg[%d] (%s): %s",
+							i,
+							typeof(v),
+							typeof(v) == "Instance" and v:GetFullName() or tostring(v)
+						)
+					)
 				end
 			end
 		end
@@ -1122,19 +1302,27 @@ task.spawn(function()
 	local function hookRemote(remote)
 		if remote:IsA("RemoteEvent") then
 			local lowerName = string.lower(remote.Name)
-			if string.match(lowerName, "reject") 
-				or string.match(lowerName, "hit") 
-				or string.match(lowerName, "damage") 
-				or string.match(lowerName, "inflict") 
+			if
+				string.match(lowerName, "reject")
+				or string.match(lowerName, "hit")
+				or string.match(lowerName, "damage")
+				or string.match(lowerName, "inflict")
 				or string.match(lowerName, "verify")
 				or string.match(lowerName, "bullet")
 			then
 				remote.OnClientEvent:Connect(function(...)
 					if getgenv().Config.Combat.InstantHit then
 						print("[Hitscan Incoming] Server replied via ->", remote.Name)
-						local args = {...}
+						local args = { ... }
 						for i, v in ipairs(args) do
-							print(string.format("   Arg[%d] (%s): %s", i, typeof(v), typeof(v) == "Instance" and v:GetFullName() or tostring(v)))
+							print(
+								string.format(
+									"   Arg[%d] (%s): %s",
+									i,
+									typeof(v),
+									typeof(v) == "Instance" and v:GetFullName() or tostring(v)
+								)
+							)
 						end
 					end
 				end)
@@ -1244,14 +1432,15 @@ local HitsoundManager = {
 	Initialized = false,
 	Remotes = {},
 	Sounds = {
-		Rust = "rbxassetid://4764109000"
-	}
+		Rust = "rbxassetid://4764109000",
+		Minecraft = "rbxassetid://88387457337661",
+	},
 }
 
 function HitsoundManager.Play()
 	local config = getgenv().Config.Mods
-	if not config.Hitsound then 
-		return 
+	if not config.Hitsound then
+		return
 	end
 
 	local soundId = nil
@@ -1276,8 +1465,8 @@ function HitsoundManager.Play()
 		soundId = HitsoundManager.Sounds[selected]
 	end
 
-	if not soundId or soundId == "" then 
-		return 
+	if not soundId or soundId == "" then
+		return
 	end
 
 	task.spawn(function()
@@ -1297,40 +1486,50 @@ function HitsoundManager.Play()
 end
 
 function HitsoundManager.Initialize()
-	if HitsoundManager.Initialized then 
-		return 
+	if HitsoundManager.Initialized then
+		return
 	end
-	
+
 	local Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
-	if not Remotes then 
-		return 
+	if not Remotes then
+		return
 	end
-	
+
 	local ProjectileInflict = Remotes:WaitForChild("ProjectileInflict", 2)
 	local MeleeInflict = Remotes:WaitForChild("MeleeInflict", 2)
 	local MeleeInfIict = Remotes:FindFirstChild("MeleeInfIict")
-	
 
 	local hooked = false
-	
+
 	-- Method 1: hookmetamethod (preferred for namecall)
 	if hookmetamethod and newcclosure then
 		local success, err = pcall(function()
 			local oldNamecall
-			oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-				local method = getnamecallmethod()
-				if method == "FireServer" and (self == ProjectileInflict or self == MeleeInflict or (MeleeInfIict and self == MeleeInfIict)) then
-					pcall(HitsoundManager.Play)
-				end
-				return oldNamecall(self, ...)
-			end))
+			oldNamecall = hookmetamethod(
+				game,
+				"__namecall",
+				newcclosure(function(self, ...)
+					local method = getnamecallmethod()
+					if
+						method == "FireServer"
+						and (
+							self == ProjectileInflict
+							or self == MeleeInflict
+							or (MeleeInfIict and self == MeleeInfIict)
+						)
+					then
+						pcall(HitsoundManager.Play)
+					end
+					return oldNamecall(self, ...)
+				end)
+			)
 		end)
 		if success then
 			hooked = true
 		else
 		end
 	end
-	
+
 	-- Method 2: getrawmetatable (fallback for namecall)
 	if not hooked and getrawmetatable and setreadonly and newcclosure then
 		local success, err = pcall(function()
@@ -1339,7 +1538,10 @@ function HitsoundManager.Initialize()
 			setreadonly(gameMeta, false)
 			gameMeta.__namecall = newcclosure(function(self, ...)
 				local method = getnamecallmethod()
-				if method == "FireServer" and (self == ProjectileInflict or self == MeleeInflict or (MeleeInfIict and self == MeleeInfIict)) then
+				if
+					method == "FireServer"
+					and (self == ProjectileInflict or self == MeleeInflict or (MeleeInfIict and self == MeleeInfIict))
+				then
 					pcall(HitsoundManager.Play)
 				end
 				return oldNamecall(self, ...)
@@ -1351,28 +1553,31 @@ function HitsoundManager.Initialize()
 		else
 		end
 	end
-	
+
 	-- Method 3: hookfunction on RemoteEvent.FireServer (covers index method calls like remote.FireServer(remote, ...))
 	if hookfunction and newcclosure then
 		local success, err = pcall(function()
 			local oldFireServer
-			oldFireServer = hookfunction(Instance.new("RemoteEvent").FireServer, newcclosure(function(self, ...)
-				if self == ProjectileInflict or self == MeleeInflict or (MeleeInfIict and self == MeleeInfIict) then
-					pcall(HitsoundManager.Play)
-				end
-				return oldFireServer(self, ...)
-			end))
+			oldFireServer = hookfunction(
+				Instance.new("RemoteEvent").FireServer,
+				newcclosure(function(self, ...)
+					if self == ProjectileInflict or self == MeleeInflict or (MeleeInfIict and self == MeleeInfIict) then
+						pcall(HitsoundManager.Play)
+					end
+					return oldFireServer(self, ...)
+				end)
+			)
 		end)
 		if success then
 			hooked = true
 		else
 		end
 	end
-	
+
 	if not hooked then
 		return
 	end
-	
+
 	HitsoundManager.Initialized = true
 end
 
@@ -1380,33 +1585,94 @@ end
 -- InventoryViewer Manager
 -- ==========================================
 local verifiedGuns = {
-	ADAR15 = true, AKM = true, AKMN = true, AsVal = true, FAL = true,
-	GoldenMakarov = true, IZh12 = true, IZh81 = true, M4 = true, MK23 = true,
-	MP443 = true, MP5SD = true, Makarov = true, Mosin = true, PKM = true,
-	PPSH41 = true, R700 = true, RPG7 = true, SKS = true, SVD = true,
-	Saiga12 = true, TFZ0 = true, TFZ98S = true, TOZ106 = true, TT33 = true,
-	VZ61 = true
+	ADAR15 = true,
+	AKM = true,
+	AKMN = true,
+	AsVal = true,
+	FAL = true,
+	GoldenMakarov = true,
+	IZh12 = true,
+	IZh81 = true,
+	M4 = true,
+	MK23 = true,
+	MP443 = true,
+	MP5SD = true,
+	Makarov = true,
+	Mosin = true,
+	PKM = true,
+	PPSH41 = true,
+	R700 = true,
+	RPG7 = true,
+	SKS = true,
+	SVD = true,
+	Saiga12 = true,
+	TFZ0 = true,
+	TFZ98S = true,
+	TOZ106 = true,
+	TT33 = true,
+	VZ61 = true,
 }
 
 local verifiedBullets = {
-	["338AP"] = true, ["338T"] = true, ["45AP"] = true, ["45Tracer"] = true,
-	["12gaAP"] = true, ["12gaBuckshot"] = true, ["12gaFlechette"] = true, ["12gaSlug"] = true,
-	["556x45AP"] = true, ["556x45Tracer"] = true, ["762x25AP"] = true, ["762x25Tracer"] = true,
-	["762x39AP"] = true, ["762x39Tracer"] = true, ["762x51AP"] = true, ["762x51Tracer"] = true,
-	["762x54AP"] = true, ["762x54Tracer"] = true, ["9x18AP"] = true, ["9x18Z"] = true,
-	["9x18Tracer"] = true, ["9x19AP"] = true, ["9x19Tracer"] = true, ["9x39AP"] = true,
-	["9x39Z"] = true, ["PG7"] = true
+	["338AP"] = true,
+	["338T"] = true,
+	["45AP"] = true,
+	["45Tracer"] = true,
+	["12gaAP"] = true,
+	["12gaBuckshot"] = true,
+	["12gaFlechette"] = true,
+	["12gaSlug"] = true,
+	["556x45AP"] = true,
+	["556x45Tracer"] = true,
+	["762x25AP"] = true,
+	["762x25Tracer"] = true,
+	["762x39AP"] = true,
+	["762x39Tracer"] = true,
+	["762x51AP"] = true,
+	["762x51Tracer"] = true,
+	["762x54AP"] = true,
+	["762x54Tracer"] = true,
+	["9x18AP"] = true,
+	["9x18Z"] = true,
+	["9x18Tracer"] = true,
+	["9x19AP"] = true,
+	["9x19Tracer"] = true,
+	["9x39AP"] = true,
+	["9x39Z"] = true,
+	["PG7"] = true,
 }
 
 local verifiedMags = {
-	["20Rnd556"] = true, ["20rndFAL"] = true, ["30rndFAL"] = true, ["762x25MAG"] = true,
-	["762x25Rnd71Mag"] = true, ["762x25TTMAG"] = true, ["762x39ImprMAG"] = true, ["762x39MAG"] = true,
-	["762x39Rnd75Mag"] = true, ["762x54Rnd10Mag"] = true, ["762x54Rnd20Mag"] = true, ["9x18MakarovDrumMag"] = true,
-	["9x18MakarovMAG"] = true, ["9x18vzDrumMag"] = true, ["9x18vzMag"] = true, ["9x19MP443MAG"] = true,
-	["9x19MP5DrumMAG"] = true, ["9x19MP5MAG"] = true, ["9x39Mag"] = true, ["9x39Rnd30Mag"] = true,
-	["AmmoBoxPKM100rnd"] = true, ["MK23ExtMag"] = true, ["Mag556"] = true, ["Mag556Rnd100"] = true,
-	["MagR700"] = true, ["MagTFZ98"] = true, ["MagTOZ106"] = true, ["PMAG10rnd"] = true,
-	["SaigaMag20rnd"] = true, ["SaigaMag5rnd"] = true
+	["20Rnd556"] = true,
+	["20rndFAL"] = true,
+	["30rndFAL"] = true,
+	["762x25MAG"] = true,
+	["762x25Rnd71Mag"] = true,
+	["762x25TTMAG"] = true,
+	["762x39ImprMAG"] = true,
+	["762x39MAG"] = true,
+	["762x39Rnd75Mag"] = true,
+	["762x54Rnd10Mag"] = true,
+	["762x54Rnd20Mag"] = true,
+	["9x18MakarovDrumMag"] = true,
+	["9x18MakarovMAG"] = true,
+	["9x18vzDrumMag"] = true,
+	["9x18vzMag"] = true,
+	["9x19MP443MAG"] = true,
+	["9x19MP5DrumMAG"] = true,
+	["9x19MP5MAG"] = true,
+	["9x39Mag"] = true,
+	["9x39Rnd30Mag"] = true,
+	["AmmoBoxPKM100rnd"] = true,
+	["MK23ExtMag"] = true,
+	["Mag556"] = true,
+	["Mag556Rnd100"] = true,
+	["MagR700"] = true,
+	["MagTFZ98"] = true,
+	["MagTOZ106"] = true,
+	["PMAG10rnd"] = true,
+	["SaigaMag20rnd"] = true,
+	["SaigaMag5rnd"] = true,
 }
 
 local InventoryViewer = {
@@ -1414,8 +1680,12 @@ local InventoryViewer = {
 	Border = nil,
 	TitleText = nil,
 	TextCache = {},
-	CurrentPlayer = nil,
+	CurrentTarget = nil,
 	LastViewportSize = nil,
+	IsDragging = false,
+	DragOffset = Vector2.new(0, 0),
+	UserPosition = nil,
+	Width = 240,
 }
 
 local inventoryConnections = {}
@@ -1429,10 +1699,10 @@ local function clearInventoryConnections()
 	table.clear(inventoryConnections)
 end
 
-local function getClosestPlayerToMouse()
+local function getClosestInventoryTargetToMouse()
 	local mouseLocation = UserInputService:GetMouseLocation()
 	local shortestDistance = math.huge
-	local closestPlayer = nil
+	local closestTarget = nil
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player == Players.LocalPlayer then
@@ -1447,25 +1717,75 @@ local function getClosestPlayerToMouse()
 				if isVisibleOnScreen then
 					local distanceToMouse = (Vector2.new(screenPosition.X, screenPosition.Y) - mouseLocation).Magnitude
 					if distanceToMouse < shortestDistance then
-						shortestDistance = distanceToMouse
-						closestPlayer = player
+						local replicatedPlayers = ReplicatedStorage:FindFirstChild("Players")
+						local playerFolder = replicatedPlayers and replicatedPlayers:FindFirstChild(player.Name)
+						if playerFolder then
+							shortestDistance = distanceToMouse
+							closestTarget = {
+								Type = "Player",
+								Name = player.Name,
+								TargetInstance = player,
+								ParentFolder = playerFolder,
+							}
+						end
 					end
 				end
 			end
 		end
 	end
 
-	return closestPlayer
+	local droppedItems = Workspace:FindFirstChild("DroppedItems")
+	if droppedItems then
+		for _, child in ipairs(droppedItems:GetChildren()) do
+			if child:IsA("Model") then
+				local humanoid = child:FindFirstChild("Humanoid")
+				local head = child:FindFirstChild("Head")
+				if humanoid and head then
+					local health = child:GetAttribute("Health")
+					if health == nil then
+						health = humanoid.Health
+					end
+					if health <= 0 then
+						local screenPosition, isVisibleOnScreen = Camera:WorldToViewportPoint(head.Position)
+						if isVisibleOnScreen then
+							local distanceToMouse = (Vector2.new(screenPosition.X, screenPosition.Y) - mouseLocation).Magnitude
+							if distanceToMouse < shortestDistance then
+								shortestDistance = distanceToMouse
+								local name = child.Name
+								if name:sub(-9) == "'s Corpse" then
+									name = name:sub(1, -10)
+								end
+								closestTarget = {
+									Type = "Corpse",
+									Name = name,
+									TargetInstance = child,
+									ParentFolder = child,
+								}
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	return closestTarget
 end
 
 function InventoryViewer.Draw()
 	local config = getgenv().Config.ESP
 	local enabled = config.InventoryViewer
 
-	if not enabled or not InventoryViewer.CurrentPlayer then
-		if InventoryViewer.Background then InventoryViewer.Background.Visible = false end
-		if InventoryViewer.Border then InventoryViewer.Border.Visible = false end
-		if InventoryViewer.TitleText then InventoryViewer.TitleText.Visible = false end
+	if not enabled or not InventoryViewer.CurrentTarget then
+		if InventoryViewer.Background then
+			InventoryViewer.Background.Visible = false
+		end
+		if InventoryViewer.Border then
+			InventoryViewer.Border.Visible = false
+		end
+		if InventoryViewer.TitleText then
+			InventoryViewer.TitleText.Visible = false
+		end
 		for _, textDrawing in pairs(InventoryViewer.TextCache) do
 			textDrawing:Remove()
 		end
@@ -1473,9 +1793,9 @@ function InventoryViewer.Draw()
 		return
 	end
 
-	local replicatedPlayers = ReplicatedStorage:FindFirstChild("Players")
-	local playerFolder = replicatedPlayers and replicatedPlayers:FindFirstChild(InventoryViewer.CurrentPlayer.Name)
-	local inventoryFolder = playerFolder and playerFolder:FindFirstChild("Inventory")
+	local targetInfo = InventoryViewer.CurrentTarget
+	local parentFolder = targetInfo.ParentFolder
+	local inventoryFolder = parentFolder and parentFolder:FindFirstChild("Inventory")
 
 	local itemsToDraw = {}
 	if inventoryFolder then
@@ -1492,7 +1812,11 @@ function InventoryViewer.Draw()
 			local loadedAmmo = item:GetAttribute("LoadedAmmo") or item:GetAttribute("loadedAmmo")
 
 			local isMag = verifiedMags[item.Name]
-			local isGun = (verifiedGuns[item.Name] or (durability ~= nil and maxDurability ~= nil) or (loadedAmmo ~= nil)) and not isMag
+			local isGun = (
+				verifiedGuns[item.Name]
+				or (durability ~= nil and maxDurability ~= nil)
+				or (loadedAmmo ~= nil)
+			) and not isMag
 			if isGun then
 				return 1
 			end
@@ -1511,9 +1835,23 @@ function InventoryViewer.Draw()
 			else
 				local name = item.Name
 				local lower = string.lower(name)
-				if string.find(lower, "tracer") or string.find(lower, "ap") or string.find(lower, "slug") or string.find(lower, "buckshot") or string.find(lower, "flechette") or string.find(lower, "12ga") or string.find(lower, "pg7") or string.find(lower, "s8ko") then
+				if
+					string.find(lower, "tracer")
+					or string.find(lower, "ap")
+					or string.find(lower, "slug")
+					or string.find(lower, "buckshot")
+					or string.find(lower, "flechette")
+					or string.find(lower, "12ga")
+					or string.find(lower, "pg7")
+					or string.find(lower, "s8ko")
+				then
 					isBullet = true
-				elseif string.match(name, "^%d+x") or string.match(name, "^%d+ga") or name == "45AP" or name == "338T" then
+				elseif
+					string.match(name, "^%d+x")
+					or string.match(name, "^%d+ga")
+					or name == "45AP"
+					or name == "338T"
+				then
 					isBullet = true
 				end
 			end
@@ -1547,8 +1885,9 @@ function InventoryViewer.Draw()
 		local amount = item:GetAttribute("Amount") or item:GetAttribute("amount")
 
 		local isMag = verifiedMags[item.Name]
-		local isGun = (verifiedGuns[item.Name] or (durability ~= nil and maxDurability ~= nil) or (loadedAmmo ~= nil)) and not isMag
-		
+		local isGun = (verifiedGuns[item.Name] or (durability ~= nil and maxDurability ~= nil) or (loadedAmmo ~= nil))
+			and not isMag
+
 		local ammoTypes = ReplicatedStorage:FindFirstChild("AmmoTypes")
 		local isBullet = false
 		if verifiedBullets[item.Name] then
@@ -1558,7 +1897,16 @@ function InventoryViewer.Draw()
 		else
 			local name = item.Name
 			local lower = string.lower(name)
-			if string.find(lower, "tracer") or string.find(lower, "ap") or string.find(lower, "slug") or string.find(lower, "buckshot") or string.find(lower, "flechette") or string.find(lower, "12ga") or string.find(lower, "pg7") or string.find(lower, "s8ko") then
+			if
+				string.find(lower, "tracer")
+				or string.find(lower, "ap")
+				or string.find(lower, "slug")
+				or string.find(lower, "buckshot")
+				or string.find(lower, "flechette")
+				or string.find(lower, "12ga")
+				or string.find(lower, "pg7")
+				or string.find(lower, "s8ko")
+			then
 				isBullet = true
 			elseif string.match(name, "^%d+x") or string.match(name, "^%d+ga") or name == "45AP" or name == "338T" then
 				isBullet = true
@@ -1574,7 +1922,7 @@ function InventoryViewer.Draw()
 					count = 1,
 					isValuable = isValuable,
 					amount = amount,
-					isBullet = true
+					isBullet = true,
 				}
 				table.insert(uniqueOrder, item.Name)
 			else
@@ -1602,7 +1950,7 @@ function InventoryViewer.Draw()
 				groupData[displayName] = {
 					count = 1,
 					isValuable = isValuable,
-					isBullet = false
+					isBullet = false,
 				}
 				table.insert(uniqueOrder, displayName)
 			else
@@ -1612,13 +1960,22 @@ function InventoryViewer.Draw()
 	end
 
 	local viewportSize = Camera.ViewportSize
-	local x = 100
 	local titleHeight = 25
 	local itemSpacing = 18
 	local padding = 12
 	local totalHeight = padding * 2 + titleHeight + (#uniqueOrder * itemSpacing)
-	local y = (viewportSize.Y - totalHeight) / 2
-	local width = 240
+	local width = InventoryViewer.Width
+
+	if not InventoryViewer.UserPosition then
+		InventoryViewer.UserPosition = Vector2.new(viewportSize.X - width - 100, (viewportSize.Y - totalHeight) / 2)
+	end
+
+	local x = InventoryViewer.UserPosition.X
+	local y = InventoryViewer.UserPosition.Y
+
+	x = math.clamp(x, 0, viewportSize.X - width)
+	y = math.clamp(y, 0, viewportSize.Y - totalHeight)
+	InventoryViewer.UserPosition = Vector2.new(x, y)
 
 	-- Position containers
 	InventoryViewer.Background.Position = Vector2.new(x, y)
@@ -1636,14 +1993,14 @@ function InventoryViewer.Draw()
 
 	for index, baseDisplayName in ipairs(uniqueOrder) do
 		local data = groupData[baseDisplayName]
-		
+
 		local finalDisplayName = baseDisplayName
 		if data.isBullet then
 			finalDisplayName = string.format("%s [%d]", baseDisplayName, data.amount)
 		elseif data.count > 1 then
 			finalDisplayName = string.format("%s x%d", baseDisplayName, data.count)
 		end
-		
+
 		local cacheKey = baseDisplayName
 		currentFrameItems[cacheKey] = true
 
@@ -1680,7 +2037,9 @@ end
 
 local function setupInventoryListeners(inventoryFolder)
 	clearInventoryConnections()
-	if not inventoryFolder then return end
+	if not inventoryFolder then
+		return
+	end
 
 	local function onInventoryChanged()
 		InventoryViewer.Draw()
@@ -1690,14 +2049,23 @@ local function setupInventoryListeners(inventoryFolder)
 	table.insert(inventoryConnections, inventoryFolder.DescendantRemoving:Connect(onInventoryChanged))
 
 	local function connectItemAttributes(item)
-		table.insert(inventoryConnections, item.AttributeChanged:Connect(function(attr)
-			if attr == "Durability" or attr == "durability" 
-				or attr == "MaxDurability" or attr == "maxDurability" 
-				or attr == "LoadedAmmo" or attr == "loadedAmmo" 
-				or attr == "Amount" or attr == "amount" then
-				InventoryViewer.Draw()
-			end
-		end))
+		table.insert(
+			inventoryConnections,
+			item.AttributeChanged:Connect(function(attr)
+				if
+					attr == "Durability"
+					or attr == "durability"
+					or attr == "MaxDurability"
+					or attr == "maxDurability"
+					or attr == "LoadedAmmo"
+					or attr == "loadedAmmo"
+					or attr == "Amount"
+					or attr == "amount"
+				then
+					InventoryViewer.Draw()
+				end
+			end)
+		)
 	end
 
 	for _, child in ipairs(inventoryFolder:GetDescendants()) do
@@ -1734,6 +2102,34 @@ function InventoryViewer.Initialize()
 	titleText.Color = Color3.fromRGB(255, 215, 0) -- Gold title
 	titleText.Visible = false
 	InventoryViewer.TitleText = titleText
+
+	UserInputService.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			local mousePos = UserInputService:GetMouseLocation()
+			if InventoryViewer.Background and InventoryViewer.Background.Visible then
+				local bgPos = InventoryViewer.Background.Position
+				local bgSize = InventoryViewer.Background.Size
+				if mousePos.X >= bgPos.X and mousePos.X <= bgPos.X + bgSize.X and mousePos.Y >= bgPos.Y and mousePos.Y <= bgPos.Y + bgSize.Y then
+					InventoryViewer.IsDragging = true
+					InventoryViewer.DragOffset = mousePos - bgPos
+				end
+			end
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement and InventoryViewer.IsDragging then
+			local mousePos = UserInputService:GetMouseLocation()
+			InventoryViewer.UserPosition = mousePos - InventoryViewer.DragOffset
+			InventoryViewer.Draw()
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			InventoryViewer.IsDragging = false
+		end
+	end)
 end
 
 function InventoryViewer.CheckTarget()
@@ -1741,15 +2137,21 @@ function InventoryViewer.CheckTarget()
 	local enabled = config.InventoryViewer
 
 	if not enabled then
-		if InventoryViewer.Background then InventoryViewer.Background.Visible = false end
-		if InventoryViewer.Border then InventoryViewer.Border.Visible = false end
-		if InventoryViewer.TitleText then InventoryViewer.TitleText.Visible = false end
+		if InventoryViewer.Background then
+			InventoryViewer.Background.Visible = false
+		end
+		if InventoryViewer.Border then
+			InventoryViewer.Border.Visible = false
+		end
+		if InventoryViewer.TitleText then
+			InventoryViewer.TitleText.Visible = false
+		end
 		for _, textDrawing in pairs(InventoryViewer.TextCache) do
 			textDrawing:Remove()
 		end
 		table.clear(InventoryViewer.TextCache)
 		clearInventoryConnections()
-		InventoryViewer.CurrentPlayer = nil
+		InventoryViewer.CurrentTarget = nil
 		return
 	end
 
@@ -1760,42 +2162,56 @@ function InventoryViewer.CheckTarget()
 		InventoryViewer.Draw()
 	end
 
-	-- Check closest player to mouse
-	local closestPlayer = getClosestPlayerToMouse()
+	-- Check closest target to mouse
+	local closestTarget = getClosestInventoryTargetToMouse()
+	local targetInstance = closestTarget and closestTarget.TargetInstance
 
-	if closestPlayer ~= InventoryViewer.CurrentPlayer then
+	local currentTargetInstance = InventoryViewer.CurrentTarget and InventoryViewer.CurrentTarget.TargetInstance
+
+	if targetInstance ~= currentTargetInstance then
 		clearInventoryConnections()
-		InventoryViewer.CurrentPlayer = closestPlayer
+		InventoryViewer.CurrentTarget = closestTarget
 
-		if closestPlayer then
-			local replicatedPlayers = ReplicatedStorage:FindFirstChild("Players")
-			local playerFolder = replicatedPlayers and replicatedPlayers:FindFirstChild(closestPlayer.Name)
-			
-			if playerFolder then
-				local inventoryFolder = playerFolder:FindFirstChild("Inventory")
+		if closestTarget then
+			local parentFolder = closestTarget.ParentFolder
+
+			if parentFolder then
+				local inventoryFolder = parentFolder:FindFirstChild("Inventory")
 				if inventoryFolder then
 					setupInventoryListeners(inventoryFolder)
 				else
-					table.insert(inventoryConnections, playerFolder.ChildAdded:Connect(function(child)
-						if child.Name == "Inventory" and child:IsA("Folder") then
-							setupInventoryListeners(child)
-							InventoryViewer.Draw()
-						end
-					end))
+					table.insert(
+						inventoryConnections,
+						parentFolder.ChildAdded:Connect(function(child)
+							if child.Name == "Inventory" and child:IsA("Folder") then
+								setupInventoryListeners(child)
+								InventoryViewer.Draw()
+							end
+						end)
+					)
 				end
 			end
-			
-			-- Listen to viewport size changes while we have a target
-			table.insert(inventoryConnections, Camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-				InventoryViewer.Draw()
-			end))
 
-			InventoryViewer.TitleText.Text = string.format("%s's Inventory", closestPlayer.Name)
+			-- Listen to viewport size changes while we have a target
+			table.insert(
+				inventoryConnections,
+				Camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+					InventoryViewer.Draw()
+				end)
+			)
+
+			InventoryViewer.TitleText.Text = string.format("%s's Inventory", closestTarget.Name)
 			InventoryViewer.Draw()
 		else
-			if InventoryViewer.Background then InventoryViewer.Background.Visible = false end
-			if InventoryViewer.Border then InventoryViewer.Border.Visible = false end
-			if InventoryViewer.TitleText then InventoryViewer.TitleText.Visible = false end
+			if InventoryViewer.Background then
+				InventoryViewer.Background.Visible = false
+			end
+			if InventoryViewer.Border then
+				InventoryViewer.Border.Visible = false
+			end
+			if InventoryViewer.TitleText then
+				InventoryViewer.TitleText.Visible = false
+			end
 			for _, textDrawing in pairs(InventoryViewer.TextCache) do
 				textDrawing:Remove()
 			end
