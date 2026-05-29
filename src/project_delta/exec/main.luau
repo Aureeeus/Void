@@ -173,7 +173,7 @@ ESPSettingsSection:Colorpicker({
 ESPSettingsSection:Space()
 
 ESPSettingsSection:Toggle({
-	Title = "Use Visible Color",
+	Title = "Visible Check",
 	Value = getgenv().Config.ESP.VisibleCheck,
 	Callback = function(state)
 		getgenv().Config.ESP.VisibleCheck = state
