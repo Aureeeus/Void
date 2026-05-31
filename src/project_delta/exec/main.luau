@@ -176,6 +176,8 @@ getgenv().Config = getgenv().Config
 		},
 		SilentAim = {
 			Enabled = false,
+			Resolver = false,
+			ResolverKeybind = "T",
 			TargetType = "Players",
 			FOVRadius = 150,
 			TargetPart = "Head", -- "Head", "Torso", "Random"
@@ -602,6 +604,25 @@ SilentAimSection:Toggle({
 	end,
 })
 
+getgenv().ResolverToggleElement = SilentAimSection:Toggle({
+	Title = "Enable Resolver",
+	Flag = "EnableResolver",
+	Value = getgenv().Config.SilentAim.Resolver,
+	Callback = function(state)
+		getgenv().Config.SilentAim.Resolver = state
+	end,
+})
+
+SilentAimSection:Keybind({
+	Title = "Resolver Keybind",
+	Flag = "ResolverKeybind",
+	Desc = "Key to toggle the Resolver",
+	Value = getgenv().Config.SilentAim.ResolverKeybind or "T",
+	Callback = function(keyName)
+		getgenv().Config.SilentAim.ResolverKeybind = keyName
+	end,
+})
+
 SilentAimSection:Dropdown({
 	Title = "Target Type",
 	Flag = "SilentAimTargetType",
@@ -719,7 +740,6 @@ WorldModsSection:Toggle({
 		getgenv().Config.Mods.NoFog = state
 	end,
 })
-
 
 local HitsoundSection = ModsTab:Section({
 	Title = "Hitsound",
@@ -1543,6 +1563,7 @@ end
 -- ==========================================
 local BulletTracerManager = {
 	Tracers = getgenv().DeltaTracersCache or {},
+	LastFlicker = 0,
 }
 getgenv().DeltaTracersCache = BulletTracerManager.Tracers
 
@@ -1712,7 +1733,7 @@ if BulletMod then
 				local args = table.pack(...)
 				if getgenv().Config.SilentAim.Enabled and TargetManager.CurrentTarget then
 					local target = TargetManager.CurrentTarget
-					local targetHead = target.Head
+					local targetAimPart = target.Head
 					local targetRoot = target.RootPart
 
 					local ammoName = args[7]
@@ -1720,21 +1741,28 @@ if BulletMod then
 						and ReplicatedStorage:WaitForChild("AmmoTypes", 2):FindFirstChild(ammoName)
 					local muzzleVelocity = ammoType and ammoType:GetAttribute("MuzzleVelocity") or 3000
 
-					local FunctionLibraryExtension = require(
-						ReplicatedStorage:WaitForChild("Modules", 10):WaitForChild("FunctionLibraryExtension", 10)
-					)
-					local origin = FunctionLibraryExtension
-							and FunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
-						or Camera.CFrame.Position
+					local origin = Camera.CFrame.Position
+					if args[5] then
+						if typeof(args[5]) == "table" and args[5].CFrame then
+							origin = args[5].CFrame.Position
+						elseif typeof(args[5]) == "CFrame" then
+							origin = args[5].Position
+						end
+					end
 
 					local targetVelocity = targetRoot.AssemblyLinearVelocity
+					
+					if getgenv().Config.SilentAim.Resolver then
+						targetVelocity = Vector3.new(0, targetVelocity.Y, 0)
+					end
+
 					local v = muzzleVelocity
 					local G = 70
 
 					-- Exact quadratic formula solver for projectile motion
-					local timeToHit = (targetHead.Position - origin).Magnitude / v
+					local timeToHit = (targetAimPart.Position - origin).Magnitude / v
 					for i = 1, 3 do
-						local targetPos = targetHead.Position + targetVelocity * timeToHit
+						local targetPos = targetAimPart.Position + targetVelocity * timeToHit
 						local A = targetPos - origin
 						local a = 0.25 * G * G
 						local b = A.Y * G - v * v
@@ -1754,9 +1782,22 @@ if BulletMod then
 						end
 					end
 
-					local finalPredictedPos = targetHead.Position + targetVelocity * timeToHit
+					local finalPredictedPos = targetAimPart.Position + targetVelocity * timeToHit
 					local finalDrop = 0.5 * G * (timeToHit ^ 2)
 					local aimPos = finalPredictedPos + Vector3.new(0, finalDrop, 0)
+
+					local distance = (targetAimPart.Position - origin).Magnitude
+					print(
+						string.format(
+							"[SilentAim Debug] Target: %s | Dist: %.1f | MuzzleVel: %.1f | ProjDrop: %.1f | TimeToHit: %.3f | DropComp: %.1f",
+							target.Name or "Unknown",
+							distance,
+							v,
+							G,
+							timeToHit,
+							finalDrop
+						)
+					)
 
 					TargetManager.PredictedPosition = finalPredictedPos
 
@@ -1841,18 +1882,22 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 			end
 		end
 
-		if getgenv().Config.Combat.InstantHit then
-			if attrName == "MuzzleVelocity" then
+		if getgenv().Config.Combat.InstantHit or getgenv().Config.SilentAim.Enabled then
+			if attrName == "MuzzleVelocity" and getgenv().Config.Combat.InstantHit then
 				print("[Hitscan Debug] Spoofed MuzzleVelocity to 3500")
 				return 3500 -- Safely high velocity to avoid server dropping the hit
-			elseif attrName == "ProjectileDrop" then
+			elseif attrName == "ProjectileDrop" and getgenv().Config.Combat.InstantHit then
 				print("[Hitscan Debug] Spoofed ProjectileDrop to 0.05")
 				return 0.05 -- Tiny amount of drop to bypass anti-cheat zero-drop checks
+			elseif attrName == "Drag" then
+				-- By spoofing Drag to a near-zero value, we completely eliminate air resistance locally
+				-- The server trusts the client's hit registration for this!
+				return 0.00001
 			end
 		end
 	elseif method == "GetAttributes" then
 		local attrs = oldNamecall(self, ...)
-		if type(attrs) == "table" and (getgenv().Config.Combat.NoRecoil or getgenv().Config.Combat.NoSpread) then
+		if type(attrs) == "table" and (getgenv().Config.Combat.NoRecoil or getgenv().Config.Combat.NoSpread or getgenv().Config.Combat.InstantHit or getgenv().Config.SilentAim.Enabled) then
 			local callingScript = getcallingscript()
 			if callingScript then
 				local sName = string.lower(callingScript.Name)
@@ -1869,6 +1914,15 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 					spoofed = true
 				elseif string.find(lk, "spread") and getgenv().Config.Combat.NoSpread then
 					newAttrs[k] = type(v) == "number" and 0.05 or v
+					spoofed = true
+				elseif k == "MuzzleVelocity" and getgenv().Config.Combat.InstantHit then
+					newAttrs[k] = 3500
+					spoofed = true
+				elseif k == "ProjectileDrop" and getgenv().Config.Combat.InstantHit then
+					newAttrs[k] = 0.05
+					spoofed = true
+				elseif k == "Drag" and (getgenv().Config.Combat.InstantHit or getgenv().Config.SilentAim.Enabled) then
+					newAttrs[k] = 0.00001
 					spoofed = true
 				else
 					newAttrs[k] = v
@@ -3009,5 +3063,30 @@ local renderConnection = RunService.RenderStepped:Connect(function()
 	UpdateViewmodelTransparency()
 end)
 table.insert(ConnectionList, renderConnection)
+
+table.insert(
+	ConnectionList,
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then return end
+		local config = getgenv().Config.SilentAim
+		
+		if config.ResolverKeybind and input.KeyCode.Name == config.ResolverKeybind then
+			local newState = not config.Resolver
+			
+			-- Force config change to ensure logic immediately toggles
+			config.Resolver = newState
+			
+			-- Make UI the source of truth visually
+			local toggleElement = getgenv().ResolverToggleElement
+			if toggleElement then
+				pcall(function() toggleElement:Set(newState) end)
+				pcall(function() toggleElement:SetValue(newState) end)
+				pcall(function() toggleElement:Toggle(newState) end)
+			end
+			
+			NotifyWithSound("Resolver Toggled", "Resolver is now " .. (newState and "ON" or "OFF"))
+		end
+	end)
+)
 
 Window:SelectTab(1)
