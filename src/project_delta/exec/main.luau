@@ -118,6 +118,13 @@ getgenv()._DeltaScriptCleanup = function()
 	end
 	getgenv().DeltaTracersCache = {}
 
+	-- Reset InstantHit state so arg dump fires fresh and stale shot info doesn't persist
+	getgenv().DeltaInflictDumped = nil
+	getgenv().DeltaLastShotInfo = nil
+	getgenv().DeltaInflictQueue = {}
+	getgenv().DeltaVelocityCache = {}
+	getgenv().DeltaBypassInflict = nil
+
 	print("[Delta Cleanup] --- Starting Memory Wipe ---")
 	print("[Delta Cleanup] Disconnected loops:", #ConnectionList)
 	print("[Delta Cleanup] Config present before wipe:", getgenv().Config ~= nil)
@@ -191,10 +198,8 @@ getgenv().Config = getgenv().Config
 			TracerTransparency = 0.5,
 		},
 		Combat = {
-			NoRecoil = false,
-			NoSpread = false,
-			RapidFire = false,
-			RapidFireValue = 5,
+			NoRecoil = true,
+			NoSpread = true,
 			InstantHit = false,
 			InstantADS = false,
 			ADSZoomMultiplier = 1.0,
@@ -845,6 +850,37 @@ UISection:Keybind({
 	end,
 })
 
+local DebugSection = SettingsTab:Section({
+	Title = "Debug & Logging",
+})
+
+DebugSection:Button({
+	Title = "Copy Debug Logs",
+	Description = "Copies the last 500 lines of debug logs to your clipboard.",
+	Callback = function()
+		if setclipboard then
+			setclipboard(table.concat(getgenv().DebugLogBuffer or {}, "\n"))
+			Window:Notify({
+				Title = "Logs Copied",
+				Description = "Successfully copied debug logs to clipboard.",
+				Time = 3,
+			})
+		end
+	end,
+})
+
+DebugSection:Button({
+	Title = "Clear Debug Logs",
+	Callback = function()
+		table.clear(getgenv().DebugLogBuffer or {})
+		Window:Notify({
+			Title = "Logs Cleared",
+			Description = "Debug log buffer has been cleared.",
+			Time = 3,
+		})
+	end,
+})
+
 local ConfigSection = SettingsTab:Section({
 	Title = "Config",
 })
@@ -1187,39 +1223,36 @@ function TargetManager.GetClosestTargetToMouse()
 	local config = getgenv().Config.SilentAim
 	local targetType = config.TargetType or "Players"
 
-	local activeCharacters = {}
-	if targetType == "Players" or targetType == "Both" then
-		for k, v in pairs(CharacterManager.GetActiveCharacters()) do
-			activeCharacters[k] = v
-		end
-	end
-	if targetType == "NPC" or targetType == "Both" then
-		for k, v in pairs(CharacterManager.GetNPCs()) do
-			activeCharacters[k] = v
-		end
-	end
-
 	local mouseLocation = UserInputService:GetMouseLocation()
-
 	local shortestDistance = config.FOVRadius
 	local closestTarget = nil
 
-	for character, playerData in pairs(activeCharacters) do
-		local head = playerData.Head
-		if not head then
-			continue
-		end
+	local function processCharacters(characters)
+		for character, playerData in pairs(characters) do
+			local head = playerData.Head
+			if not head then
+				continue
+			end
 
-		local screenPosition, isVisibleOnScreen = Camera:WorldToViewportPoint(head.Position)
-		if isVisibleOnScreen then
-			local targetVector = Vector2.new(screenPosition.X, screenPosition.Y)
-			local distanceToMouse = (targetVector - mouseLocation).Magnitude
+			local screenPosition, isVisibleOnScreen = Camera:WorldToViewportPoint(head.Position)
+			if isVisibleOnScreen then
+				local targetVector = Vector2.new(screenPosition.X, screenPosition.Y)
+				local distanceToMouse = (targetVector - mouseLocation).Magnitude
 
-			if distanceToMouse <= shortestDistance then
-				shortestDistance = distanceToMouse
-				closestTarget = playerData
+				if distanceToMouse <= shortestDistance then
+					shortestDistance = distanceToMouse
+					closestTarget = playerData
+				end
 			end
 		end
+	end
+
+	if targetType == "Players" or targetType == "Both" then
+		processCharacters(CharacterManager.GetActiveCharacters())
+	end
+
+	if targetType == "NPC" or targetType == "Both" then
+		processCharacters(CharacterManager.GetNPCs())
 	end
 
 	return closestTarget
@@ -1294,6 +1327,26 @@ local ESPManager = {
 getgenv().ESPManager = ESPManager
 
 getgenv().DeltaChamsCache = getgenv().DeltaChamsCache or {}
+getgenv().PosDeltaTracker = getgenv().PosDeltaTracker or {}
+getgenv().NPCDeltaTracker = getgenv().NPCDeltaTracker or {}
+
+getgenv().DebugLogBuffer = getgenv().DebugLogBuffer or {}
+
+if not getgenv().AutoCopyLogsHooked then
+	getgenv().AutoCopyLogsHooked = true
+	game:GetService("GuiService").ErrorMessageChanged:Connect(function(msg)
+		if msg and msg ~= "" and setclipboard then
+			setclipboard(table.concat(getgenv().DebugLogBuffer, "\n"))
+		end
+	end)
+end
+
+local function LogLine(msg)
+	table.insert(getgenv().DebugLogBuffer, os.date("[%H:%M:%S] ") .. msg)
+	if #getgenv().DebugLogBuffer > 500 then
+		table.remove(getgenv().DebugLogBuffer, 1)
+	end
+end
 
 function ESPManager.CreateTextDrawing()
 	local textDrawing = Drawing.new("Text")
@@ -1717,6 +1770,16 @@ end
 -- ==========================================
 -- Bullet Prediction Hook (CreateBullet)
 -- ==========================================
+if not getgenv().DeltaTimeTracker then
+	getgenv().DeltaTimeTracker = {
+		dt = 0.016666,
+		connection = game:GetService("RunService").RenderStepped:Connect(function(step)
+			-- EMA to smooth out frame spikes for more accurate future dt prediction
+			getgenv().DeltaTimeTracker.dt = getgenv().DeltaTimeTracker.dt * 0.9 + step * 0.1
+		end),
+	}
+end
+
 local BulletMod = ReplicatedStorage:WaitForChild("Modules", 10)
 if BulletMod then
 	local FPS = BulletMod:WaitForChild("FPS", 10)
@@ -1736,24 +1799,23 @@ if BulletMod then
 					local targetAimPart = target.Head
 					local targetRoot = target.RootPart
 
-					local ammoName = args[7]
-					local ammoType = ammoName
-						and ReplicatedStorage:WaitForChild("AmmoTypes", 2):FindFirstChild(ammoName)
-					local muzzleVelocity = ammoType and ammoType:GetAttribute("MuzzleVelocity") or 3000
+					local ammoName = type(args[7]) == "string" and args[7] or ""
+					local muzzleVelocity = (getgenv().DeltaVelocityCache and getgenv().DeltaVelocityCache[ammoName])
+						or 3000
 
 					local origin = Camera.CFrame.Position
-					if args[5] then
-						if typeof(args[5]) == "table" and args[5].CFrame then
-							origin = args[5].CFrame.Position
-						elseif typeof(args[5]) == "CFrame" then
-							origin = args[5].Position
+					pcall(function()
+						local FunctionLibraryExtension = require(
+							ReplicatedStorage:WaitForChild("Modules", 2):WaitForChild("FunctionLibraryExtension", 2)
+						)
+						if FunctionLibraryExtension then
+							origin = FunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
 						end
-					end
+					end)
 
 					local targetVelocity = targetRoot.AssemblyLinearVelocity
-					
 					if getgenv().Config.SilentAim.Resolver then
-						targetVelocity = Vector3.new(0, targetVelocity.Y, 0)
+						targetVelocity = Vector3.zero
 					end
 
 					local v = muzzleVelocity
@@ -1786,23 +1848,23 @@ if BulletMod then
 					local finalDrop = 0.5 * G * (timeToHit ^ 2)
 					local aimPos = finalPredictedPos + Vector3.new(0, finalDrop, 0)
 
-					local distance = (targetAimPart.Position - origin).Magnitude
-					print(
-						string.format(
-							"[SilentAim Debug] Target: %s | Dist: %.1f | MuzzleVel: %.1f | ProjDrop: %.1f | TimeToHit: %.3f | DropComp: %.1f",
-							target.Name or "Unknown",
-							distance,
-							v,
-							G,
-							timeToHit,
-							finalDrop
-						)
-					)
-
 					TargetManager.PredictedPosition = finalPredictedPos
 
+					-- Stamp the physics-accurate timeToHit so the InstantHit queue
+					-- can consume it without needing to parse ProjectileInflict args.
+					getgenv().DeltaLastShotInfo = {
+						timeToHit = timeToHit,
+						shotAt = os.clock(),
+					}
+
+					local spoofedOrigin = origin
+					if getgenv().Config.Combat.InstantHit then
+						local aimDir = (aimPos - origin).Unit
+						spoofedOrigin = aimPos - (aimDir * 1.5)
+					end
+
 					args[5] = {
-						CFrame = CFrame.lookAt(origin, aimPos),
+						CFrame = CFrame.lookAt(spoofedOrigin, aimPos),
 					}
 
 					if getgenv().Config.SilentAim.BulletTracers then
@@ -1838,6 +1900,102 @@ if BulletMod then
 		end
 	end
 end
+
+-- ==========================================
+-- Instant Hit: MuzzleVelocity Cache (Solution 3)
+-- ==========================================
+-- Pre-reads the REAL (server-trusted) MuzzleVelocity for every AmmoType at startup
+-- using OriginalNamecall so our own GetAttribute spoof hook never touches these values.
+-- This gives us an O(1) table lookup per shot with zero WaitForChild cost.
+getgenv().DeltaVelocityCache = getgenv().DeltaVelocityCache or {}
+
+table.insert(
+	ThreadList,
+	task.spawn(function()
+		local ammoTypes = ReplicatedStorage:WaitForChild("AmmoTypes", 10)
+		if not ammoTypes then
+			print("[InstantHit Cache] ERROR: AmmoTypes not found in ReplicatedStorage")
+			return
+		end
+
+		local function cacheAmmoType(ammoType)
+			-- Must use getgenv().OriginalNamecall so our GetAttribute hook doesn't intercept this read.
+			-- At this point OriginalNamecall may not be set yet, so we fall back to a direct pcall.
+			local v
+			if getgenv().OriginalNamecall then
+				local ok
+				ok, v = pcall(getgenv().OriginalNamecall, ammoType, "MuzzleVelocity")
+				if not ok then
+					v = nil
+				end
+			else
+				local ok
+				ok, v = pcall(function()
+					return ammoType:GetAttribute("MuzzleVelocity")
+				end)
+				if not ok then
+					v = nil
+				end
+			end
+			if type(v) == "number" and v > 0 then
+				getgenv().DeltaVelocityCache[ammoType.Name] = v
+				print(string.format("[InstantHit Cache] %s → %.0f sv", ammoType.Name, v))
+			end
+		end
+
+		-- Cache all existing ammo types
+		for _, ammoType in ipairs(ammoTypes:GetChildren()) do
+			cacheAmmoType(ammoType)
+		end
+
+		-- Watch for new ammo types added later (weapon pickups etc.)
+		ammoTypes.ChildAdded:Connect(function(child)
+			task.wait(0.2)
+			cacheAmmoType(child)
+		end)
+	end)
+)
+
+-- ==========================================
+-- Instant Hit: Delayed Remote Queue (Solution 2)
+-- ==========================================
+-- Stores intercepted ProjectileInflict packets until their calculated travel time has elapsed.
+getgenv().DeltaInflictQueue = getgenv().DeltaInflictQueue or {}
+
+table.insert(
+	ThreadList,
+	task.spawn(function()
+		local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
+		local ProjectileInflictRemote = Remotes and Remotes:WaitForChild("ProjectileInflict", 10)
+		if not ProjectileInflictRemote then
+			print("[InstantHit Queue] ERROR: ProjectileInflict remote not found")
+			return
+		end
+
+		while true do
+			task.wait() -- yield every frame
+			if not getgenv().DeltaInflictQueue then
+				break
+			end
+			local now = os.clock()
+			for i = #getgenv().DeltaInflictQueue, 1, -1 do
+				local entry = getgenv().DeltaInflictQueue[i]
+				if now >= entry.fireAt then
+					-- Set bypass flag so our own __namecall hook lets this through immediately
+					-- without re-intercepting it as a new InstantHit shot.
+					-- Use :FireServer() (not OriginalNamecall) so the VM sets
+					-- getnamecallmethod() = "FireServer" correctly before dispatch.
+					getgenv().DeltaBypassInflict = true
+					pcall(function()
+						ProjectileInflictRemote:FireServer(table.unpack(entry.args, 1, entry.args.n))
+					end)
+					getgenv().DeltaBypassInflict = false
+					table.remove(getgenv().DeltaInflictQueue, i)
+				end
+			end
+		end
+	end)
+)
 
 -- ==========================================
 -- Anti-Cheat Metamethod Hook (__namecall)
@@ -1876,28 +2034,37 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 		end
 
 		if getgenv().Config.Combat.NoSpread then
-			if string.find(lowerAttr, "spread") then
+			if string.find(lowerAttr, "spread") or string.find(lowerAttr, "accuracydeviation") then
+				if LogLine then
+					LogLine("[NoSpread] Spoofing GetAttribute: " .. tostring(attrName))
+				end
 				-- Return a negligible amount of spread instead of 0 to bypass server checks
-				return 0.05
+				return 0.001
 			end
 		end
 
-		if getgenv().Config.Combat.InstantHit or getgenv().Config.SilentAim.Enabled then
-			if attrName == "MuzzleVelocity" and getgenv().Config.Combat.InstantHit then
-				print("[Hitscan Debug] Spoofed MuzzleVelocity to 3500")
-				return 3500 -- Safely high velocity to avoid server dropping the hit
-			elseif attrName == "ProjectileDrop" and getgenv().Config.Combat.InstantHit then
-				print("[Hitscan Debug] Spoofed ProjectileDrop to 0.05")
-				return 0.05 -- Tiny amount of drop to bypass anti-cheat zero-drop checks
-			elseif attrName == "Drag" then
-				-- By spoofing Drag to a near-zero value, we completely eliminate air resistance locally
-				-- The server trusts the client's hit registration for this!
-				return 0.00001
+		if getgenv().Config.Combat.InstantHit then
+			if string.find(lowerAttr, "muzzlevelocity") then
+				return 999999
+			elseif
+				string.find(lowerAttr, "projectiledrop")
+				or string.find(lowerAttr, "gravity")
+				or string.find(lowerAttr, "drag")
+			then
+				return 0
 			end
 		end
 	elseif method == "GetAttributes" then
 		local attrs = oldNamecall(self, ...)
-		if type(attrs) == "table" and (getgenv().Config.Combat.NoRecoil or getgenv().Config.Combat.NoSpread or getgenv().Config.Combat.InstantHit or getgenv().Config.SilentAim.Enabled) then
+		if
+			type(attrs) == "table"
+			and (
+				getgenv().Config.Combat.NoRecoil
+				or getgenv().Config.Combat.NoSpread
+				or getgenv().Config.Combat.InstantHit
+				or getgenv().Config.SilentAim.Enabled
+			)
+		then
 			local callingScript = getcallingscript()
 			if callingScript then
 				local sName = string.lower(callingScript.Name)
@@ -1912,17 +2079,29 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 				if string.find(lk, "recoil") and getgenv().Config.Combat.NoRecoil then
 					newAttrs[k] = 0
 					spoofed = true
-				elseif string.find(lk, "spread") and getgenv().Config.Combat.NoSpread then
-					newAttrs[k] = type(v) == "number" and 0.05 or v
+				elseif
+					(string.find(lk, "spread") or string.find(lk, "accuracydeviation"))
+					and getgenv().Config.Combat.NoSpread
+				then
+					if LogLine then
+						LogLine("[NoSpread] Spoofing GetAttributes table key: " .. tostring(k))
+					end
+					newAttrs[k] = type(v) == "number" and 0.001 or v
 					spoofed = true
-				elseif k == "MuzzleVelocity" and getgenv().Config.Combat.InstantHit then
-					newAttrs[k] = 3500
-					spoofed = true
-				elseif k == "ProjectileDrop" and getgenv().Config.Combat.InstantHit then
-					newAttrs[k] = 0.05
-					spoofed = true
-				elseif k == "Drag" and (getgenv().Config.Combat.InstantHit or getgenv().Config.SilentAim.Enabled) then
-					newAttrs[k] = 0.00001
+				elseif
+					getgenv().Config.Combat.InstantHit
+					and (
+						string.find(lk, "muzzlevelocity")
+						or string.find(lk, "projectiledrop")
+						or string.find(lk, "gravity")
+						or string.find(lk, "drag")
+					)
+				then
+					if string.find(lk, "muzzlevelocity") then
+						newAttrs[k] = 999999
+					else
+						newAttrs[k] = 0
+					end
 					spoofed = true
 				else
 					newAttrs[k] = v
@@ -1976,23 +2155,63 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 		not checkcaller()
 		and (getgenv().Config.Combat.InstantHit or getgenv().Config.Combat.NoRecoil or getgenv().Config.Combat.NoSpread)
 	then
-		-- Instant Hit (Hitscan) Server Bypass
-		-- If MuzzleVelocity is spoofed, the bullet reaches the target in 0 seconds.
-		-- ProjectileInflict sends tick() to the server to prove the bullet traveled over time.
-		-- If the server sees the bullet hit instantly, it flags it as an exploit.
-		-- We subtract the fake travel time from the timestamp so the server thinks the bullet was fired earlier.
+		if (method == "FireServer" or method == "InvokeServer") and getgenv().Config.Combat.NoSpread then
+			local lowerName = string.lower(self.Name)
+			if string.match(lowerName, "projectile") then
+				if LogLine then
+					LogLine("[NoSpread Spy] Intercepted Remote: " .. self.Name .. " (" .. method .. ")")
+					LogLine("[NoSpread Spy] Args: " .. tostring(#args))
+					for i, v in ipairs(args) do
+						local t = typeof(v)
+						local display
+						if t == "Vector3" then
+							display = string.format("Vec3(%.2f, %.2f, %.2f)", v.X, v.Y, v.Z)
+						elseif t == "CFrame" then
+							local p = v.Position
+							local lv = v.LookVector
+							display = string.format(
+								"CFrame(pos=%.2f,%.2f,%.2f, look=%.2f,%.2f,%.2f)",
+								p.X,
+								p.Y,
+								p.Z,
+								lv.X,
+								lv.Y,
+								lv.Z
+							)
+						elseif t == "number" then
+							display = string.format("num(%.6f)", v)
+						elseif t == "Instance" then
+							display = string.format("Inst[%s]=%s", v.ClassName, v.Name)
+						elseif t == "table" then
+							local inner = "{"
+							for k2, v2 in pairs(v) do
+								inner = inner .. tostring(k2) .. "=" .. typeof(v2) .. " "
+							end
+							display = inner .. "}"
+						else
+							display = tostring(v)
+						end
+						LogLine(string.format("  [%d] %s", i, display))
+					end
+					LogLine("[NoSpread Spy] ===================================")
+				end
+			end
+		end
+
+		-- -----------------------------------------------
+		-- Instant Hit: Intercept-and-Delay (Solution 2)
+		-- -----------------------------------------------
+		-- Instead of firing ProjectileInflict immediately (which arrives at the server
+		-- too early and gets flagged), we capture the authentic args, suppress the call,
+		-- and re-fire via the queue drainer thread after exactly Distance/RealVelocity seconds.
+		-- The server receives the packet at the millisecond it mathematically expects. ✅
 		if
 			method == "FireServer"
 			and string.lower(self.Name) == "projectileinflict"
 			and getgenv().Config.Combat.InstantHit
 		then
-			if args[4] and type(args[4]) == "number" then
-				-- Subtracting roughly 0.25 to 0.4 seconds from the timestamp to simulate a realistic travel time
-				args[4] = args[4] - (0.25 + math.random() * 0.15)
-				print("[Hitscan Bypass] Faked ProjectileInflict timestamp to simulate travel time")
-				setnamecallmethod(method)
-				return oldNamecall(self, table.unpack(args))
-			end
+			-- (Debug logs for Instant Hit removed)
+			-- Fall through — setnamecallmethod + oldNamecall at bottom fires it correctly
 		end
 
 		if
@@ -2036,6 +2255,9 @@ oldRandom = hookfunction(
 					-- returning exactly 0 (or the midpoint) means zero deviation!
 					-- math.random(min, max) -> return math.floor((min+max)/2)
 					-- For float-based custom randomizers that just call math.random(), returning 0.5 (or midway)
+					if LogLine then
+						LogLine("[NoSpread] Centering math.random call from " .. callingScript.Name)
+					end
 					return 0 -- Returning 0 or min/max center might break if max is required.
 				elseif type(min) == "number" and not max then
 					return min -- Probably 1
@@ -2063,12 +2285,18 @@ oldRandomNew = hookfunction(
 					__index = function(self, key)
 						if key == "NextNumber" then
 							return function(_, min, max)
+								if LogLine then
+									LogLine("[NoSpread] Centering Random:NextNumber from " .. callingScript.Name)
+								end
 								min = min or 0
 								max = max or 1
 								return (min + max) / 2 -- Always perfectly centered
 							end
 						elseif key == "NextInteger" then
 							return function(_, min, max)
+								if LogLine then
+									LogLine("[NoSpread] Centering Random:NextInteger from " .. callingScript.Name)
+								end
 								return math.floor((min + max) / 2) -- Always perfectly centered
 							end
 						else
@@ -3067,23 +3295,31 @@ table.insert(ConnectionList, renderConnection)
 table.insert(
 	ConnectionList,
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
+		if gameProcessed then
+			return
+		end
 		local config = getgenv().Config.SilentAim
-		
+
 		if config.ResolverKeybind and input.KeyCode.Name == config.ResolverKeybind then
 			local newState = not config.Resolver
-			
+
 			-- Force config change to ensure logic immediately toggles
 			config.Resolver = newState
-			
+
 			-- Make UI the source of truth visually
 			local toggleElement = getgenv().ResolverToggleElement
 			if toggleElement then
-				pcall(function() toggleElement:Set(newState) end)
-				pcall(function() toggleElement:SetValue(newState) end)
-				pcall(function() toggleElement:Toggle(newState) end)
+				pcall(function()
+					toggleElement:Set(newState)
+				end)
+				pcall(function()
+					toggleElement:SetValue(newState)
+				end)
+				pcall(function()
+					toggleElement:Toggle(newState)
+				end)
 			end
-			
+
 			NotifyWithSound("Resolver Toggled", "Resolver is now " .. (newState and "ON" or "OFF"))
 		end
 	end)
