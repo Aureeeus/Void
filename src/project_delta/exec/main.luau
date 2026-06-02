@@ -120,10 +120,7 @@ getgenv()._DeltaScriptCleanup = function()
 
 	-- Reset InstantHit state so arg dump fires fresh and stale shot info doesn't persist
 	getgenv().DeltaInflictDumped = nil
-	getgenv().DeltaLastShotInfo  = nil
-	getgenv().DeltaInflictQueue  = {}
-	getgenv().DeltaVelocityCache = {}
-	getgenv().DeltaBypassInflict = nil
+	getgenv().DeltaLastShotInfo = nil
 
 	print("[Delta Cleanup] --- Starting Memory Wipe ---")
 	print("[Delta Cleanup] Disconnected loops:", #ConnectionList)
@@ -183,11 +180,9 @@ getgenv().Config = getgenv().Config
 		},
 		SilentAim = {
 			Enabled = false,
-			Resolver = false,
-			ResolverKeybind = "T",
 			TargetType = "Players",
 			FOVRadius = 150,
-			TargetPart = "Head", -- "Head", "Torso", "Random"
+			TargetPart = "Head",
 			ShowFOV = false,
 			ShowSnapline = false,
 			VisibleCheck = false,
@@ -196,16 +191,21 @@ getgenv().Config = getgenv().Config
 			TracerType = "Default",
 			TracerColor = Color3.fromRGB(255, 255, 255),
 			TracerTransparency = 0.5,
+			TracerGlowEffect = false,
 		},
 		Combat = {
-			NoRecoil = true,
-			NoSpread = true,
+			NoRecoil = false,
+			NoSpread = false,
 			InstantHit = false,
 			InstantADS = false,
 			ADSZoomMultiplier = 1.0,
 			HideViewmodelOnADS = false,
+			RapidFire = false,
+			RapidFireValue = 3,
+			FlyKeybind = "Y",
 		},
 		Mods = {
+			FOV = 70,
 			Fullbright = false,
 			NoFog = false,
 			Hitsound = false,
@@ -484,10 +484,19 @@ BulletTracersSection:Toggle({
 	end,
 })
 
+BulletTracersSection:Toggle({
+	Title = "Glow Effect",
+	Flag = "TracerGlowEffect",
+	Value = getgenv().Config.SilentAim.TracerGlowEffect,
+	Callback = function(state)
+		getgenv().Config.SilentAim.TracerGlowEffect = state
+	end,
+})
+
 BulletTracersSection:Dropdown({
 	Title = "Tracer Type",
 	Flag = "TracerType",
-	Values = { "Default", "Lightning" },
+	Values = { "Default", "Lightning", "Heartbeat" },
 	Value = getgenv().Config.SilentAim.TracerType,
 	Callback = function(option)
 		getgenv().Config.SilentAim.TracerType = option
@@ -578,24 +587,6 @@ CombatSection:Toggle({
 	end,
 })
 
-CombatSection:Toggle({
-	Title = "No Recoil",
-	Flag = "NoRecoil",
-	Value = getgenv().Config.Combat.NoRecoil,
-	Callback = function(state)
-		getgenv().Config.Combat.NoRecoil = state
-	end,
-})
-
-CombatSection:Toggle({
-	Title = "No Spread",
-	Flag = "NoSpread",
-	Value = getgenv().Config.Combat.NoSpread,
-	Callback = function(state)
-		getgenv().Config.Combat.NoSpread = state
-	end,
-})
-
 local SilentAimSection = CombatTab:Section({
 	Title = "Silent Aim",
 })
@@ -606,25 +597,6 @@ SilentAimSection:Toggle({
 	Value = getgenv().Config.SilentAim.Enabled,
 	Callback = function(state)
 		getgenv().Config.SilentAim.Enabled = state
-	end,
-})
-
-getgenv().ResolverToggleElement = SilentAimSection:Toggle({
-	Title = "Enable Resolver",
-	Flag = "EnableResolver",
-	Value = getgenv().Config.SilentAim.Resolver,
-	Callback = function(state)
-		getgenv().Config.SilentAim.Resolver = state
-	end,
-})
-
-SilentAimSection:Keybind({
-	Title = "Resolver Keybind",
-	Flag = "ResolverKeybind",
-	Desc = "Key to toggle the Resolver",
-	Value = getgenv().Config.SilentAim.ResolverKeybind or "T",
-	Callback = function(keyName)
-		getgenv().Config.SilentAim.ResolverKeybind = keyName
 	end,
 })
 
@@ -702,11 +674,43 @@ local ModsSection = ModsTab:Section({
 })
 
 ModsSection:Toggle({
+	Title = "No Recoil",
+	Flag = "NoRecoil",
+	Value = getgenv().Config.Combat.NoRecoil,
+	Callback = function(state)
+		getgenv().Config.Combat.NoRecoil = state
+	end,
+})
+
+ModsSection:Toggle({
+	Title = "No Spread",
+	Flag = "NoSpread",
+	Value = getgenv().Config.Combat.NoSpread,
+	Callback = function(state)
+		getgenv().Config.Combat.NoSpread = state
+	end,
+})
+
+ModsSection:Toggle({
 	Title = "Rapid Fire",
 	Flag = "RapidFire",
 	Value = getgenv().Config.Combat.RapidFire,
 	Callback = function(state)
 		getgenv().Config.Combat.RapidFire = state
+	end,
+})
+
+-- Fly Feature UI
+local FlySection = CombatTab:Section({
+	Title = "Fly",
+})
+FlySection:Keybind({
+	Title = "Fly Keybind",
+	Flag = "FlyKeybind",
+	Desc = "Press to toggle fly",
+	Value = getgenv().Config.Combat.FlyKeybind or "Y",
+	Callback = function(keyName)
+		getgenv().Config.Combat.FlyKeybind = keyName
 	end,
 })
 
@@ -716,7 +720,7 @@ ModsSection:Slider({
 	Step = 1,
 	Value = {
 		Min = 1,
-		Max = 20,
+		Max = 50,
 		Default = getgenv().Config.Combat.RapidFireValue,
 	},
 	Callback = function(value)
@@ -743,6 +747,20 @@ WorldModsSection:Toggle({
 	Value = getgenv().Config.Mods.NoFog,
 	Callback = function(state)
 		getgenv().Config.Mods.NoFog = state
+	end,
+})
+
+WorldModsSection:Slider({
+	Title = "FOV",
+	Flag = "FOV",
+	Step = 1,
+	Value = {
+		Min = 70,
+		Max = 120,
+		Default = getgenv().Config.Mods.FOV or 70,
+	},
+	Callback = function(value)
+		getgenv().Config.Mods.FOV = value
 	end,
 })
 
@@ -851,7 +869,7 @@ UISection:Keybind({
 })
 
 local DebugSection = SettingsTab:Section({
-	Title = "Debug & Logging"
+	Title = "Debug & Logging",
 })
 
 DebugSection:Button({
@@ -863,10 +881,10 @@ DebugSection:Button({
 			Window:Notify({
 				Title = "Logs Copied",
 				Description = "Successfully copied debug logs to clipboard.",
-				Time = 3
+				Time = 3,
 			})
 		end
-	end
+	end,
 })
 
 DebugSection:Button({
@@ -876,9 +894,9 @@ DebugSection:Button({
 		Window:Notify({
 			Title = "Logs Cleared",
 			Description = "Debug log buffer has been cleared.",
-			Time = 3
+			Time = 3,
 		})
-	end
+	end,
 })
 
 local ConfigSection = SettingsTab:Section({
@@ -956,6 +974,20 @@ ConfigSection:Button({
 	Callback = function()
 		if MyConfig then
 			MyConfig:Load()
+			pcall(function()
+				task.wait(0.1)
+				local data = readfile("WindUI/Skibidi Hub/config/" .. currentConfigName .. ".json")
+				local decoded = game:GetService("HttpService"):JSONDecode(data)
+				for flag, val in pairs(decoded) do
+					if type(val) == "string" then
+						local s, r = pcall(function() return Color3.fromHex((val:gsub("#", ""))) end)
+						if s and r then
+							if getgenv().Config.ESP[flag] ~= nil then getgenv().Config.ESP[flag] = r end
+							if getgenv().Config.SilentAim[flag] ~= nil then getgenv().Config.SilentAim[flag] = r end
+						end
+					end
+				end
+			end)
 			NotifyWithSound("Config Loaded", "Loaded configuration: " .. currentConfigName)
 		end
 	end,
@@ -1038,14 +1070,14 @@ if droppedItems then
 			table.insert(corpseModelsCache, child)
 		end
 	end
-	droppedItems.ChildAdded:Connect(function(child)
+	table.insert(ConnectionList, droppedItems.ChildAdded:Connect(function(child)
 		if child:IsA("Model") then
 			task.wait(0.1)
 			if child:FindFirstChild("Humanoid") then
 				table.insert(corpseModelsCache, child)
 			end
 		end
-	end)
+	end))
 end
 
 table.insert(
@@ -1197,10 +1229,21 @@ function CharacterManager.GetExits()
 	return CharacterManager.ActiveExits
 end
 
+CharacterManager.VisibilityCache = {}
+CharacterManager.LastVisCheck = {}
+
 function CharacterManager.IsVisible(targetHead, characterModel)
 	if not LocalPlayer.Character then
 		return false
 	end
+
+	-- Rate limit raycasts to 10 times per second to save FPS
+	local now = os.clock()
+	local lastCheck = CharacterManager.LastVisCheck[targetHead] or 0
+	if now - lastCheck < 0.1 then
+		return CharacterManager.VisibilityCache[targetHead] or false
+	end
+
 	local origin = Camera.CFrame.Position
 	local direction = targetHead.Position - origin
 	local params = RaycastParams.new()
@@ -1208,7 +1251,11 @@ function CharacterManager.IsVisible(targetHead, characterModel)
 	params.FilterDescendantsInstances = { LocalPlayer.Character, characterModel }
 	params.IgnoreWater = true
 	local result = Workspace:Raycast(origin, direction, params)
-	return result == nil
+
+	local isVis = (result == nil)
+	CharacterManager.VisibilityCache[targetHead] = isVis
+	CharacterManager.LastVisCheck[targetHead] = now
+	return isVis
 end
 
 -- ==========================================
@@ -1235,7 +1282,7 @@ function TargetManager.GetClosestTargetToMouse()
 			end
 
 			local screenPosition, isVisibleOnScreen = Camera:WorldToViewportPoint(head.Position)
-			if isVisibleOnScreen then
+			if isVisibleOnScreen and screenPosition.Z > 0 then
 				local targetVector = Vector2.new(screenPosition.X, screenPosition.Y)
 				local distanceToMouse = (targetVector - mouseLocation).Magnitude
 
@@ -1250,7 +1297,7 @@ function TargetManager.GetClosestTargetToMouse()
 	if targetType == "Players" or targetType == "Both" then
 		processCharacters(CharacterManager.GetActiveCharacters())
 	end
-	
+
 	if targetType == "NPC" or targetType == "Both" then
 		processCharacters(CharacterManager.GetNPCs())
 	end
@@ -1297,7 +1344,7 @@ function CombatManager.Update()
 		local headPosition = TargetManager.CurrentTarget.Head.Position
 		local screenPosition, isVisible = Camera:WorldToViewportPoint(headPosition)
 
-		if isVisible then
+		if isVisible and screenPosition.Z > 0 then
 			local isVisible3D = config.VisibleCheck
 				and CharacterManager.IsVisible(
 					TargetManager.CurrentTarget.Head,
@@ -1334,11 +1381,11 @@ getgenv().DebugLogBuffer = getgenv().DebugLogBuffer or {}
 
 if not getgenv().AutoCopyLogsHooked then
 	getgenv().AutoCopyLogsHooked = true
-	game:GetService("GuiService").ErrorMessageChanged:Connect(function(msg)
+	table.insert(ConnectionList, game:GetService("GuiService").ErrorMessageChanged:Connect(function(msg)
 		if msg and msg ~= "" and setclipboard then
 			setclipboard(table.concat(getgenv().DebugLogBuffer, "\n"))
 		end
-	end)
+	end))
 end
 
 local function LogLine(msg)
@@ -1485,7 +1532,7 @@ function ESPManager.Update()
 			local screenPosition, isVisibleOnScreen =
 				Camera:WorldToViewportPoint(data.Head.Position + Vector3.new(0, 0.5, 0))
 
-			if isVisibleOnScreen then
+			if isVisibleOnScreen and screenPosition.Z > 0 then
 				local distanceInMeters = math.floor((Camera.CFrame.Position - data.Head.Position).Magnitude * 0.28)
 
 				textDrawing.Text = ESPManager.FormatPlayerText(data)
@@ -1620,6 +1667,23 @@ local BulletTracerManager = {
 }
 getgenv().DeltaTracersCache = BulletTracerManager.Tracers
 
+function BulletTracerManager.ParseColor(cColor)
+	if typeof(cColor) == "Color3" then return cColor end
+	if type(cColor) == "string" then
+		local s, r = pcall(function() return Color3.fromHex(cColor) end)
+		if s then return r end
+	end
+	if type(cColor) == "table" then
+		local s, r = pcall(function()
+			if cColor.R and cColor.G and cColor.B then return Color3.new(cColor.R, cColor.G, cColor.B) end
+			if cColor[1] and cColor[2] and cColor[3] then return Color3.new(cColor[1], cColor[2], cColor[3]) end
+			return Color3.fromRGB(255, 255, 255)
+		end)
+		if s then return r end
+	end
+	return Color3.fromRGB(255, 255, 255)
+end
+
 function BulletTracerManager.CreateLightning(origin, hitPos, config)
 	local distance = (hitPos - origin).Magnitude
 	local numSegments = math.clamp(math.floor(distance / 5), 3, 15)
@@ -1661,7 +1725,8 @@ function BulletTracerManager.CreateLightning(origin, hitPos, config)
 		beam.Attachment0 = a0
 		beam.Attachment1 = a1
 		beam.FaceCamera = true
-		beam.Color = ColorSequence.new(config.TracerColor)
+		local cColor = BulletTracerManager.ParseColor(config.TracerColor)
+		beam.Color = ColorSequence.new(cColor)
 		beam.Transparency = NumberSequence.new(0)
 		beam.Width0 = 0.1
 		beam.Width1 = 0.1
@@ -1669,6 +1734,92 @@ function BulletTracerManager.CreateLightning(origin, hitPos, config)
 		beam.Parent = Workspace.Terrain
 
 		table.insert(strandInfo.Beams, { Beam = beam, A0 = a0, A1 = a1 })
+
+		if config.TracerGlowEffect then
+			local glowBeam = Instance.new("Beam")
+			glowBeam.Attachment0 = a0
+			glowBeam.Attachment1 = a1
+			glowBeam.FaceCamera = true
+			glowBeam.Color = beam.Color
+			glowBeam.Transparency = NumberSequence.new(0.8)
+			glowBeam.Width0 = 0.3
+			glowBeam.Width1 = 0.3
+			glowBeam.LightEmission = 1
+			glowBeam.Parent = Workspace.Terrain
+			table.insert(strandInfo.Beams, { Beam = glowBeam, A0 = a0, A1 = a1 })
+		end
+	end
+
+	table.insert(BulletTracerManager.Tracers, strandInfo)
+end
+
+function BulletTracerManager.CreateHeartbeat(origin, hitPos, config)
+	local distance = (hitPos - origin).Magnitude
+	local numSegments = math.clamp(math.floor(distance / 5), 3, 15)
+	local direction = (hitPos - origin).Unit
+	local right = Vector3.new(0, 1, 0):Cross(direction)
+	if right.Magnitude < 0.1 then
+		right = Vector3.new(1, 0, 0):Cross(direction)
+	end
+	right = right.Unit
+	local up = direction:Cross(right).Unit
+
+	local now = os.clock()
+
+	local strandInfo = {
+		Beams = {},
+		CreationTime = now,
+		ExpireTime = now + 1.5,
+		IsHeartbeat = true,
+	}
+
+	local points = { origin }
+	for i = 1, numSegments - 1 do
+		local offset = direction * (distance * (i / numSegments))
+		local sign = (i % 2 == 0) and 1 or -1
+		local spikeOffset = up * 1.5 * sign
+		table.insert(points, origin + offset + spikeOffset)
+	end
+	table.insert(points, hitPos)
+
+	for i = 1, #points - 1 do
+		local a0 = Instance.new("Attachment")
+		a0.WorldPosition = points[i]
+		a0.Parent = Workspace.Terrain
+
+		local a1 = Instance.new("Attachment")
+		a1.WorldPosition = points[i + 1]
+		a1.Parent = Workspace.Terrain
+
+		local beam = Instance.new("Beam")
+		beam.Attachment0 = a0
+		beam.Attachment1 = a1
+		beam.FaceCamera = true
+
+		local cColor = BulletTracerManager.ParseColor(config.TracerColor)
+		beam.Color = ColorSequence.new(cColor)
+
+		beam.Transparency = NumberSequence.new(0)
+		beam.Width0 = 0.1
+		beam.Width1 = 0.1
+		beam.LightEmission = 1
+		beam.Parent = Workspace.Terrain
+
+		table.insert(strandInfo.Beams, { Beam = beam, A0 = a0, A1 = a1 })
+
+		if config.TracerGlowEffect then
+			local glowBeam = Instance.new("Beam")
+			glowBeam.Attachment0 = a0
+			glowBeam.Attachment1 = a1
+			glowBeam.FaceCamera = true
+			glowBeam.Color = beam.Color
+			glowBeam.Transparency = NumberSequence.new(0.8)
+			glowBeam.Width0 = 0.3
+			glowBeam.Width1 = 0.3
+			glowBeam.LightEmission = 1
+			glowBeam.Parent = Workspace.Terrain
+			table.insert(strandInfo.Beams, { Beam = glowBeam, A0 = a0, A1 = a1 })
+		end
 	end
 
 	table.insert(BulletTracerManager.Tracers, strandInfo)
@@ -1682,6 +1833,8 @@ function BulletTracerManager.AddTracer(origin, hitPos)
 
 	if config.TracerType == "Lightning" then
 		BulletTracerManager.CreateLightning(origin, hitPos, config)
+	elseif config.TracerType == "Heartbeat" then
+		BulletTracerManager.CreateHeartbeat(origin, hitPos, config)
 	else
 		local attachment0 = Instance.new("Attachment")
 		attachment0.WorldPosition = origin
@@ -1695,14 +1848,30 @@ function BulletTracerManager.AddTracer(origin, hitPos)
 		beam.Attachment0 = attachment0
 		beam.Attachment1 = attachment1
 		beam.FaceCamera = true
-		beam.Color = ColorSequence.new(config.TracerColor)
+		local cColor = BulletTracerManager.ParseColor(config.TracerColor)
+		beam.Color = ColorSequence.new(cColor)
 		beam.Transparency = NumberSequence.new(config.TracerTransparency)
 		beam.Width0 = 0.05
 		beam.Width1 = 0.05
 		beam.Parent = Workspace.Terrain
 
+		local glowBeam = nil
+		if config.TracerGlowEffect then
+			glowBeam = Instance.new("Beam")
+			glowBeam.Attachment0 = attachment0
+			glowBeam.Attachment1 = attachment1
+			glowBeam.FaceCamera = true
+			glowBeam.Color = beam.Color
+			glowBeam.Transparency = NumberSequence.new(math.clamp(config.TracerTransparency + 0.3, 0, 1))
+			glowBeam.Width0 = 0.15
+			glowBeam.Width1 = 0.15
+			glowBeam.LightEmission = 1
+			glowBeam.Parent = Workspace.Terrain
+		end
+
 		table.insert(BulletTracerManager.Tracers, {
 			Beam = beam,
+			GlowBeam = glowBeam,
 			A0 = attachment0,
 			A1 = attachment1,
 			ExpireTime = os.clock() + 2,
@@ -1720,10 +1889,7 @@ function BulletTracerManager.Update()
 		BulletTracerManager.LastFlicker = now
 	end
 
-	local cColor = config.TracerColor
-	if typeof(cColor) ~= "Color3" then
-		cColor = Color3.fromRGB(255, 255, 255)
-	end
+	local cColor = BulletTracerManager.ParseColor(config.TracerColor)
 	local cTrans = config.TracerTransparency
 	if type(cTrans) ~= "number" then
 		cTrans = 0.5
@@ -1736,6 +1902,9 @@ function BulletTracerManager.Update()
 		if now > tracer.ExpireTime or not config.BulletTracers then
 			if tracer.Beam then
 				tracer.Beam:Destroy()
+			end
+			if tracer.GlowBeam then
+				tracer.GlowBeam:Destroy()
 			end
 			if tracer.A0 then
 				tracer.A0:Destroy()
@@ -1755,7 +1924,12 @@ function BulletTracerManager.Update()
 			if tracer.Beam and not tracer.IsLightning then
 				tracer.Beam.Color = cachedColor
 				tracer.Beam.Transparency = cachedTransparency
-			elseif tracer.IsLightning and tracer.Beams and shouldFlicker then
+			end
+			if tracer.GlowBeam then
+				tracer.GlowBeam.Color = cachedColor
+				tracer.GlowBeam.Transparency = NumberSequence.new(math.clamp(cTrans + 0.3, 0, 1))
+			end
+			if tracer.IsLightning and tracer.Beams and shouldFlicker then
 				local flicker = math.random() * 0.3
 				local flickerTransparency = NumberSequence.new(math.clamp(flicker, 0, 1))
 				for _, b in pairs(tracer.Beams) do
@@ -1776,8 +1950,9 @@ if not getgenv().DeltaTimeTracker then
 		connection = game:GetService("RunService").RenderStepped:Connect(function(step)
 			-- EMA to smooth out frame spikes for more accurate future dt prediction
 			getgenv().DeltaTimeTracker.dt = getgenv().DeltaTimeTracker.dt * 0.9 + step * 0.1
-		end)
+		end),
 	}
+	table.insert(ConnectionList, getgenv().DeltaTimeTracker.connection)
 end
 
 local BulletMod = ReplicatedStorage:WaitForChild("Modules", 10)
@@ -1800,7 +1975,8 @@ if BulletMod then
 					local targetRoot = target.RootPart
 
 					local ammoName = type(args[7]) == "string" and args[7] or ""
-					local muzzleVelocity = (getgenv().DeltaVelocityCache and getgenv().DeltaVelocityCache[ammoName]) or 3000
+					local muzzleVelocity = (getgenv().DeltaVelocityCache and getgenv().DeltaVelocityCache[ammoName])
+						or 3000
 
 					local origin = Camera.CFrame.Position
 					pcall(function()
@@ -1813,10 +1989,6 @@ if BulletMod then
 					end)
 
 					local targetVelocity = targetRoot.AssemblyLinearVelocity
-					if getgenv().Config.SilentAim.Resolver then
-						targetVelocity = Vector3.zero
-					end
-
 					local v = muzzleVelocity
 					local G = 70
 
@@ -1849,21 +2021,8 @@ if BulletMod then
 
 					TargetManager.PredictedPosition = finalPredictedPos
 
-					-- Stamp the physics-accurate timeToHit so the InstantHit queue
-					-- can consume it without needing to parse ProjectileInflict args.
-					getgenv().DeltaLastShotInfo = {
-						timeToHit  = timeToHit,
-						shotAt     = os.clock(),
-					}
-
-					local spoofedOrigin = origin
-					if getgenv().Config.Combat.InstantHit then
-						local aimDir = (aimPos - origin).Unit
-						spoofedOrigin = aimPos - (aimDir * 1.5)
-					end
-
 					args[5] = {
-						CFrame = CFrame.lookAt(spoofedOrigin, aimPos),
+						["CFrame"] = CFrame.lookAt(origin, aimPos),
 					}
 
 					if getgenv().Config.SilentAim.BulletTracers then
@@ -1908,79 +2067,279 @@ end
 -- This gives us an O(1) table lookup per shot with zero WaitForChild cost.
 getgenv().DeltaVelocityCache = getgenv().DeltaVelocityCache or {}
 
-table.insert(ThreadList, task.spawn(function()
-	local ammoTypes = ReplicatedStorage:WaitForChild("AmmoTypes", 10)
-	if not ammoTypes then
-		print("[InstantHit Cache] ERROR: AmmoTypes not found in ReplicatedStorage")
-		return
-	end
-
-	local function cacheAmmoType(ammoType)
-		-- Must use getgenv().OriginalNamecall so our GetAttribute hook doesn't intercept this read.
-		-- At this point OriginalNamecall may not be set yet, so we fall back to a direct pcall.
-		local v
-		if getgenv().OriginalNamecall then
-			local ok
-			ok, v = pcall(getgenv().OriginalNamecall, ammoType, "MuzzleVelocity")
-			if not ok then v = nil end
-		else
-			local ok
-			ok, v = pcall(function() return ammoType:GetAttribute("MuzzleVelocity") end)
-			if not ok then v = nil end
+table.insert(
+	ThreadList,
+	task.spawn(function()
+		local ammoTypes = ReplicatedStorage:WaitForChild("AmmoTypes", 10)
+		if not ammoTypes then
+			print("[InstantHit Cache] ERROR: AmmoTypes not found in ReplicatedStorage")
+			return
 		end
-		if type(v) == "number" and v > 0 then
-			getgenv().DeltaVelocityCache[ammoType.Name] = v
-			print(string.format("[InstantHit Cache] %s → %.0f sv", ammoType.Name, v))
-		end
-	end
 
-	-- Cache all existing ammo types
-	for _, ammoType in ipairs(ammoTypes:GetChildren()) do
-		cacheAmmoType(ammoType)
-	end
-
-	-- Watch for new ammo types added later (weapon pickups etc.)
-	ammoTypes.ChildAdded:Connect(function(child)
-		task.wait(0.2)
-		cacheAmmoType(child)
-	end)
-end))
-
--- ==========================================
--- Instant Hit: Delayed Remote Queue (Solution 2)
--- ==========================================
--- Stores intercepted ProjectileInflict packets until their calculated travel time has elapsed.
-getgenv().DeltaInflictQueue = getgenv().DeltaInflictQueue or {}
-
-table.insert(ThreadList, task.spawn(function()
-	local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
-	local ProjectileInflictRemote = Remotes and Remotes:WaitForChild("ProjectileInflict", 10)
-	if not ProjectileInflictRemote then
-		print("[InstantHit Queue] ERROR: ProjectileInflict remote not found")
-		return
-	end
-
-	while true do
-		task.wait() -- yield every frame
-		if not getgenv().DeltaInflictQueue then break end
-		local now = os.clock()
-		for i = #getgenv().DeltaInflictQueue, 1, -1 do
-			local entry = getgenv().DeltaInflictQueue[i]
-			if now >= entry.fireAt then
-				-- Set bypass flag so our own __namecall hook lets this through immediately
-				-- without re-intercepting it as a new InstantHit shot.
-				-- Use :FireServer() (not OriginalNamecall) so the VM sets
-				-- getnamecallmethod() = "FireServer" correctly before dispatch.
-				getgenv().DeltaBypassInflict = true
-				pcall(function()
-					ProjectileInflictRemote:FireServer(table.unpack(entry.args, 1, entry.args.n))
+		local function cacheAmmoType(ammoType)
+			-- Must use getgenv().OriginalNamecall so our GetAttribute hook doesn't intercept this read.
+			-- At this point OriginalNamecall may not be set yet, so we fall back to a direct pcall.
+			local v
+			if getgenv().OriginalNamecall then
+				local ok
+				ok, v = pcall(getgenv().OriginalNamecall, ammoType, "MuzzleVelocity")
+				if not ok then
+					v = nil
+				end
+			else
+				local ok
+				ok, v = pcall(function()
+					return ammoType:GetAttribute("MuzzleVelocity")
 				end)
-				getgenv().DeltaBypassInflict = false
-				table.remove(getgenv().DeltaInflictQueue, i)
+				if not ok then
+					v = nil
+				end
+			end
+			if type(v) == "number" and v > 0 then
+				getgenv().DeltaVelocityCache[ammoType.Name] = v
+				print(string.format("[InstantHit Cache] %s → %.0f sv", ammoType.Name, v))
 			end
 		end
-	end
-end))
+
+		-- Cache all existing ammo types
+		for _, ammoType in ipairs(ammoTypes:GetChildren()) do
+			cacheAmmoType(ammoType)
+		end
+
+		-- Watch for new ammo types added later (weapon pickups etc.)
+		table.insert(ConnectionList, ammoTypes.ChildAdded:Connect(function(child)
+			task.wait(0.2)
+			cacheAmmoType(child)
+		end))
+	end)
+)
+-- ==========================================
+-- Unified Firearm Detection
+-- ==========================================
+getgenv().DeltaIsGun = function(wName)
+	if type(wName) ~= "string" or wName == "" or wName == "unknown" then return false end
+	local lower = string.lower(wName)
+	local isMeleeOrConsumable = string.find(lower, "scythe") or string.find(lower, "ninjato") 
+		or string.find(lower, "dv2") or string.find(lower, "dagger") 
+		or string.find(lower, "m9xr7") or string.find(lower, "karambit") 
+		or string.find(lower, "sword") or string.find(lower, "kukri") 
+		or string.find(lower, "tomahawk") or string.find(lower, "cutlass") 
+		or string.find(lower, "axe") or string.find(lower, "dressing")
+		or string.find(lower, "bandage") or string.find(lower, "rags")
+		or string.find(lower, "ai2") or string.find(lower, "ai4")
+		or string.find(lower, "milk") or string.find(lower, "ifak")
+		or string.find(lower, "bottle") or string.find(lower, "beans")
+		or string.find(lower, "kola") or string.find(lower, "cola")
+		or string.find(lower, "soda") or string.find(lower, "serum")
+		or string.find(lower, "key") or string.find(lower, "f1")
+		or string.find(lower, "rgo") or string.find(lower, "rgd")
+		or string.find(lower, "m84") or string.find(lower, "flare")
+		or string.find(lower, "spsh") or string.find(lower, "lighter")
+		
+	return not isMeleeOrConsumable
+end
+
+-- ==========================================
+-- SpringV2 Hook (NoRecoil Viewmodel Fix)
+-- ==========================================
+table.insert(
+	ThreadList,
+	task.spawn(function()
+		local springHooked = false
+		local fpsHooked = false
+		while task.wait(3.5) do
+			pcall(function()
+				for _, v in pairs(getgc(true)) do
+					if type(v) == "table" then
+						-- 1. Hook SpringV2 Prototype (Camera Recoil)
+						if not springHooked and type(rawget(v, "create")) == "function" then
+							local keys = 0
+							for _, _ in pairs(v) do
+								keys = keys + 1
+							end
+							if keys == 1 then
+								local success, testSpring = pcall(function()
+									return v.create()
+								end)
+								if
+									success
+									and type(testSpring) == "table"
+									and type(rawget(testSpring, "shove")) == "function"
+								then
+									if not getgenv().OldSpringCreate then
+										getgenv().OldSpringCreate = v.create
+										v.create = function(...)
+											local newSpring = getgenv().OldSpringCreate(...)
+											-- Removed SpringV2 shove intercept to preserve ADS physics
+											return newSpring
+										end
+									end
+									springHooked = true
+									if LogLine then
+										LogLine("[SpringV2] Hooked prototype successfully!")
+									end
+								end
+							end
+						end
+
+						-- 2. Hook FPS Prototype (Gun Kickback & Bobbing)
+						if
+							not fpsHooked
+							and type(rawget(v, "equip")) == "function"
+							and type(rawget(v, "changeLean")) == "function"
+							and type(rawget(v, "changeStance")) == "function"
+						then
+							if not getgenv().OldFPSEquip then
+								getgenv().OldFPSEquip = v.equip
+								v.equip = function(self, ...)
+									local ret = getgenv().OldFPSEquip(self, ...)
+									
+									if type(self) == "table" and rawget(self, "weapon") and typeof(self.weapon) == "Instance" then
+										local wName = string.lower(self.weapon.Name)
+										
+										if type(rawget(self, "settings")) == "table" then
+											-- Cache original recoil upon equip
+											if self.settings.MaximumKickBack and self.settings.MaximumKickBack ~= 0 and not rawget(self.settings, "OrigKick") then
+												self.settings.OrigKick = self.settings.MaximumKickBack
+												self.settings.OrigRecoil = self.settings.MaxRecoil
+											end
+										end
+										
+										if getgenv().Config.Combat.NoRecoil then
+											getgenv().TemporaryNoRecoil = getgenv().DeltaIsGun(wName)
+										else
+											getgenv().TemporaryNoRecoil = false
+										end
+										
+										-- Apply or Restore
+										if type(rawget(self, "settings")) == "table" then
+											if getgenv().TemporaryNoRecoil then
+												self.settings.MaximumKickBack = 0
+												self.settings.MaxRecoil = 0
+											else
+												if rawget(self, "OrigKick") then
+													self.settings.MaximumKickBack = self.settings.OrigKick
+													self.settings.MaxRecoil = self.settings.OrigRecoil
+												end
+											end
+										end
+										
+										-- TARGETED SPRING SILENCER (Camera Recoil Only)
+										if type(rawget(self, "springs")) == "table" then
+											for springName, springObj in pairs(self.springs) do
+												if type(springName) == "string" then
+													local lName = string.lower(springName)
+													if string.find(lName, "recoil") or string.find(lName, "kick") then
+														if type(springObj) == "table" and type(rawget(springObj, "shove")) == "function" then
+															if not rawget(springObj, "__recoilHooked") then
+																local oldShove = springObj.shove
+																springObj.shove = function(selfObj, force, ...)
+																	if getgenv().TemporaryNoRecoil then
+																		return oldShove(selfObj, Vector3.new(0, 0, 0), ...)
+																	end
+																	return oldShove(selfObj, force, ...)
+																end
+																rawset(springObj, "__recoilHooked", true)
+															end
+														end
+													end
+												end
+											end
+										end
+									end
+									
+									return ret
+								end
+								fpsHooked = true
+								if LogLine then
+									LogLine("[FPS] Hooked prototype successfully!")
+								end
+							end
+						end
+
+						-- Fix any already existing springs (if user equipped gun before prototype loaded)
+						if type(rawget(v, "shove")) == "function" and type(rawget(v, "update")) == "function" then
+							if not rawget(v, "__isHooked") then
+								-- Removed SpringV2 shove intercept to preserve ADS physics
+								rawset(v, "__isHooked", true)
+								if LogLine then
+									LogLine("[SpringV2] Hooked existing instance!")
+								end
+							end
+						end
+
+						-- Fix any already existing FPS controllers
+						if type(rawget(v, "settings")) == "table" and type(rawget(v, "springs")) == "table" then
+							local isActive = false
+							if type(rawget(v, "isEquipped")) == "boolean" then
+								isActive = v.isEquipped
+							elseif
+								rawget(v, "weapon")
+								and typeof(v.weapon) == "Instance"
+								and v.weapon.Parent
+								and v.weapon.Parent:IsA("Model")
+								and v.weapon.Parent.Name == "Camera"
+							then
+								isActive = true
+							end
+
+							if isActive then
+								if rawget(v, "weapon") and typeof(v.weapon) == "Instance" then
+									local wName = string.lower(v.weapon.Name)
+									if getgenv().Config.Combat.NoRecoil then
+										getgenv().TemporaryNoRecoil = getgenv().DeltaIsGun(wName)
+									else
+										getgenv().TemporaryNoRecoil = false
+									end
+								end
+							end
+
+							if type(rawget(v, "settings")) == "table" then
+								if v.settings.MaximumKickBack and v.settings.MaximumKickBack ~= 0 and not rawget(v.settings, "OrigKick") then
+									v.settings.OrigKick = v.settings.MaximumKickBack
+									v.settings.OrigRecoil = v.settings.MaxRecoil
+								end
+								
+								if getgenv().TemporaryNoRecoil then
+									v.settings.MaximumKickBack = 0
+									v.settings.MaxRecoil = 0
+								else
+									if rawget(v.settings, "OrigKick") then
+										v.settings.MaximumKickBack = v.settings.OrigKick
+										v.settings.MaxRecoil = v.settings.OrigRecoil
+									end
+								end
+							end
+							
+							-- TARGETED SPRING SILENCER (Camera Recoil Only)
+							if type(rawget(v, "springs")) == "table" then
+								for springName, springObj in pairs(v.springs) do
+									if type(springName) == "string" then
+										local lName = string.lower(springName)
+										if string.find(lName, "recoil") or string.find(lName, "kick") then
+											if type(springObj) == "table" and type(rawget(springObj, "shove")) == "function" then
+												if not rawget(springObj, "__recoilHooked") then
+													local oldShove = springObj.shove
+													springObj.shove = function(selfObj, force, ...)
+														if getgenv().TemporaryNoRecoil then
+															return oldShove(selfObj, Vector3.new(0, 0, 0), ...)
+														end
+														return oldShove(selfObj, force, ...)
+													end
+													rawset(springObj, "__recoilHooked", true)
+												end
+											end
+										end
+									end
+								end
+							end
+						end
+					end
+				end
+			end)
+		end
+	end)
+)
 
 -- ==========================================
 -- Anti-Cheat Metamethod Hook (__namecall)
@@ -1999,6 +2358,42 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 	local method = getnamecallmethod()
 	local args = { ... }
 
+	if method == "FireServer" then
+		local selfName = typeof(self) == "Instance" and self.Name or ""
+		if selfName == "ProjectileInflict" or selfName == "MeleeInflict" or selfName == "MeleeInfIict" then
+			if getgenv().HitsoundManager and getgenv().HitsoundManager.Play then
+				pcall(getgenv().HitsoundManager.Play)
+			end
+		end
+	end
+
+
+
+	if method == "Play" then
+		if typeof(self) == "Instance" and self:IsA("AnimationTrack") then
+			local name = self.Name
+
+			if getgenv().TemporaryNoRecoil then
+				if string.match(name, "UseAiming$") or string.match(name, "Use$") or string.match(name, "UseAlt$") then
+					
+					-- Flag that a gunshot is happening to allow the SpringV2 hook to swallow the recoil shove
+					getgenv().IsFiring = true
+					task.delay(0.15, function()
+						getgenv().IsFiring = false
+					end)
+					
+					local track = oldNamecall(self, ...)
+					task.spawn(function()
+						pcall(function()
+							self:AdjustWeight(0.001)
+						end)
+					end)
+					return track
+				end
+			end
+		end
+	end
+
 	if method == "GetAttribute" then
 		local attrName = args[1]
 		local lowerAttr = type(attrName) == "string" and string.lower(attrName) or ""
@@ -2012,7 +2407,7 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 			end
 		end
 
-		if getgenv().Config.Combat.NoRecoil then
+		if getgenv().TemporaryNoRecoil then
 			if string.find(lowerAttr, "recoil") then
 				return 0
 			end
@@ -2020,7 +2415,9 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 
 		if getgenv().Config.Combat.NoSpread then
 			if string.find(lowerAttr, "spread") or string.find(lowerAttr, "accuracydeviation") then
-				if LogLine then LogLine("[NoSpread] Spoofing GetAttribute: " .. tostring(attrName)) end
+				if LogLine then
+					LogLine("[NoSpread] Spoofing GetAttribute: " .. tostring(attrName))
+				end
 				-- Return a negligible amount of spread instead of 0 to bypass server checks
 				return 0.001
 			end
@@ -2028,16 +2425,26 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 
 		if getgenv().Config.Combat.InstantHit then
 			if string.find(lowerAttr, "muzzlevelocity") then
-				return 999999
-			elseif string.find(lowerAttr, "projectiledrop") or string.find(lowerAttr, "gravity") or string.find(lowerAttr, "drag") then
+				return 3299
+			elseif
+				string.find(lowerAttr, "projectiledrop")
+				or string.find(lowerAttr, "gravity")
+				or string.find(lowerAttr, "drag")
+			then
 				return 0
 			end
 		end
-
-
 	elseif method == "GetAttributes" then
 		local attrs = oldNamecall(self, ...)
-		if type(attrs) == "table" and (getgenv().Config.Combat.NoRecoil or getgenv().Config.Combat.NoSpread or getgenv().Config.Combat.InstantHit or getgenv().Config.SilentAim.Enabled) then
+		if
+			type(attrs) == "table"
+			and (
+				getgenv().Config.Combat.NoRecoil
+				or getgenv().Config.Combat.NoSpread
+				or getgenv().Config.Combat.InstantHit
+				or getgenv().Config.SilentAim.Enabled
+			)
+		then
 			local callingScript = getcallingscript()
 			if callingScript then
 				local sName = string.lower(callingScript.Name)
@@ -2049,16 +2456,29 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 			local newAttrs = {}
 			for k, v in pairs(attrs) do
 				local lk = string.lower(k)
-				if string.find(lk, "recoil") and getgenv().Config.Combat.NoRecoil then
+				if string.find(lk, "recoil") and getgenv().TemporaryNoRecoil then
 					newAttrs[k] = 0
 					spoofed = true
-				elseif (string.find(lk, "spread") or string.find(lk, "accuracydeviation")) and getgenv().Config.Combat.NoSpread then
-					if LogLine then LogLine("[NoSpread] Spoofing GetAttributes table key: " .. tostring(k)) end
+				elseif
+					(string.find(lk, "spread") or string.find(lk, "accuracydeviation"))
+					and getgenv().Config.Combat.NoSpread
+				then
+					if LogLine then
+						LogLine("[NoSpread] Spoofing GetAttributes table key: " .. tostring(k))
+					end
 					newAttrs[k] = type(v) == "number" and 0.001 or v
 					spoofed = true
-				elseif getgenv().Config.Combat.InstantHit and (string.find(lk, "muzzlevelocity") or string.find(lk, "projectiledrop") or string.find(lk, "gravity") or string.find(lk, "drag")) then
+				elseif
+					getgenv().Config.Combat.InstantHit
+					and (
+						string.find(lk, "muzzlevelocity")
+						or string.find(lk, "projectiledrop")
+						or string.find(lk, "gravity")
+						or string.find(lk, "drag")
+					)
+				then
 					if string.find(lk, "muzzlevelocity") then
-						newAttrs[k] = 999999
+						newAttrs[k] = 3299
 					else
 						newAttrs[k] = 0
 					end
@@ -2085,27 +2505,42 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 					info.DelayTime
 				)
 			end
-			if getgenv().Config.Combat.ADSZoomMultiplier and getgenv().Config.Combat.ADSZoomMultiplier ~= 1.0 then
-				local baseFOV = 70
-				pcall(function()
-					local lp = game:GetService("Players").LocalPlayer
-					local pf = game:GetService("ReplicatedStorage"):FindFirstChild("Players")
-					local myF = pf and pf:FindFirstChild(lp.Name)
-					local setF = myF and myF:FindFirstChild("Settings")
-					local gp = setF and setF:FindFirstChild("GameplaySettings")
-					if gp then
-						baseFOV = gp:GetAttribute("DefaultFOV") or 70
-					end
-				end)
-				if props.FieldOfView < baseFOV then
-					local newProps = {}
-					for k, v in pairs(props) do
-						newProps[k] = v
-					end
-					newProps.FieldOfView = props.FieldOfView / getgenv().Config.Combat.ADSZoomMultiplier
-					args[3] = newProps
+			local baseFOV = 70
+			pcall(function()
+				local lp = game:GetService("Players").LocalPlayer
+				local pf = game:GetService("ReplicatedStorage"):FindFirstChild("Players")
+				local myF = pf and pf:FindFirstChild(lp.Name)
+				local setF = myF and myF:FindFirstChild("Settings")
+				local gp = setF and setF:FindFirstChild("GameplaySettings")
+				if gp then
+					baseFOV = gp:GetAttribute("DefaultFOV") or 70
+				end
+			end)
+
+			local isZooming = props.FieldOfView < (baseFOV - 5)
+			getgenv().DeltaIsZooming = isZooming
+
+			local newFOV = props.FieldOfView
+			if isZooming then
+				if getgenv().Config.Mods.FOV and getgenv().Config.Mods.FOV ~= 70 then
+					local ratio = props.FieldOfView / baseFOV
+					newFOV = getgenv().Config.Mods.FOV * ratio
+				end
+				if getgenv().Config.Combat.ADSZoomMultiplier and getgenv().Config.Combat.ADSZoomMultiplier ~= 1.0 then
+					newFOV = newFOV / getgenv().Config.Combat.ADSZoomMultiplier
+				end
+			else
+				if getgenv().Config.Mods.FOV and getgenv().Config.Mods.FOV ~= 70 then
+					newFOV = getgenv().Config.Mods.FOV
 				end
 			end
+
+			local newProps = {}
+			for k, v in pairs(props) do
+				newProps[k] = v
+			end
+			newProps.FieldOfView = newFOV
+			args[3] = newProps
 			setnamecallmethod(method)
 			return oldNamecall(self, table.unpack(args))
 		end
@@ -2129,7 +2564,15 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 						elseif t == "CFrame" then
 							local p = v.Position
 							local lv = v.LookVector
-							display = string.format("CFrame(pos=%.2f,%.2f,%.2f, look=%.2f,%.2f,%.2f)", p.X, p.Y, p.Z, lv.X, lv.Y, lv.Z)
+							display = string.format(
+								"CFrame(pos=%.2f,%.2f,%.2f, look=%.2f,%.2f,%.2f)",
+								p.X,
+								p.Y,
+								p.Z,
+								lv.X,
+								lv.Y,
+								lv.Z
+							)
 						elseif t == "number" then
 							display = string.format("num(%.6f)", v)
 						elseif t == "Instance" then
@@ -2151,19 +2594,26 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 		end
 
 		-- -----------------------------------------------
-		-- Instant Hit: Intercept-and-Delay (Solution 2)
+		-- Instant Hit: Desync Teleporting (Method 2)
 		-- -----------------------------------------------
-		-- Instead of firing ProjectileInflict immediately (which arrives at the server
-		-- too early and gets flagged), we capture the authentic args, suppress the call,
-		-- and re-fire via the queue drainer thread after exactly Distance/RealVelocity seconds.
-		-- The server receives the packet at the millisecond it mathematically expects. ✅
+		-- We spoof MuzzleVelocity to 3299 so the bullet physically hits instantly on the client.
+		-- Instead of backdating the remote or mature pool, we intercept ProjectileInflict
+		-- and use latency desync to temporarily teleport our character to the hit point,
+		-- making Distance = 0 and ExpectedTravelTime = 0.
+
 		if
-			method == "FireServer"
-			and string.lower(self.Name) == "projectileinflict"
+			method == "InvokeServer"
+			and string.lower(self.Name) == "fireprojectile"
 			and getgenv().Config.Combat.InstantHit
 		then
-			-- (Debug logs for Instant Hit removed)
-			-- Fall through — setnamecallmethod + oldNamecall at bottom fires it correctly
+			local bulletID = args[2]
+
+			if LogLine then
+				LogLine("[InstantHit Spy] Intercepted FireProjectile. ID: " .. tostring(bulletID))
+			end
+
+			setnamecallmethod(method)
+			return oldNamecall(self, table.unpack(args))
 		end
 
 		if
@@ -2202,17 +2652,16 @@ oldRandom = hookfunction(
 			local callingScript = getcallingscript()
 			if callingScript and string.find(string.lower(callingScript.Name), "bullet") then
 				if type(min) == "number" and type(max) == "number" then
-					-- To achieve "No Spread", we return the absolute exact center of the random range.
-					-- If the spread randomizer expects a number between -spread and +spread,
-					-- returning exactly 0 (or the midpoint) means zero deviation!
-					-- math.random(min, max) -> return math.floor((min+max)/2)
-					-- For float-based custom randomizers that just call math.random(), returning 0.5 (or midway)
-					if LogLine then LogLine("[NoSpread] Centering math.random call from " .. callingScript.Name) end
-					return 0 -- Returning 0 or min/max center might break if max is required.
+					if LogLine then
+						LogLine("[NoSpread] Centering math.random call from " .. callingScript.Name)
+					end
+					-- FIX: Using math.floor((min+max)/2) safely centers both spread calculations
+					-- (e.g. -50 to 50 returns 0) and array lookups (e.g. 1 to #Sound returns valid index).
+					return math.floor((min + max) / 2)
 				elseif type(min) == "number" and not max then
-					return min -- Probably 1
+					return min
 				else
-					return 0.5 -- Midpoint for math.random() with no args
+					return 0.5
 				end
 			end
 		end
@@ -2235,14 +2684,18 @@ oldRandomNew = hookfunction(
 					__index = function(self, key)
 						if key == "NextNumber" then
 							return function(_, min, max)
-								if LogLine then LogLine("[NoSpread] Centering Random:NextNumber from " .. callingScript.Name) end
+								if LogLine then
+									LogLine("[NoSpread] Centering Random:NextNumber from " .. callingScript.Name)
+								end
 								min = min or 0
 								max = max or 1
 								return (min + max) / 2 -- Always perfectly centered
 							end
 						elseif key == "NextInteger" then
 							return function(_, min, max)
-								if LogLine then LogLine("[NoSpread] Centering Random:NextInteger from " .. callingScript.Name) end
+								if LogLine then
+									LogLine("[NoSpread] Centering Random:NextInteger from " .. callingScript.Name)
+								end
 								return math.floor((min + max) / 2) -- Always perfectly centered
 							end
 						else
@@ -2267,62 +2720,74 @@ oldRandomNew = hookfunction(
 -- RapidFire Manager
 -- ==========================================
 local originalFireRates = {}
-local warnedItemsList = false
+local originalFireModes = {}
+local originalCurrentFireMode = {}
 
 table.insert(
 	ThreadList,
 	task.spawn(function()
 		while task.wait(1) do
-			local ItemsList = ReplicatedStorage:FindFirstChild("ItemsList")
+			local ItemsList = ReplicatedStorage:FindFirstChild("Itemslist")
+				or ReplicatedStorage:FindFirstChild("ItemsList")
 
 			if ItemsList then
-				for _, item in ipairs(ItemsList:GetChildren()) do
-					local settingsMod = item:FindFirstChild("SettingsModule")
-					if settingsMod and settingsMod:IsA("ModuleScript") then
-						local success, stats = pcall(require, settingsMod)
+				for _, desc in ipairs(ItemsList:GetDescendants()) do
+					if desc:IsA("ModuleScript") and desc.Name == "SettingsModule" and desc.Parent then
+						local itemName = desc.Parent.Name
+						local success, stats = pcall(require, desc)
+
 						if success and type(stats) == "table" and stats.FireRate then
-							if not originalFireRates[item.Name] then
-								originalFireRates[item.Name] = stats.FireRate
+							if not originalFireRates[itemName] then
+								originalFireRates[itemName] = stats.FireRate
+							end
+							if stats.FireModes and not originalFireModes[itemName] then
+								originalFireModes[itemName] = table.clone(stats.FireModes)
+							end
+							if stats.FireMode and not originalCurrentFireMode[itemName] then
+								originalCurrentFireMode[itemName] = stats.FireMode
 							end
 
 							if getgenv().Config.Combat.RapidFire then
-								local newRate = originalFireRates[item.Name] / getgenv().Config.Combat.RapidFireValue
+								local multiplier = getgenv().Config.Combat.RapidFireValue or 3
+								local newRate = originalFireRates[itemName] / multiplier
+
 								if stats.FireRate ~= newRate then
 									stats.FireRate = newRate
-									print(
-										"[RapidFire Debug] Modified",
-										item.Name,
-										"FireRate to:",
-										newRate,
-										"| Original:",
-										originalFireRates[item.Name]
-									)
+								end
+
+								-- Deep Enforce "Auto" Mode
+								if stats.FireModes then
+									table.clear(stats.FireModes)
+									table.insert(stats.FireModes, "Auto")
+								end
+								if stats.FireMode then
+									stats.FireMode = "Auto"
+								end
+
+								-- Remove Bolt Action / Pump delays that block automatic fire loops
+								if stats.CycleTiming then
+									stats.CycleTiming = { 0, 0 }
+								end
+								if stats.EjectionDelay then
+									stats.EjectionDelay = 0
 								end
 							else
-								if stats.FireRate ~= originalFireRates[item.Name] then
-									stats.FireRate = originalFireRates[item.Name]
-									print(
-										"[RapidFire Debug] Restored",
-										item.Name,
-										"FireRate to:",
-										originalFireRates[item.Name]
-									)
+								if stats.FireRate ~= originalFireRates[itemName] then
+									stats.FireRate = originalFireRates[itemName]
+								end
+
+								if originalFireModes[itemName] and stats.FireModes then
+									table.clear(stats.FireModes)
+									for _, mode in ipairs(originalFireModes[itemName]) do
+										table.insert(stats.FireModes, mode)
+									end
+								end
+								if originalCurrentFireMode[itemName] and stats.FireMode then
+									stats.FireMode = originalCurrentFireMode[itemName]
 								end
 							end
-						elseif not success then
-							print(
-								"[RapidFire Debug] ERROR: Failed to require SettingsModule for",
-								item.Name,
-								"| Error:",
-								tostring(stats)
-							)
 						end
 					end
-				end
-			else
-				if not warnedItemsList then
-					print("[RapidFire Debug] ERROR: Could not find ReplicatedStorage.ItemsList!")
-					warnedItemsList = true
 				end
 			end
 		end
@@ -2351,6 +2816,12 @@ function WorldModsManager.Update()
 			atmosphere.Density = 0
 		end
 	end
+
+	if getgenv().Config.Mods.FOV and getgenv().Config.Mods.FOV ~= 70 then
+		if not getgenv().DeltaIsZooming then
+			Camera.FieldOfView = getgenv().Config.Mods.FOV
+		end
+	end
 end
 
 -- ==========================================
@@ -2364,6 +2835,8 @@ local HitsoundManager = {
 		Minecraft = "rbxassetid://88387457337661",
 	},
 }
+getgenv().HitsoundManager = HitsoundManager
+
 
 function HitsoundManager.Play()
 	local config = getgenv().Config.Mods
@@ -2416,93 +2889,7 @@ function HitsoundManager.Initialize()
 		return
 	end
 
-	local Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
-	if not Remotes then
-		return
-	end
 
-	local ProjectileInflict = Remotes:WaitForChild("ProjectileInflict", 2)
-	local MeleeInflict = Remotes:WaitForChild("MeleeInflict", 2)
-	local MeleeInfIict = Remotes:FindFirstChild("MeleeInfIict")
-
-	local hooked = false
-
-	-- Method 1: hookmetamethod (preferred for namecall)
-	if hookmetamethod and newcclosure then
-		local success = pcall(function()
-			local oldNamecall
-			oldNamecall = hookmetamethod(
-				game,
-				"__namecall",
-				newcclosure(function(self, ...)
-					local method = getnamecallmethod()
-					if
-						method == "FireServer"
-						and (
-							self == ProjectileInflict
-							or self == MeleeInflict
-							or (MeleeInfIict and self == MeleeInfIict)
-						)
-					then
-						pcall(HitsoundManager.Play)
-					end
-					return oldNamecall(self, ...)
-				end)
-			)
-		end)
-		if success then
-			hooked = true
-		else
-		end
-	end
-
-	-- Method 2: getrawmetatable (fallback for namecall)
-	if not hooked and getrawmetatable and setreadonly and newcclosure then
-		local success = pcall(function()
-			local gameMeta = getrawmetatable(game)
-			local oldNamecall = gameMeta.__namecall
-			setreadonly(gameMeta, false)
-			gameMeta.__namecall = newcclosure(function(self, ...)
-				local method = getnamecallmethod()
-				if
-					method == "FireServer"
-					and (self == ProjectileInflict or self == MeleeInflict or (MeleeInfIict and self == MeleeInfIict))
-				then
-					pcall(HitsoundManager.Play)
-				end
-				return oldNamecall(self, ...)
-			end)
-			setreadonly(gameMeta, true)
-		end)
-		if success then
-			hooked = true
-		else
-		end
-	end
-
-	-- Method 3: hookfunction on RemoteEvent.FireServer (covers index method calls like remote.FireServer(remote, ...))
-	if hookfunction and newcclosure then
-		local success = pcall(function()
-			local oldFireServer
-			oldFireServer = hookfunction(
-				Instance.new("RemoteEvent").FireServer,
-				newcclosure(function(self, ...)
-					if self == ProjectileInflict or self == MeleeInflict or (MeleeInfIict and self == MeleeInfIict) then
-						pcall(HitsoundManager.Play)
-					end
-					return oldFireServer(self, ...)
-				end)
-			)
-		end)
-		if success then
-			hooked = true
-		else
-		end
-	end
-
-	if not hooked then
-		return
-	end
 
 	HitsoundManager.Initialized = true
 end
@@ -2643,7 +3030,7 @@ local function getClosestInventoryTargetToMouse()
 			local head = character:FindFirstChild("Head") or character.PrimaryPart
 			if head then
 				local screenPosition, isVisibleOnScreen = Camera:WorldToViewportPoint(head.Position)
-				if isVisibleOnScreen then
+				if isVisibleOnScreen and screenPosition.Z > 0 then
 					local distanceToMouse = (Vector2.new(screenPosition.X, screenPosition.Y) - mouseLocation).Magnitude
 					if distanceToMouse < shortestDistance then
 						local replicatedPlayers = ReplicatedStorage:FindFirstChild("Players")
@@ -2667,7 +3054,7 @@ local function getClosestInventoryTargetToMouse()
 		local head = corpseData.Head
 		if head then
 			local screenPosition, isVisibleOnScreen = Camera:WorldToViewportPoint(head.Position)
-			if isVisibleOnScreen then
+			if isVisibleOnScreen and screenPosition.Z > 0 then
 				local distanceToMouse = (Vector2.new(screenPosition.X, screenPosition.Y) - mouseLocation).Magnitude
 				if distanceToMouse < shortestDistance then
 					shortestDistance = distanceToMouse
@@ -3201,24 +3588,7 @@ local function UpdateViewmodelTransparency()
 
 	local isADS = false
 	if getgenv().Config.Combat.HideViewmodelOnADS then
-		local baseFOV = getgenv().DeltaCachedDefaultFOV
-		if not baseFOV then
-			baseFOV = 70
-			pcall(function()
-				local lp = game:GetService("Players").LocalPlayer
-				local pf = game:GetService("ReplicatedStorage"):FindFirstChild("Players")
-				local myF = pf and pf:FindFirstChild(lp.Name)
-				local setF = myF and myF:FindFirstChild("Settings")
-				local gp = setF and setF:FindFirstChild("GameplaySettings")
-				if gp then
-					getgenv().DeltaCachedDefaultFOV = gp:GetAttribute("DefaultFOV") or 70
-					baseFOV = getgenv().DeltaCachedDefaultFOV
-				end
-			end)
-		end
-		if camera.FieldOfView < (baseFOV - 5) then
-			isADS = true
-		end
+		isADS = getgenv().DeltaIsZooming == true
 	end
 
 	for _, child in ipairs(camera:GetChildren()) do
@@ -3242,10 +3612,10 @@ local function UpdateViewmodelTransparency()
 end
 
 local renderConnection = RunService.RenderStepped:Connect(function()
+	WorldModsManager.Update()
 	ESPManager.Update()
 	CombatManager.Update()
 	BulletTracerManager.Update()
-	WorldModsManager.Update()
 	UpdateViewmodelTransparency()
 end)
 table.insert(ConnectionList, renderConnection)
@@ -3253,24 +3623,37 @@ table.insert(ConnectionList, renderConnection)
 table.insert(
 	ConnectionList,
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
-		local config = getgenv().Config.SilentAim
-		
-		if config.ResolverKeybind and input.KeyCode.Name == config.ResolverKeybind then
-			local newState = not config.Resolver
-			
-			-- Force config change to ensure logic immediately toggles
-			config.Resolver = newState
-			
-			-- Make UI the source of truth visually
-			local toggleElement = getgenv().ResolverToggleElement
-			if toggleElement then
-				pcall(function() toggleElement:Set(newState) end)
-				pcall(function() toggleElement:SetValue(newState) end)
-				pcall(function() toggleElement:Toggle(newState) end)
+		if gameProcessed then
+			return
+		end
+
+		local combatConfig = getgenv().Config.Combat
+		if combatConfig.FlyKeybind and input.KeyCode.Name == combatConfig.FlyKeybind then
+			local character = Workspace:FindFirstChild(LocalPlayer.Name)
+			if not character then
+				return
 			end
-			
-			NotifyWithSound("Resolver Toggled", "Resolver is now " .. (newState and "ON" or "OFF"))
+			local hrp = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
+			if not hrp then
+				return
+			end
+
+			local TweenService = game:GetService("TweenService")
+			local startCFrame = hrp.CFrame
+			local targetCFrame = startCFrame + Vector3.new(0, 12, 0)
+
+			-- Fly up smoothly
+			local tweenUp = TweenService:Create(
+				hrp,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ CFrame = targetCFrame }
+			)
+
+			tweenUp:Play()
+			tweenUp.Completed:Connect(function()
+				-- Teleport directly back to the origin
+				hrp.CFrame = startCFrame
+			end)
 		end
 	end)
 )
