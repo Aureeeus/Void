@@ -19,6 +19,11 @@ getgenv()._DeltaScriptCleanup = function()
 			task.cancel(thread)
 		end)
 	end
+
+	pcall(function()
+		game:GetService("RunService"):UnbindFromRenderStep("UndergroundDesync_Restore")
+	end)
+
 	if getgenv().CombatManager then
 		pcall(function()
 			if getgenv().CombatManager.FOVCircle then
@@ -79,9 +84,9 @@ getgenv()._DeltaScriptCleanup = function()
 		end
 	end
 
-	if getgenv().WindUI_Window then
+	if getgenv().LinoriaLibrary then
 		pcall(function()
-			getgenv().WindUI_Window:Destroy()
+			getgenv().LinoriaLibrary:Unload()
 		end)
 	end
 
@@ -118,9 +123,7 @@ getgenv()._DeltaScriptCleanup = function()
 	end
 	getgenv().DeltaTracersCache = {}
 
-	-- Reset InstantHit state so arg dump fires fresh and stale shot info doesn't persist
 	getgenv().DeltaInflictDumped = nil
-	getgenv().DeltaLastShotInfo = nil
 
 	print("[Delta Cleanup] --- Starting Memory Wipe ---")
 	print("[Delta Cleanup] Disconnected loops:", #ConnectionList)
@@ -143,6 +146,11 @@ local RunService = safeGetService("RunService")
 local ReplicatedStorage = safeGetService("ReplicatedStorage")
 local CoreGui = safeGetService("CoreGui")
 local UserInputService = safeGetService("UserInputService")
+local GuiService = safeGetService("GuiService")
+local HttpService = safeGetService("HttpService")
+local TweenService = safeGetService("TweenService")
+local SoundService = safeGetService("SoundService")
+local Lighting = safeGetService("Lighting")
 
 local LocalPlayer = cloneref(Players.LocalPlayer)
 local Camera = cloneref(Workspace.CurrentCamera)
@@ -154,6 +162,7 @@ getgenv().Config = getgenv().Config
 	or {
 		ESP = {
 			Enabled = false,
+			MaxDistance = 1500,
 			ShowHealthBar = false,
 			TextColor = Color3.fromRGB(255, 255, 255),
 			OutlineColor = Color3.fromRGB(0, 0, 0),
@@ -184,6 +193,8 @@ getgenv().Config = getgenv().Config
 			FOVRadius = 150,
 			TargetPart = "Head",
 			ShowFOV = false,
+			FOVType = "Default",
+			FOVColor = Color3.fromRGB(255, 255, 255),
 			ShowSnapline = false,
 			VisibleCheck = false,
 			VisibleColor = Color3.fromRGB(0, 255, 0),
@@ -196,13 +207,15 @@ getgenv().Config = getgenv().Config
 		Combat = {
 			NoRecoil = false,
 			NoSpread = false,
-			InstantHit = false,
 			InstantADS = false,
 			ADSZoomMultiplier = 1.0,
 			HideViewmodelOnADS = false,
 			RapidFire = false,
 			RapidFireValue = 3,
-			FlyKeybind = "Y",
+			UndergroundDesync = false,
+			UndergroundDesyncKeybind = "U",
+			FlyKeybind = "T",
+			SpiderClimbKeybind = "Y",
 		},
 		Mods = {
 			FOV = 70,
@@ -213,565 +226,497 @@ getgenv().Config = getgenv().Config
 			HitsoundVolume = 1.0,
 			HitsoundCustomId = "",
 		},
+		Utilities = {
+			ModDetector = false,
+		},
 	}
 
 -- ==========================================
--- WindUI Initialization
+-- LinoriaLib Initialization
 -- ==========================================
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local repo = "https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/"
+local Library = assert(loadstring((game :: any):HttpGet(repo .. "Library.lua")))()
 
-local Window = WindUI:CreateWindow({
-	Title = "Skibidi Hub |  Project Delta",
-	Icon = "solar:ghost-bold",
-	Folder = "Skibidi Hub",
-	HideSearchBar = true,
-	Topbar = {
-		Height = 44,
-		ButtonsType = "Mac",
-	},
+local Window = Library:CreateWindow({
+	Title = "Skibidi Hub | Project Delta",
+	Center = true,
+	AutoShow = true,
+	TabPadding = 8,
+	MenuFadeTime = 0.2,
 })
-getgenv().WindUI_Window = Window
+getgenv().LinoriaLibrary = Library
 
-local VisualsTab = Window:Tab({
-	Title = "Visuals",
-	Icon = "solar:eye-bold",
-})
+-- Tabs
+local VisualsTab = Window:AddTab("Visuals")
+local CombatTab = Window:AddTab("Combat")
+local ModsTab = Window:AddTab("Mods")
+local UtilitiesTab = Window:AddTab("Utilities")
+local SettingsTab = Window:AddTab("Settings")
 
-local CombatTab = Window:Tab({
-	Title = "Combat",
-	Icon = "solar:target-bold",
-})
+-- ==========================================
+-- Visuals Tab
+-- ==========================================
+local ESPSection = VisualsTab:AddLeftGroupbox("ESP")
 
-local ModsTab = Window:Tab({
-	Title = "Mods",
-	Icon = "solar:box-bold",
-})
+ESPSection:AddToggle("EnableESP", {
+	Text = "Enable ESP",
+	Default = getgenv().Config.ESP.Enabled,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.Enabled = value
+end)
 
-local ESPSettingsSection = VisualsTab:Section({
-	Title = "ESP",
-})
+ESPSection:AddSlider("ESPMaxDistance", {
+	Text = "Max Render Distance",
+	Default = getgenv().Config.ESP.MaxDistance or 1500,
+	Min = 1,
+	Max = 2000,
+	Rounding = 0,
+	Compact = false,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.MaxDistance = value
+end)
 
-ESPSettingsSection:Toggle({
-	Title = "Enable ESP",
-	Flag = "EnableESP",
-	Value = getgenv().Config.ESP.Enabled,
-	Callback = function(state)
-		getgenv().Config.ESP.Enabled = state
-	end,
-})
+ESPSection:AddToggle("ShowHealthBar", {
+	Text = "Show Health Bar",
+	Default = getgenv().Config.ESP.ShowHealthBar,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.ShowHealthBar = value
+end)
 
-ESPSettingsSection:Toggle({
-	Title = "Show Health Bar",
-	Flag = "ShowHealthBar",
-	Value = getgenv().Config.ESP.ShowHealthBar,
-	Callback = function(state)
-		getgenv().Config.ESP.ShowHealthBar = state
-	end,
-})
-
-ESPSettingsSection:Space()
-
-ESPSettingsSection:Colorpicker({
-	Title = "Text Color",
-	Flag = "TextColor",
+ESPSection:AddLabel("Text Color"):AddColorPicker("TextColor", {
 	Default = getgenv().Config.ESP.TextColor,
-	Callback = function(color)
-		getgenv().Config.ESP.TextColor = color
-	end,
+	Title = "Text Color",
 })
+getgenv().Options.TextColor:OnChanged(function(value)
+	getgenv().Config.ESP.TextColor = value
+end)
 
-ESPSettingsSection:Colorpicker({
-	Title = "Outline Color",
-	Flag = "OutlineColor",
+ESPSection:AddLabel("Outline Color"):AddColorPicker("OutlineColor", {
 	Default = getgenv().Config.ESP.OutlineColor,
-	Callback = function(color)
-		getgenv().Config.ESP.OutlineColor = color
-	end,
+	Title = "Outline Color",
 })
+getgenv().Options.OutlineColor:OnChanged(function(value)
+	getgenv().Config.ESP.OutlineColor = value
+end)
 
-ESPSettingsSection:Slider({
-	Title = "Text Size",
-	Flag = "TextSize",
-	Step = 1,
-	Value = {
-		Min = 8,
-		Max = 32,
-		Default = getgenv().Config.ESP.TextSize,
-	},
-	Callback = function(value)
-		getgenv().Config.ESP.TextSize = value
-	end,
+ESPSection:AddSlider("TextSize", {
+	Text = "Text Size",
+	Default = getgenv().Config.ESP.TextSize,
+	Min = 8,
+	Max = 32,
+	Rounding = 0,
+	Compact = false,
 })
+getgenv().Options.TextSize:OnChanged(function(value)
+	getgenv().Config.ESP.TextSize = value
+end)
 
-ESPSettingsSection:Space()
-
-ESPSettingsSection:Dropdown({
-	Title = "ESP Font",
-	Flag = "ESPFont",
-	Values = {
-		"UI",
-		"System",
-		"Plex",
-		"Monospace",
-	},
-	Value = "Plex",
-	Callback = function(option)
-		local fontMap = {
-			["UI"] = 0,
-			["System"] = 1,
-			["Plex"] = 2,
-			["Monospace"] = 3,
-		}
-		getgenv().Config.ESP.Font = fontMap[option] or 2
-	end,
+ESPSection:AddDropdown("ESPFont", {
+	Values = { "UI", "System", "Plex", "Monospace" },
+	Default = 3, -- 3 represents 'Plex'
+	Multi = false,
+	Text = "ESP Font",
 })
+getgenv().Options.ESPFont:OnChanged(function(value)
+	local fontMap = { ["UI"] = 0, ["System"] = 1, ["Plex"] = 2, ["Monospace"] = 3 }
+	getgenv().Config.ESP.Font = fontMap[value] or 2
+end)
 
-ESPSettingsSection:Space()
+ESPSection:AddDivider()
 
-ESPSettingsSection:Toggle({
-	Title = "Enable Chams",
-	Flag = "EnableChams",
-	Value = getgenv().Config.ESP.ChamsEnabled,
-	Callback = function(state)
-		getgenv().Config.ESP.ChamsEnabled = state
-	end,
-})
+ESPSection:AddToggle("EnableChams", {
+	Text = "Enable Chams",
+	Default = getgenv().Config.ESP.ChamsEnabled,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.ChamsEnabled = value
+end)
 
-ESPSettingsSection:Colorpicker({
-	Title = "Player Chams Fill Color",
-	Flag = "ChamsFillColor",
+ESPSection:AddLabel("Player Chams Fill Color"):AddColorPicker("ChamsFillColor", {
 	Default = getgenv().Config.ESP.ChamsFillColor,
-	Callback = function(color)
-		getgenv().Config.ESP.ChamsFillColor = color
-	end,
+	Title = "Player Chams Fill",
 })
+getgenv().Options.ChamsFillColor:OnChanged(function(value)
+	getgenv().Config.ESP.ChamsFillColor = value
+end)
 
-ESPSettingsSection:Colorpicker({
-	Title = "NPC Chams Fill Color",
-	Flag = "NPCChamsFillColor",
+ESPSection:AddLabel("NPC Chams Fill Color"):AddColorPicker("NPCChamsFillColor", {
 	Default = getgenv().Config.ESP.NPCChamsFillColor,
-	Callback = function(color)
-		getgenv().Config.ESP.NPCChamsFillColor = color
-	end,
+	Title = "NPC Chams Fill",
 })
+getgenv().Options.NPCChamsFillColor:OnChanged(function(value)
+	getgenv().Config.ESP.NPCChamsFillColor = value
+end)
 
-ESPSettingsSection:Colorpicker({
-	Title = "Chams Outline Color",
-	Flag = "ChamsOutlineColor",
+ESPSection:AddLabel("Chams Outline Color"):AddColorPicker("ChamsOutlineColor", {
 	Default = getgenv().Config.ESP.ChamsOutlineColor,
-	Callback = function(color)
-		getgenv().Config.ESP.ChamsOutlineColor = color
-	end,
+	Title = "Chams Outline",
 })
+getgenv().Options.ChamsOutlineColor:OnChanged(function(value)
+	getgenv().Config.ESP.ChamsOutlineColor = value
+end)
 
-ESPSettingsSection:Space()
+ESPSection:AddDivider()
 
-ESPSettingsSection:Toggle({
-	Title = "Visible Check",
-	Flag = "VisibleCheck",
-	Value = getgenv().Config.ESP.VisibleCheck,
-	Callback = function(state)
-		getgenv().Config.ESP.VisibleCheck = state
-	end,
-})
+ESPSection:AddToggle("VisibleCheck", {
+	Text = "Visible Check",
+	Default = getgenv().Config.ESP.VisibleCheck,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.VisibleCheck = value
+end)
 
-ESPSettingsSection:Colorpicker({
-	Title = "Visible Color",
-	Flag = "VisibleColor",
+ESPSection:AddLabel("Visible Color"):AddColorPicker("VisibleColor", {
 	Default = getgenv().Config.ESP.VisibleColor,
-	Callback = function(color)
-		getgenv().Config.ESP.VisibleColor = color
-	end,
+	Title = "Visible Color",
 })
+getgenv().Options.VisibleColor:OnChanged(function(value)
+	getgenv().Config.ESP.VisibleColor = value
+end)
 
-ESPSettingsSection:Space()
+ESPSection:AddDivider()
 
-ESPSettingsSection:Toggle({
-	Title = "Enable NPC ESP",
-	Flag = "EnableNPCESP",
-	Value = getgenv().Config.ESP.NPCESPEnabled,
-	Callback = function(state)
-		getgenv().Config.ESP.NPCESPEnabled = state
-	end,
-})
+ESPSection:AddToggle("EnableNPCESP", {
+	Text = "Enable NPC ESP",
+	Default = getgenv().Config.ESP.NPCESPEnabled,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.NPCESPEnabled = value
+end)
 
-ESPSettingsSection:Colorpicker({
-	Title = "NPC Text Color",
-	Flag = "NPCTextColor",
+ESPSection:AddLabel("NPC Text Color"):AddColorPicker("NPCTextColor", {
 	Default = getgenv().Config.ESP.NPCTextColor,
-	Callback = function(color)
-		getgenv().Config.ESP.NPCTextColor = color
-	end,
+	Title = "NPC Text Color",
 })
+getgenv().Options.NPCTextColor:OnChanged(function(value)
+	getgenv().Config.ESP.NPCTextColor = value
+end)
 
-ESPSettingsSection:Colorpicker({
-	Title = "NPC Outline Color",
-	Flag = "NPCOutlineColor",
+ESPSection:AddLabel("NPC Outline Color"):AddColorPicker("NPCOutlineColor", {
 	Default = getgenv().Config.ESP.NPCOutlineColor,
-	Callback = function(color)
-		getgenv().Config.ESP.NPCOutlineColor = color
-	end,
+	Title = "NPC Outline Color",
 })
+getgenv().Options.NPCOutlineColor:OnChanged(function(value)
+	getgenv().Config.ESP.NPCOutlineColor = value
+end)
 
-ESPSettingsSection:Space()
+ESPSection:AddDivider()
 
-ESPSettingsSection:Toggle({
-	Title = "Enable Corpse ESP",
-	Flag = "EnableCorpseESP",
-	Value = getgenv().Config.ESP.CorpseESPEnabled,
-	Callback = function(state)
-		getgenv().Config.ESP.CorpseESPEnabled = state
-	end,
-})
+ESPSection:AddToggle("EnableCorpseESP", {
+	Text = "Enable Corpse ESP",
+	Default = getgenv().Config.ESP.CorpseESPEnabled,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.CorpseESPEnabled = value
+end)
 
-ESPSettingsSection:Colorpicker({
-	Title = "Corpse Text Color",
-	Flag = "CorpseTextColor",
+ESPSection:AddLabel("Corpse Text Color"):AddColorPicker("CorpseTextColor", {
 	Default = getgenv().Config.ESP.CorpseTextColor,
-	Callback = function(color)
-		getgenv().Config.ESP.CorpseTextColor = color
-	end,
+	Title = "Corpse Text Color",
 })
+getgenv().Options.CorpseTextColor:OnChanged(function(value)
+	getgenv().Config.ESP.CorpseTextColor = value
+end)
 
-ESPSettingsSection:Colorpicker({
-	Title = "Corpse Outline Color",
-	Flag = "CorpseOutlineColor",
+ESPSection:AddLabel("Corpse Outline Color"):AddColorPicker("CorpseOutlineColor", {
 	Default = getgenv().Config.ESP.CorpseOutlineColor,
-	Callback = function(color)
-		getgenv().Config.ESP.CorpseOutlineColor = color
-	end,
+	Title = "Corpse Outline Color",
 })
+getgenv().Options.CorpseOutlineColor:OnChanged(function(value)
+	getgenv().Config.ESP.CorpseOutlineColor = value
+end)
 
-ESPSettingsSection:Space()
+ESPSection:AddDivider()
 
-ESPSettingsSection:Toggle({
-	Title = "Enable Exit ESP",
-	Flag = "EnableExitESP",
-	Value = getgenv().Config.ESP.ExitESPEnabled,
-	Callback = function(state)
-		getgenv().Config.ESP.ExitESPEnabled = state
-	end,
-})
+ESPSection:AddToggle("EnableExitESP", {
+	Text = "Enable Exit ESP",
+	Default = getgenv().Config.ESP.ExitESPEnabled,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.ExitESPEnabled = value
+end)
 
-ESPSettingsSection:Colorpicker({
-	Title = "Exit Text Color",
-	Flag = "ExitTextColor",
+ESPSection:AddLabel("Exit Text Color"):AddColorPicker("ExitTextColor", {
 	Default = getgenv().Config.ESP.ExitTextColor,
-	Callback = function(color)
-		getgenv().Config.ESP.ExitTextColor = color
-	end,
+	Title = "Exit Text Color",
 })
+getgenv().Options.ExitTextColor:OnChanged(function(value)
+	getgenv().Config.ESP.ExitTextColor = value
+end)
 
-ESPSettingsSection:Colorpicker({
-	Title = "Exit Outline Color",
-	Flag = "ExitOutlineColor",
+ESPSection:AddLabel("Exit Outline Color"):AddColorPicker("ExitOutlineColor", {
 	Default = getgenv().Config.ESP.ExitOutlineColor,
-	Callback = function(color)
-		getgenv().Config.ESP.ExitOutlineColor = color
-	end,
+	Title = "Exit Outline Color",
 })
+getgenv().Options.ExitOutlineColor:OnChanged(function(value)
+	getgenv().Config.ESP.ExitOutlineColor = value
+end)
 
-local BulletTracersSection = VisualsTab:Section({
-	Title = "Bullet Tracers",
-})
+local BulletTracersSection = VisualsTab:AddRightGroupbox("Bullet Tracers")
 
-BulletTracersSection:Toggle({
-	Title = "Enable Bullet Tracers",
-	Flag = "EnableBulletTracers",
-	Value = getgenv().Config.SilentAim.BulletTracers,
-	Callback = function(state)
-		getgenv().Config.SilentAim.BulletTracers = state
-	end,
-})
+BulletTracersSection:AddToggle("EnableBulletTracers", {
+	Text = "Enable Bullet Tracers",
+	Default = getgenv().Config.SilentAim.BulletTracers,
+}):OnChanged(function(value)
+	getgenv().Config.SilentAim.BulletTracers = value
+end)
 
-BulletTracersSection:Toggle({
-	Title = "Glow Effect",
-	Flag = "TracerGlowEffect",
-	Value = getgenv().Config.SilentAim.TracerGlowEffect,
-	Callback = function(state)
-		getgenv().Config.SilentAim.TracerGlowEffect = state
-	end,
-})
+BulletTracersSection:AddToggle("TracerGlowEffect", {
+	Text = "Glow Effect",
+	Default = getgenv().Config.SilentAim.TracerGlowEffect,
+}):OnChanged(function(value)
+	getgenv().Config.SilentAim.TracerGlowEffect = value
+end)
 
-BulletTracersSection:Dropdown({
-	Title = "Tracer Type",
-	Flag = "TracerType",
+BulletTracersSection:AddDropdown("TracerType", {
 	Values = { "Default", "Lightning", "Heartbeat" },
-	Value = getgenv().Config.SilentAim.TracerType,
-	Callback = function(option)
-		getgenv().Config.SilentAim.TracerType = option
-	end,
+	Default = 1,
+	Multi = false,
+	Text = "Tracer Type",
 })
+getgenv().Options.TracerType:OnChanged(function(value)
+	getgenv().Config.SilentAim.TracerType = value
+end)
 
-BulletTracersSection:Colorpicker({
-	Title = "Tracer Color",
-	Flag = "TracerColor",
+BulletTracersSection:AddLabel("Tracer Color"):AddColorPicker("TracerColor", {
 	Default = getgenv().Config.SilentAim.TracerColor,
-	Callback = function(color)
-		getgenv().Config.SilentAim.TracerColor = color
-	end,
+	Title = "Tracer Color",
 })
+getgenv().Options.TracerColor:OnChanged(function(value)
+	getgenv().Config.SilentAim.TracerColor = value
+end)
 
-BulletTracersSection:Slider({
-	Title = "Tracer Transparency",
-	Flag = "TracerTransparency",
-	Step = 0.05,
-	Value = {
-		Min = 0,
-		Max = 1,
-		Default = getgenv().Config.SilentAim.TracerTransparency,
-	},
-	Callback = function(value)
-		getgenv().Config.SilentAim.TracerTransparency = value
-	end,
+BulletTracersSection:AddSlider("TracerTransparency", {
+	Text = "Tracer Transparency",
+	Default = getgenv().Config.SilentAim.TracerTransparency,
+	Min = 0,
+	Max = 1,
+	Rounding = 2,
+	Compact = false,
 })
+getgenv().Options.TracerTransparency:OnChanged(function(value)
+	getgenv().Config.SilentAim.TracerTransparency = value
+end)
 
-local InventoryViewerSection = VisualsTab:Section({
-	Title = "Inventory Viewer",
-})
+local InventoryViewerSection = VisualsTab:AddRightGroupbox("Inventory Viewer")
 
-InventoryViewerSection:Toggle({
-	Title = "Enable Inventory Viewer",
-	Flag = "EnableInventoryViewer",
-	Value = getgenv().Config.ESP.InventoryViewer,
-	Callback = function(state)
-		getgenv().Config.ESP.InventoryViewer = state
-	end,
-})
+InventoryViewerSection:AddToggle("EnableInventoryViewer", {
+	Text = "Enable Inventory Viewer",
+	Default = getgenv().Config.ESP.InventoryViewer,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.InventoryViewer = value
+end)
 
 -- ==========================================
--- UI Combat Tab
+-- Combat Tab
 -- ==========================================
-local CombatSection = CombatTab:Section({
-	Title = "Combat Modifications",
+local CombatSection = CombatTab:AddLeftGroupbox("Combat Modifications")
+
+CombatSection:AddToggle("InstantADS", {
+	Text = "Instant ADS",
+	Default = getgenv().Config.Combat.InstantADS,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.InstantADS = value
+end)
+
+CombatSection:AddSlider("ADSZoomMultiplier", {
+	Text = "ADS Zoom Multiplier",
+	Default = getgenv().Config.Combat.ADSZoomMultiplier,
+	Min = 1,
+	Max = 20,
+	Rounding = 1,
+	Compact = false,
+})
+getgenv().Options.ADSZoomMultiplier:OnChanged(function(value)
+	getgenv().Config.Combat.ADSZoomMultiplier = value
+end)
+
+CombatSection:AddToggle("HideViewmodelOnADS", {
+	Text = "Hide Viewmodel on ADS",
+	Default = getgenv().Config.Combat.HideViewmodelOnADS,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.HideViewmodelOnADS = value
+end)
+
+local MovementSection = CombatTab:AddLeftGroupbox("Movement")
+
+MovementSection:AddToggle("UndergroundDesync", {
+	Text = "Underground Desync",
+	Default = false,
+}):AddKeyPicker("UndergroundDesyncKeybind", {
+	Default = getgenv().Config.Combat.UndergroundDesyncKeybind or "U",
+	SyncToggleState = true,
+	Mode = "Toggle",
+	Text = "Underground Desync",
+	NoUI = false,
 })
 
-CombatSection:Toggle({
-	Title = "Instant Hit",
-	Flag = "InstantHit",
-	Value = getgenv().Config.Combat.InstantHit,
-	Callback = function(state)
-		getgenv().Config.Combat.InstantHit = state
-	end,
-})
+getgenv().Toggles.UndergroundDesync:OnChanged(function(value)
+	getgenv().Config.Combat.UndergroundDesync = value
+	if getgenv().LinoriaLibrary then
+		if value then
+			getgenv().LinoriaLibrary:Notify("Enabled Underground Desync", 3)
+		else
+			getgenv().LinoriaLibrary:Notify("Disabled Underground Desync", 3)
+		end
+	end
+end)
 
-CombatSection:Toggle({
-	Title = "Instant ADS",
-	Flag = "InstantADS",
-	Value = getgenv().Config.Combat.InstantADS,
-	Callback = function(state)
-		getgenv().Config.Combat.InstantADS = state
-	end,
-})
+getgenv().Options.UndergroundDesyncKeybind:OnChanged(function()
+	getgenv().Config.Combat.UndergroundDesyncKeybind = getgenv().Options.UndergroundDesyncKeybind.Value
+end)
 
-CombatSection:Slider({
-	Title = "ADS Zoom Multiplier",
-	Flag = "ADSZoomMultiplier",
-	Step = 0.1,
-	Value = {
-		Min = 1,
-		Max = 20,
-		Default = getgenv().Config.Combat.ADSZoomMultiplier,
-	},
-	Callback = function(value)
-		getgenv().Config.Combat.ADSZoomMultiplier = value
-	end,
+MovementSection:AddLabel("Fly"):AddKeyPicker("FlyKeybind", {
+	Default = getgenv().Config.Combat.FlyKeybind,
+	SyncToggleState = false,
+	Mode = "Toggle",
+	Text = "Fly",
+	NoUI = false,
 })
+getgenv().Options.FlyKeybind:OnClick(function()
+	getgenv().Config.Combat.FlyKeybind = getgenv().Options.FlyKeybind.Value
+end)
 
-CombatSection:Toggle({
-	Title = "Hide Viewmodel on ADS",
-	Flag = "HideViewmodelOnADS",
-	Value = getgenv().Config.Combat.HideViewmodelOnADS,
-	Callback = function(state)
-		getgenv().Config.Combat.HideViewmodelOnADS = state
-	end,
+MovementSection:AddLabel("Spider Climb"):AddKeyPicker("SpiderClimbKeybind", {
+	Default = getgenv().Config.Combat.SpiderClimbKeybind,
+	SyncToggleState = false,
+	Mode = "Hold",
+	Text = "Spider Climb",
+	NoUI = false,
 })
+getgenv().Options.SpiderClimbKeybind:OnClick(function()
+	getgenv().Config.Combat.SpiderClimbKeybind = getgenv().Options.SpiderClimbKeybind.Value
+end)
 
-local SilentAimSection = CombatTab:Section({
-	Title = "Silent Aim",
-})
+local SilentAimSection = CombatTab:AddRightGroupbox("Silent Aim")
 
-SilentAimSection:Toggle({
-	Title = "Enable Silent Aim",
-	Flag = "EnableSilentAim",
-	Value = getgenv().Config.SilentAim.Enabled,
-	Callback = function(state)
-		getgenv().Config.SilentAim.Enabled = state
-	end,
-})
+SilentAimSection:AddToggle("EnableSilentAim", {
+	Text = "Enable Silent Aim",
+	Default = getgenv().Config.SilentAim.Enabled,
+}):OnChanged(function(value)
+	getgenv().Config.SilentAim.Enabled = value
+end)
 
-SilentAimSection:Dropdown({
-	Title = "Target Type",
-	Flag = "SilentAimTargetType",
+SilentAimSection:AddDropdown("SilentAimTargetType", {
 	Values = { "Players", "NPC", "Both" },
-	Value = getgenv().Config.SilentAim.TargetType or "Players",
-	Callback = function(option)
-		getgenv().Config.SilentAim.TargetType = option
-	end,
+	Default = 1,
+	Multi = false,
+	Text = "Target Type",
 })
+getgenv().Options.SilentAimTargetType:OnChanged(function(value)
+	getgenv().Config.SilentAim.TargetType = value
+end)
 
-SilentAimSection:Space()
-
-SilentAimSection:Toggle({
-	Title = "Show FOV Circle",
-	Flag = "ShowFOVCircle",
-	Value = getgenv().Config.SilentAim.ShowFOV,
-	Callback = function(state)
-		getgenv().Config.SilentAim.ShowFOV = state
-	end,
+SilentAimSection:AddDropdown("SilentAimTargetPart", {
+	Values = { "Head", "HeadTopHitBox", "UpperTorso" },
+	Default = 1,
+	Multi = false,
+	Text = "Target Part",
 })
+getgenv().Options.SilentAimTargetPart:OnChanged(function(value)
+	getgenv().Config.SilentAim.TargetPart = value
+end)
 
-SilentAimSection:Toggle({
-	Title = "Show Snapline",
-	Flag = "ShowSnapline",
-	Value = getgenv().Config.SilentAim.ShowSnapline,
-	Callback = function(state)
-		getgenv().Config.SilentAim.ShowSnapline = state
-	end,
+SilentAimSection:AddDivider()
+
+SilentAimSection:AddToggle("ShowFOVCircle", {
+	Text = "Show FOV Circle",
+	Default = getgenv().Config.SilentAim.ShowFOV,
+}):OnChanged(function(value)
+	getgenv().Config.SilentAim.ShowFOV = value
+end)
+
+SilentAimSection:AddSlider("FOVRadius", {
+	Text = "FOV Radius",
+	Default = getgenv().Config.SilentAim.FOVRadius,
+	Min = 10,
+	Max = 800,
+	Rounding = 0,
+	Compact = false,
 })
+getgenv().Options.FOVRadius:OnChanged(function(value)
+	getgenv().Config.SilentAim.FOVRadius = value
+end)
 
-SilentAimSection:Space()
-
-SilentAimSection:Slider({
-	Title = "FOV Radius",
-	Flag = "FOVRadius",
-	Step = 1,
-	Value = {
-		Min = 10,
-		Max = 800,
-		Default = getgenv().Config.SilentAim.FOVRadius,
-	},
-	Callback = function(value)
-		getgenv().Config.SilentAim.FOVRadius = value
-	end,
+SilentAimSection:AddDropdown("FOVType", {
+	Values = { "Default", "Sparkle" },
+	Default = 1,
+	Multi = false,
+	Text = "FOV Type",
 })
+getgenv().Options.FOVType:OnChanged(function(value)
+	getgenv().Config.SilentAim.FOVType = value
+end)
 
-SilentAimSection:Space()
-
-SilentAimSection:Toggle({
-	Title = "Visible Check (Snapline)",
-	Flag = "VisibleCheckSnapline",
-	Value = getgenv().Config.SilentAim.VisibleCheck,
-	Callback = function(state)
-		getgenv().Config.SilentAim.VisibleCheck = state
-	end,
+SilentAimSection:AddLabel("FOV Color"):AddColorPicker("FOVColor", {
+	Default = getgenv().Config.SilentAim.FOVColor,
+	Title = "FOV Color",
 })
+getgenv().Options.FOVColor:OnChanged(function(value)
+	getgenv().Config.SilentAim.FOVColor = value
+end)
 
-SilentAimSection:Colorpicker({
-	Title = "Snapline Color",
-	Flag = "SnaplineColor",
+SilentAimSection:AddDivider()
+
+SilentAimSection:AddToggle("ShowSnapline", {
+	Text = "Show Snapline",
+	Default = getgenv().Config.SilentAim.ShowSnapline,
+}):OnChanged(function(value)
+	getgenv().Config.SilentAim.ShowSnapline = value
+end)
+
+SilentAimSection:AddToggle("VisibleCheckSnapline", {
+	Text = "Visible Check (Snapline)",
+	Default = getgenv().Config.SilentAim.VisibleCheck,
+}):OnChanged(function(value)
+	getgenv().Config.SilentAim.VisibleCheck = value
+end)
+
+SilentAimSection:AddLabel("Snapline Color"):AddColorPicker("SnaplineColor", {
 	Default = getgenv().Config.SilentAim.VisibleColor,
-	Callback = function(color)
-		getgenv().Config.SilentAim.VisibleColor = color
-	end,
+	Title = "Snapline Color",
 })
+getgenv().Options.SnaplineColor:OnChanged(function(value)
+	getgenv().Config.SilentAim.VisibleColor = value
+end)
 
 -- ==========================================
--- Mods Configuration UI
+-- Mods Tab
 -- ==========================================
-local ModsSection = ModsTab:Section({
-	Title = "Gun Mods",
-})
+local ModsSection = ModsTab:AddLeftGroupbox("Gun Mods")
 
-ModsSection:Toggle({
-	Title = "No Recoil",
-	Flag = "NoRecoil",
-	Value = getgenv().Config.Combat.NoRecoil,
-	Callback = function(state)
-		getgenv().Config.Combat.NoRecoil = state
-	end,
-})
+ModsSection:AddToggle("NoRecoil", {
+	Text = "No Recoil",
+	Default = getgenv().Config.Combat.NoRecoil,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.NoRecoil = value
+end)
 
-ModsSection:Toggle({
-	Title = "No Spread",
-	Flag = "NoSpread",
-	Value = getgenv().Config.Combat.NoSpread,
-	Callback = function(state)
-		getgenv().Config.Combat.NoSpread = state
-	end,
-})
+ModsSection:AddToggle("NoSpread", {
+	Text = "No Spread",
+	Default = getgenv().Config.Combat.NoSpread,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.NoSpread = value
+end)
 
-ModsSection:Toggle({
-	Title = "Rapid Fire",
-	Flag = "RapidFire",
-	Value = getgenv().Config.Combat.RapidFire,
-	Callback = function(state)
-		getgenv().Config.Combat.RapidFire = state
-	end,
-})
+ModsSection:AddToggle("RapidFire", {
+	Text = "Rapid Fire",
+	Default = getgenv().Config.Combat.RapidFire,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.RapidFire = value
+end)
 
--- Fly Feature UI
-local FlySection = CombatTab:Section({
-	Title = "Fly",
+ModsSection:AddSlider("RapidFireMultiplier", {
+	Text = "Rapid Fire Multiplier",
+	Default = getgenv().Config.Combat.RapidFireValue,
+	Min = 1,
+	Max = 50,
+	Rounding = 0,
+	Compact = false,
 })
-FlySection:Keybind({
-	Title = "Fly Keybind",
-	Flag = "FlyKeybind",
-	Desc = "Press to toggle fly",
-	Value = getgenv().Config.Combat.FlyKeybind or "Y",
-	Callback = function(keyName)
-		getgenv().Config.Combat.FlyKeybind = keyName
-	end,
-})
-
-ModsSection:Slider({
-	Title = "Rapid Fire Multiplier",
-	Flag = "RapidFireMultiplier",
-	Step = 1,
-	Value = {
-		Min = 1,
-		Max = 50,
-		Default = getgenv().Config.Combat.RapidFireValue,
-	},
-	Callback = function(value)
-		getgenv().Config.Combat.RapidFireValue = value
-	end,
-})
-
-local WorldModsSection = ModsTab:Section({
-	Title = "World",
-})
-
-WorldModsSection:Toggle({
-	Title = "Fullbright",
-	Flag = "Fullbright",
-	Value = getgenv().Config.Mods.Fullbright,
-	Callback = function(state)
-		getgenv().Config.Mods.Fullbright = state
-	end,
-})
-
-WorldModsSection:Toggle({
-	Title = "No Fog",
-	Flag = "NoFog",
-	Value = getgenv().Config.Mods.NoFog,
-	Callback = function(state)
-		getgenv().Config.Mods.NoFog = state
-	end,
-})
-
-WorldModsSection:Slider({
-	Title = "FOV",
-	Flag = "FOV",
-	Step = 1,
-	Value = {
-		Min = 70,
-		Max = 120,
-		Default = getgenv().Config.Mods.FOV or 70,
-	},
-	Callback = function(value)
-		getgenv().Config.Mods.FOV = value
-	end,
-})
-
-local HitsoundSection = ModsTab:Section({
-	Title = "Hitsound",
-})
+getgenv().Options.RapidFireMultiplier:OnChanged(function(value)
+	getgenv().Config.Combat.RapidFireValue = value
+end)
 
 local originalHitsoundVolumes = {}
 
 local function UpdateDefaultHitsounds(mute)
-	local RS = game:GetService("ReplicatedStorage")
+	local RS = ReplicatedStorage
 	local paths = {
 		{ "SFX", "Hits", "MeleeHits", "Blood", "Hit" },
 		{ "SFX", "Hits", "ProjectileHits", "Blood", "Hit" },
@@ -795,222 +740,632 @@ local function UpdateDefaultHitsounds(mute)
 	end
 end
 
-HitsoundSection:Toggle({
-	Title = "Enable Hitsound",
-	Flag = "EnableHitsound",
-	Value = getgenv().Config.Mods.Hitsound,
-	Callback = function(state)
-		getgenv().Config.Mods.Hitsound = state
-		UpdateDefaultHitsounds(state)
-	end,
-})
+local HitsoundSection = ModsTab:AddLeftGroupbox("Hitsound")
 
--- Sync initial state
-UpdateDefaultHitsounds(getgenv().Config.Mods.Hitsound)
+HitsoundSection:AddToggle("EnableHitsound", {
+	Text = "Enable Hitsound",
+	Default = getgenv().Config.Mods.Hitsound,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.Hitsound = value
+	if UpdateDefaultHitsounds then
+		UpdateDefaultHitsounds(value)
+	end
+end)
 
-HitsoundSection:Dropdown({
-	Title = "Hitsound Type",
-	Flag = "HitsoundType",
-	Values = { "Rust", "Minecraft", "Custom" },
-	Value = getgenv().Config.Mods.HitsoundType,
-	Callback = function(option)
-		getgenv().Config.Mods.HitsoundType = option
-	end,
+HitsoundSection:AddDropdown("HitsoundType", {
+	Values = { "Rust", "Minecraft", "Bell", "Custom" },
+	Default = 1,
+	Multi = false,
+	Text = "Hitsound Type",
 })
+getgenv().Options.HitsoundType:OnChanged(function(value)
+	getgenv().Config.Mods.HitsoundType = value
+end)
 
-HitsoundSection:Input({
-	Title = "Custom Sound (Asset ID or Local File)",
-	Flag = "CustomSoundAssetIDorLocalFile",
-	Placeholder = "e.g. 160432334 or hit.mp3",
-	Value = getgenv().Config.Mods.HitsoundCustomId,
-	Callback = function(value)
-		getgenv().Config.Mods.HitsoundCustomId = value
-	end,
+HitsoundSection:AddInput("CustomSoundAssetIDorLocalFile", {
+	Default = getgenv().Config.Mods.HitsoundCustomId,
+	Numeric = false,
+	Finished = true,
+	Text = "Custom Sound ID/File",
+	Tooltip = "e.g. 160432334",
+	Placeholder = "Asset ID",
 })
+getgenv().Options.CustomSoundAssetIDorLocalFile:OnChanged(function(value)
+	getgenv().Config.Mods.HitsoundCustomId = value
+end)
 
-HitsoundSection:Slider({
-	Title = "Hitsound Volume",
-	Flag = "HitsoundVolume",
-	Step = 0.1,
-	Value = {
-		Min = 0.1,
-		Max = 2.0,
-		Default = getgenv().Config.Mods.HitsoundVolume,
-	},
-	Callback = function(value)
-		getgenv().Config.Mods.HitsoundVolume = value
-	end,
+HitsoundSection:AddSlider("HitsoundVolume", {
+	Text = "Hitsound Volume",
+	Default = getgenv().Config.Mods.HitsoundVolume,
+	Min = 0.1,
+	Max = 2.0,
+	Rounding = 1,
+	Compact = false,
 })
+getgenv().Options.HitsoundVolume:OnChanged(function(value)
+	getgenv().Config.Mods.HitsoundVolume = value
+end)
+
+local WorldModsSection = ModsTab:AddRightGroupbox("World")
+
+WorldModsSection:AddToggle("Fullbright", {
+	Text = "Fullbright",
+	Default = getgenv().Config.Mods.Fullbright,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.Fullbright = value
+end)
+
+WorldModsSection:AddToggle("NoFog", {
+	Text = "No Fog",
+	Default = getgenv().Config.Mods.NoFog,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.NoFog = value
+end)
+
+WorldModsSection:AddSlider("FOV", {
+	Text = "FOV",
+	Default = getgenv().Config.Mods.FOV or 70,
+	Min = 70,
+	Max = 120,
+	Rounding = 0,
+	Compact = false,
+})
+getgenv().Options.FOV:OnChanged(function(value)
+	getgenv().Config.Mods.FOV = value
+end)
 
 -- ==========================================
+-- Environment Setup
+-- ==========================================
+local getgenv = getfenv().getgenv or function()
+	return _G
+end
+
+getgenv().DebugLogs = {}
+getgenv().AddLog = function(msg)
+	local timestamp = os.date("%H:%M:%S")
+	table.insert(getgenv().DebugLogs, 1, "[" .. timestamp .. "] " .. tostring(msg))
+	if #getgenv().DebugLogs > 500 then
+		table.remove(getgenv().DebugLogs, 501)
+	end
+end
 
 -- ==========================================
--- UI Settings Tab
+-- Utilities Tab
 -- ==========================================
-local SettingsTab = Window:Tab({
-	Title = "Settings",
-	Icon = "solar:settings-bold",
-})
+local ModDetectorSection = UtilitiesTab:AddLeftGroupbox("Mod Detector")
 
-local UISection = SettingsTab:Section({
-	Title = "UI",
-})
+local function CheckMod(player)
+	task.spawn(function()
+		local isMod = false
+		if game.CreatorType == Enum.CreatorType.Group then
+			local success, roleName = pcall(function()
+				return player:GetRoleInGroup(game.CreatorId)
+			end)
 
-UISection:Keybind({
-	Title = "Toggle Menu Key",
-	Flag = "ToggleMenuKey",
-	Desc = "Change the keybind to hide/show the interface",
-	Value = "RightControl",
-	Callback = function(keyName)
-		pcall(function()
-			Window:SetToggleKey(Enum.KeyCode[keyName])
-		end)
-	end,
-})
+			if success and roleName then
+				local lowerRole = string.lower(roleName)
+				if
+					string.find(lowerRole, "mod")
+					or string.find(lowerRole, "admin")
+					or string.find(lowerRole, "dev")
+					or string.find(lowerRole, "owner")
+				then
+					isMod = true
+				end
+			end
+		elseif game.CreatorType == Enum.CreatorType.User then
+			if player.UserId == game.CreatorId then
+				isMod = true
+			end
+		end
 
-local DebugSection = SettingsTab:Section({
-	Title = "Debug & Logging",
-})
+		if isMod then
+			getgenv().LinoriaLibrary:Notify("A mod has joined: " .. player.Name, 10)
+		end
+	end)
+end
 
-DebugSection:Button({
-	Title = "Copy Debug Logs",
-	Description = "Copies the last 500 lines of debug logs to your clipboard.",
-	Callback = function()
+local ModDetectorConnection = nil
+
+ModDetectorSection:AddToggle("ModDetector", {
+	Text = "Enable Mod Detector",
+	Default = getgenv().Config.Utilities.ModDetector,
+}):OnChanged(function(value)
+	getgenv().Config.Utilities.ModDetector = value
+
+	if value then
+		if not ModDetectorConnection then
+			ModDetectorConnection = Players.PlayerAdded:Connect(function(player)
+				CheckMod(player)
+			end)
+			table.insert(ConnectionList, ModDetectorConnection)
+		end
+
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer then
+				CheckMod(player)
+			end
+		end
+	else
+		if ModDetectorConnection then
+			ModDetectorConnection:Disconnect()
+			for i, conn in ipairs(ConnectionList) do
+				if conn == ModDetectorConnection then
+					table.remove(ConnectionList, i)
+					break
+				end
+			end
+			ModDetectorConnection = nil
+		end
+	end
+end)
+
+-- ==========================================
+-- Main Loop (RenderStepped & Heartbeat)
+-- ==========================================
+local undergroundDesyncOffset = CFrame.new(0, -3.8, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+
+local function getTargetCharacter()
+	local char = Workspace:FindFirstChild(LocalPlayer.Name)
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		return char
+	end
+	return nil
+end
+
+RunService:BindToRenderStep("UndergroundDesync_Restore", -100, function()
+	if getgenv().Config.Combat.UndergroundDesync then
+		local Character = getTargetCharacter()
+		if Character and getgenv()._StoredRealCFrame then
+			Character.HumanoidRootPart.CFrame = getgenv()._StoredRealCFrame
+		end
+	else
+		getgenv()._StoredRealCFrame = nil
+	end
+end)
+
+local desyncTick = 0
+local heartbeatConnection = RunService.Heartbeat:Connect(function()
+	if getgenv().Config.Combat.UndergroundDesync then
+		local Character = getTargetCharacter()
+		if Character then
+			local HRP = Character.HumanoidRootPart
+			getgenv()._StoredRealCFrame = HRP.CFrame
+
+			local velocity = HRP.AssemblyLinearVelocity
+			local rotVelocity = HRP.AssemblyAngularVelocity
+
+			HRP.CFrame = getgenv()._StoredRealCFrame * undergroundDesyncOffset
+
+			desyncTick = desyncTick + 1
+			if desyncTick >= 60 and getgenv().AddLog then
+				desyncTick = 0
+				getgenv().AddLog("Desync Active: Server CFrame updated")
+			end
+
+			HRP.AssemblyLinearVelocity = velocity
+			HRP.AssemblyAngularVelocity = rotVelocity
+		end
+	end
+end)
+table.insert(ConnectionList, heartbeatConnection)
+
+local errorConnection = (GuiService :: any).ErrorMessageChanged:Connect(function(errMessage)
+	if setclipboard and getgenv().DebugLogs and #getgenv().DebugLogs > 0 then
+		local logString = table.concat(getgenv().DebugLogs, "\n")
+		setclipboard("--- PROJECT DELTA CRASH/KICK LOGS ---\nError: " .. tostring(errMessage) .. "\n\n" .. logString)
+	end
+end)
+table.insert(ConnectionList, errorConnection)
+
+if not getgenv().DesyncHooked then
+	getgenv().DesyncHooked = true
+	local spoofTick = 0
+	local oldIndex
+	oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
+		if not checkcaller() and getgenv().Config.Combat.UndergroundDesync and getgenv()._StoredRealCFrame then
+			if key == "CFrame" or key == "Position" then
+				local char = getTargetCharacter()
+				if char and self == char:FindFirstChild("HumanoidRootPart") then
+					spoofTick = spoofTick + 1
+					if spoofTick >= 60 and getgenv().AddLog then
+						spoofTick = 0
+						getgenv().AddLog("Spoofed __index read for " .. tostring(self.Name) .. "." .. key)
+					end
+					return key == "CFrame" and getgenv()._StoredRealCFrame or getgenv()._StoredRealCFrame.Position
+				end
+			end
+		end
+		return oldIndex(self, key)
+	end))
+
+	local oldNamecall
+	oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+		local method = getnamecallmethod()
+		if not checkcaller() then
+			if method == "FireServer" or method == "InvokeServer" then
+				if getgenv().AddLog then
+					local args = { ... }
+					local argStr = ""
+					for i, v in ipairs(args) do
+						argStr = argStr .. tostring(v) .. (i < #args and ", " or "")
+					end
+					getgenv().AddLog("Remote Spy: " .. tostring(self.Name) .. ":" .. method .. "(" .. argStr .. ")")
+				end
+			end
+		end
+		return oldNamecall(self, ...)
+	end))
+end
+
+-- ==========================================
+-- Settings Tab
+-- ==========================================
+local UISection = SettingsTab:AddLeftGroupbox("UI")
+
+UISection:AddButton("Unload", function() end)
+
+UISection:AddLabel("Menu Keybind"):AddKeyPicker("MenuKeybind", {
+	Default = "RightControl",
+	NoUI = true,
+	Text = "Menu Keybind",
+})
+Library.ToggleKeybind = getgenv().Options.MenuKeybind
+
+local DebugSection = SettingsTab:AddLeftGroupbox("Debugging")
+
+DebugSection:AddButton({
+	Text = "Copy Debug Logs",
+	Func = function()
 		if setclipboard then
 			setclipboard(table.concat(getgenv().DebugLogBuffer or {}, "\n"))
-			Window:Notify({
-				Title = "Logs Copied",
-				Description = "Successfully copied debug logs to clipboard.",
-				Time = 3,
-			})
+			Library:Notify("Successfully copied debug logs to clipboard.")
 		end
 	end,
+	DoubleClick = false,
 })
 
-DebugSection:Button({
-	Title = "Clear Debug Logs",
-	Callback = function()
+DebugSection:AddButton({
+	Text = "Clear Debug Logs",
+	Func = function()
 		table.clear(getgenv().DebugLogBuffer or {})
-		Window:Notify({
-			Title = "Logs Cleared",
-			Description = "Debug log buffer has been cleared.",
-			Time = 3,
-		})
+		Library:Notify("Debug log buffer has been cleared.")
 	end,
+	DoubleClick = false,
 })
+local ThemeDropdown
 
-local ConfigSection = SettingsTab:Section({
-	Title = "Config",
-})
+-- Custom Config Manager
 
-local ConfigManager = Window.ConfigManager
-local currentConfigName = "Default"
-local MyConfig = ConfigManager:CreateConfig(currentConfigName)
+local ConfigFolder = "Skibidi Hub/config"
+if not isfolder("Skibidi Hub") then
+	makefolder("Skibidi Hub")
+end
+if not isfolder(ConfigFolder) then
+	makefolder(ConfigFolder)
+end
 
 local function GetConfigs()
-	local configs = ConfigManager:AllConfigs()
-	if type(configs) == "table" and #configs > 0 then
-		return configs
-	end
-	return { "Default" }
-end
-
-local function NotifyWithSound(title, content)
-	task.spawn(function()
-		pcall(function()
-			local sound = Instance.new("Sound")
-			sound.SoundId = "rbxassetid://98797174600699"
-			sound.Volume = 1
-			sound.PlayOnRemove = true
-			sound.Parent = safeGetService("SoundService")
-			sound:Play()
-			sound:Destroy()
-		end)
-	end)
-	WindUI:Notify({
-		Title = title,
-		Content = content,
-		Duration = 3,
-	})
-end
-
-local ConfigDropdown
-ConfigDropdown = ConfigSection:Dropdown({
-	Title = "Select Config",
-	Values = GetConfigs(),
-	Value = currentConfigName,
-	Callback = function(option)
-		currentConfigName = option
-		MyConfig = ConfigManager:CreateConfig(currentConfigName)
-	end,
-})
-
-ConfigSection:Input({
-	Title = "New Config Name",
-	Placeholder = "Enter name...",
-	Callback = function(value)
-		if value and value ~= "" then
-			currentConfigName = value
-			MyConfig = ConfigManager:CreateConfig(currentConfigName)
-			ConfigDropdown:Refresh(GetConfigs())
-			ConfigDropdown:Select(value)
-		end
-	end,
-})
-
-ConfigSection:Button({
-	Title = "Save / Overwrite Configuration",
-	Callback = function()
-		if MyConfig then
-			MyConfig:Save()
-			ConfigDropdown:Refresh(GetConfigs())
-			NotifyWithSound("Config Saved", "Saved configuration: " .. currentConfigName)
-		end
-	end,
-})
-
-ConfigSection:Button({
-	Title = "Load Configuration",
-	Callback = function()
-		if MyConfig then
-			MyConfig:Load()
-			pcall(function()
-				task.wait(0.1)
-				local data = readfile("WindUI/Skibidi Hub/config/" .. currentConfigName .. ".json")
-				local decoded = game:GetService("HttpService"):JSONDecode(data)
-				for flag, val in pairs(decoded) do
-					if type(val) == "string" then
-						local s, r = pcall(function() return Color3.fromHex((val:gsub("#", ""))) end)
-						if s and r then
-							if getgenv().Config.ESP[flag] ~= nil then getgenv().Config.ESP[flag] = r end
-							if getgenv().Config.SilentAim[flag] ~= nil then getgenv().Config.SilentAim[flag] = r end
-						end
+	local configs = {}
+	if isfolder(ConfigFolder) then
+		local success, files = pcall(listfiles, ConfigFolder)
+		if success and type(files) == "table" then
+			for _, file in ipairs(files) do
+				if file:sub(-5) == ".json" then
+					local name = file:match("([^/\\]+)%.json$")
+					if name then
+						table.insert(configs, name)
 					end
 				end
+			end
+		end
+	end
+	if #configs == 0 then
+		return { "Default" }
+	end
+	return configs
+end
+
+local ConfigSection = SettingsTab:AddRightGroupbox("Config")
+local currentConfigName = "Default"
+
+ConfigSection:AddInput("ConfigName", {
+	Default = "",
+	Text = "New Config Name",
+	Numeric = false,
+	Finished = true,
+	Placeholder = "Enter name...",
+}):OnChanged(function(value)
+	if value and value ~= "" then
+		currentConfigName = value
+	end
+end)
+
+local ConfigDropdown = ConfigSection:AddDropdown("ConfigList", {
+	Values = GetConfigs(),
+	Default = 1,
+	Multi = false,
+	Text = "Select Config",
+})
+ConfigDropdown:OnChanged(function(value)
+	currentConfigName = value
+end)
+
+local function encodeConfig(config)
+	local encoded = {}
+	for k, v in pairs(config) do
+		if type(v) == "table" then
+			encoded[k] = encodeConfig(v)
+		elseif typeof(v) == "Color3" then
+			encoded[k] = { isColor = true, r = v.R, g = v.G, b = v.B }
+		else
+			encoded[k] = v
+		end
+	end
+	return encoded
+end
+
+local function applyLoadedConfig(data)
+	local Toggles = getgenv().Toggles
+	local Options = getgenv().Options
+
+	local function safeSetToggle(name, val)
+		if Toggles and Toggles[name] and val ~= nil then
+			pcall(function()
+				Toggles[name]:SetValue(val)
 			end)
-			NotifyWithSound("Config Loaded", "Loaded configuration: " .. currentConfigName)
+		end
+	end
+
+	local function safeSetOption(name, val)
+		if Options and Options[name] and val ~= nil then
+			pcall(function()
+				Options[name]:SetValue(val)
+			end)
+		end
+	end
+
+	local function parseColor(v)
+		if type(v) == "table" and v.isColor then
+			return Color3.new(v.r, v.g, v.b)
+		elseif typeof(v) == "Color3" then
+			return v
+		end
+		return nil
+	end
+
+	if data.ESP then
+		safeSetToggle("EnableESP", data.ESP.Enabled)
+		safeSetOption("ESPMaxDistance", data.ESP.MaxDistance)
+		safeSetToggle("ShowHealthBar", data.ESP.ShowHealthBar)
+		safeSetOption("TextColor", parseColor(data.ESP.TextColor))
+		safeSetOption("OutlineColor", parseColor(data.ESP.OutlineColor))
+		safeSetOption("TextSize", data.ESP.TextSize)
+
+		if data.ESP.Font ~= nil then
+			local fontMapReverse = { [0] = "UI", [1] = "System", [2] = "Plex", [3] = "Monospace" }
+			safeSetOption("ESPFont", fontMapReverse[data.ESP.Font] or "Plex")
+		end
+
+		safeSetToggle("EnableChams", data.ESP.ChamsEnabled)
+		safeSetOption("ChamsFillColor", parseColor(data.ESP.ChamsFillColor))
+		safeSetOption("NPCChamsFillColor", parseColor(data.ESP.NPCChamsFillColor))
+		safeSetOption("ChamsOutlineColor", parseColor(data.ESP.ChamsOutlineColor))
+		safeSetToggle("VisibleCheck", data.ESP.VisibleCheck)
+		safeSetOption("VisibleColor", parseColor(data.ESP.VisibleColor))
+
+		safeSetToggle("EnableNPCESP", data.ESP.NPCESPEnabled)
+		safeSetOption("NPCTextColor", parseColor(data.ESP.NPCTextColor))
+		safeSetOption("NPCOutlineColor", parseColor(data.ESP.NPCOutlineColor))
+
+		safeSetToggle("EnableCorpseESP", data.ESP.CorpseESPEnabled)
+		safeSetOption("CorpseTextColor", parseColor(data.ESP.CorpseTextColor))
+		safeSetOption("CorpseOutlineColor", parseColor(data.ESP.CorpseOutlineColor))
+
+		safeSetToggle("EnableExitESP", data.ESP.ExitESPEnabled)
+		safeSetOption("ExitTextColor", parseColor(data.ESP.ExitTextColor))
+		safeSetOption("ExitOutlineColor", parseColor(data.ESP.ExitOutlineColor))
+
+		safeSetToggle("EnableInventoryViewer", data.ESP.InventoryViewer)
+	end
+
+	if data.SilentAim then
+		safeSetToggle("EnableBulletTracers", data.SilentAim.BulletTracers)
+		safeSetToggle("TracerGlowEffect", data.SilentAim.TracerGlowEffect)
+		safeSetOption("TracerType", data.SilentAim.TracerType)
+		safeSetOption("TracerColor", parseColor(data.SilentAim.TracerColor))
+		safeSetOption("TracerTransparency", data.SilentAim.TracerTransparency)
+
+		safeSetToggle("EnableSilentAim", data.SilentAim.Enabled)
+		safeSetOption("SilentAimTargetType", data.SilentAim.TargetType)
+		safeSetOption("SilentAimTargetPart", data.SilentAim.TargetPart)
+		safeSetToggle("ShowFOVCircle", data.SilentAim.ShowFOV)
+		safeSetOption("FOVType", data.SilentAim.FOVType)
+		safeSetOption("FOVColor", parseColor(data.SilentAim.FOVColor))
+		safeSetOption("FOVRadius", data.SilentAim.FOVRadius)
+		safeSetToggle("ShowSnapline", data.SilentAim.ShowSnapline)
+		safeSetToggle("VisibleCheckSnapline", data.SilentAim.VisibleCheck)
+		safeSetOption("SnaplineColor", parseColor(data.SilentAim.VisibleColor))
+	end
+
+	if data.Combat then
+		safeSetToggle("UndergroundDesync", false)
+		safeSetOption("UndergroundDesyncKeybind", data.Combat.UndergroundDesyncKeybind)
+		safeSetToggle("InstantADS", data.Combat.InstantADS)
+		safeSetOption("ADSZoomMultiplier", data.Combat.ADSZoomMultiplier)
+		safeSetToggle("HideViewmodelOnADS", data.Combat.HideViewmodelOnADS)
+		safeSetOption("FlyKeybind", data.Combat.FlyKeybind)
+		safeSetOption("SpiderClimbKeybind", data.Combat.SpiderClimbKeybind)
+
+		safeSetToggle("NoRecoil", data.Combat.NoRecoil)
+		safeSetToggle("NoSpread", data.Combat.NoSpread)
+		safeSetToggle("RapidFire", data.Combat.RapidFire)
+		safeSetOption("RapidFireMultiplier", data.Combat.RapidFireValue)
+	end
+
+	if data.Mods then
+		safeSetToggle("EnableHitsound", data.Mods.Hitsound)
+		safeSetOption("HitsoundType", data.Mods.HitsoundType)
+		safeSetOption("CustomSoundAssetIDorLocalFile", data.Mods.HitsoundCustomId)
+		safeSetOption("HitsoundVolume", data.Mods.HitsoundVolume)
+
+		safeSetToggle("Fullbright", data.Mods.Fullbright)
+		safeSetToggle("NoFog", data.Mods.NoFog)
+		safeSetOption("FOV", data.Mods.FOV)
+	end
+
+	if data.Utilities then
+		safeSetToggle("ModDetector", data.Utilities.ModDetector)
+	end
+
+	if data.Theme and ThemeDropdown then
+		ThemeDropdown:SetValue(data.Theme)
+	end
+end
+
+ConfigSection:AddButton({
+	Text = "Save / Overwrite",
+	Func = function()
+		if currentConfigName and currentConfigName ~= "" then
+			local success, json = pcall(function()
+				return HttpService:JSONEncode(encodeConfig(getgenv().Config))
+			end)
+			if success then
+				pcall(writefile, ConfigFolder .. "/" .. currentConfigName .. ".json", json)
+				ConfigDropdown:SetValues(GetConfigs())
+				Library:Notify("Saved configuration: " .. currentConfigName)
+			else
+				Library:Notify("Failed to encode configuration.")
+			end
 		end
 	end,
 })
 
-ConfigSection:Button({
-	Title = "Delete Configuration",
-	Callback = function()
-		if MyConfig then
-			MyConfig:Delete()
-			ConfigDropdown:Refresh(GetConfigs())
-			NotifyWithSound("Config Deleted", "Deleted configuration: " .. currentConfigName)
+ConfigSection:AddButton({
+	Text = "Load Configuration",
+	Func = function()
+		local path = ConfigFolder .. "/" .. currentConfigName .. ".json"
+		if isfile(path) then
+			local success, json = pcall(readfile, path)
+			if success then
+				local success2, data = pcall(HttpService.JSONDecode, HttpService, json)
+				if success2 and type(data) == "table" then
+					applyLoadedConfig(data)
+					Library:Notify("Loaded configuration: " .. currentConfigName)
+				else
+					Library:Notify("Failed to decode configuration.")
+				end
+			end
+		else
+			Library:Notify("Config not found!")
 		end
 	end,
 })
 
-ConfigSection:Button({
-	Title = "Refresh Config List",
-	Callback = function()
-		ConfigDropdown:Refresh(GetConfigs())
-		NotifyWithSound("Config List Refreshed", "The configuration list has been updated.")
+ConfigSection:AddButton({
+	Text = "Delete Configuration",
+	Func = function()
+		local path = ConfigFolder .. "/" .. currentConfigName .. ".json"
+		if isfile(path) then
+			pcall(delfile, path)
+			ConfigDropdown:SetValues(GetConfigs())
+			Library:Notify("Deleted configuration: " .. currentConfigName)
+		end
 	end,
 })
+
+ConfigSection:AddButton({
+	Text = "Refresh List",
+	Func = function()
+		ConfigDropdown:SetValues(GetConfigs())
+		Library:Notify("Config list refreshed.")
+	end,
+})
+
+-- Custom Theme Manager
+local ThemeSection = SettingsTab:AddRightGroupbox("Themes")
+
+local BuiltInThemes = {
+	["Default"] = {
+		FontColor = "ffffff",
+		MainColor = "1c1c1c",
+		AccentColor = "0055ff",
+		BackgroundColor = "141414",
+		OutlineColor = "323232",
+	},
+	["BBot"] = {
+		FontColor = "ffffff",
+		MainColor = "1e1e1e",
+		AccentColor = "7e48a3",
+		BackgroundColor = "232323",
+		OutlineColor = "141414",
+	},
+	["Fatality"] = {
+		FontColor = "ffffff",
+		MainColor = "1e1842",
+		AccentColor = "c50754",
+		BackgroundColor = "191335",
+		OutlineColor = "3c355d",
+	},
+	["Jester"] = {
+		FontColor = "ffffff",
+		MainColor = "242424",
+		AccentColor = "db4467",
+		BackgroundColor = "1c1c1c",
+		OutlineColor = "373737",
+	},
+	["Mint"] = {
+		FontColor = "ffffff",
+		MainColor = "242424",
+		AccentColor = "3db488",
+		BackgroundColor = "1c1c1c",
+		OutlineColor = "373737",
+	},
+	["Tokyo Night"] = {
+		FontColor = "ffffff",
+		MainColor = "191925",
+		AccentColor = "6759b3",
+		BackgroundColor = "16161f",
+		OutlineColor = "323232",
+	},
+	["Ubuntu"] = {
+		FontColor = "ffffff",
+		MainColor = "3e3e3e",
+		AccentColor = "e2581e",
+		BackgroundColor = "323232",
+		OutlineColor = "191919",
+	},
+	["Quartz"] = {
+		FontColor = "ffffff",
+		MainColor = "232330",
+		AccentColor = "426e87",
+		BackgroundColor = "1d1b26",
+		OutlineColor = "27232f",
+	},
+}
+
+ThemeDropdown = ThemeSection:AddDropdown("ThemeList", {
+	Values = { "Default", "BBot", "Fatality", "Jester", "Mint", "Quartz", "Tokyo Night", "Ubuntu" },
+	Default = 1,
+	Multi = false,
+	Text = "Select Theme",
+})
+ThemeDropdown:OnChanged(function(themeName)
+	getgenv().Config.Theme = themeName
+	local theme = BuiltInThemes[themeName]
+	if theme then
+		for idx, hex in pairs(theme) do
+			Library[idx] = Color3.fromHex(hex)
+		end
+		if Library.GetDarkerColor then
+			Library.AccentColorDark = Library:GetDarkerColor(Library.AccentColor)
+		end
+		if Library.UpdateColorsUsingRegistry then
+			Library:UpdateColorsUsingRegistry()
+		end
+	end
+end)
 
 -- ==========================================
 -- StatsManager
@@ -1070,14 +1425,17 @@ if droppedItems then
 			table.insert(corpseModelsCache, child)
 		end
 	end
-	table.insert(ConnectionList, droppedItems.ChildAdded:Connect(function(child)
-		if child:IsA("Model") then
-			task.wait(0.1)
-			if child:FindFirstChild("Humanoid") then
-				table.insert(corpseModelsCache, child)
+	table.insert(
+		ConnectionList,
+		droppedItems.ChildAdded:Connect(function(child)
+			if child:IsA("Model") then
+				task.wait(0.1)
+				if child:FindFirstChild("Humanoid") then
+					table.insert(corpseModelsCache, child)
+				end
 			end
-		end
-	end))
+		end)
+	)
 end
 
 table.insert(
@@ -1111,6 +1469,7 @@ table.insert(
 						if health > 0 then
 							newEnemies[characterModel] = {
 								Player = player,
+								Character = characterModel,
 								Head = head,
 								RootPart = rootPart,
 								Health = health,
@@ -1143,6 +1502,7 @@ table.insert(
 								end
 								if health > 0 then
 									newNPCs[child] = {
+										Character = child,
 										Head = head,
 										RootPart = rootPart,
 										Name = child.Name,
@@ -1276,12 +1636,14 @@ function TargetManager.GetClosestTargetToMouse()
 
 	local function processCharacters(characters)
 		for character, playerData in pairs(characters) do
-			local head = playerData.Head
-			if not head then
+			local targetPartName = config.TargetPart or "Head"
+			local aimPart = (playerData.Character and playerData.Character:FindFirstChild(targetPartName))
+				or playerData.Head
+			if not aimPart then
 				continue
 			end
 
-			local screenPosition, isVisibleOnScreen = Camera:WorldToViewportPoint(head.Position)
+			local screenPosition, isVisibleOnScreen = Camera:WorldToViewportPoint(aimPart.Position)
 			if isVisibleOnScreen and screenPosition.Z > 0 then
 				local targetVector = Vector2.new(screenPosition.X, screenPosition.Y)
 				local distanceToMouse = (targetVector - mouseLocation).Magnitude
@@ -1311,6 +1673,9 @@ end
 local CombatManager = {
 	FOVCircle = Drawing.new("Circle"),
 	Snapline = Drawing.new("Line"),
+	SparkleHead = Drawing.new("Circle"),
+	Sparkles = {},
+	SparklesPool = {},
 }
 getgenv().CombatManager = CombatManager
 
@@ -1320,9 +1685,23 @@ CombatManager.FOVCircle.Thickness = 1
 CombatManager.FOVCircle.Filled = false
 CombatManager.FOVCircle.Transparency = 1
 
+CombatManager.SparkleHead.Color = Color3.fromRGB(255, 255, 255)
+CombatManager.SparkleHead.Radius = 4
+CombatManager.SparkleHead.Thickness = 1
+CombatManager.SparkleHead.Filled = true
+CombatManager.SparkleHead.Transparency = 1
+CombatManager.SparkleHead.Visible = false
+
 CombatManager.Snapline.Color = Color3.fromRGB(255, 0, 0)
 CombatManager.Snapline.Thickness = 1
 CombatManager.Snapline.Transparency = 1
+
+local math_cos = math.cos
+local math_sin = math.sin
+local math_random = math.random
+local os_clock = os.clock
+local Vector2_new = Vector2.new
+local Color3_fromRGB = Color3.fromRGB
 
 function CombatManager.Update()
 	local config = getgenv().Config.SilentAim
@@ -1332,22 +1711,77 @@ function CombatManager.Update()
 	if config.ShowFOV then
 		CombatManager.FOVCircle.Position = mouseLocation
 		CombatManager.FOVCircle.Radius = config.FOVRadius
+		CombatManager.FOVCircle.Color = config.FOVColor or Color3_fromRGB(255, 255, 255)
 		CombatManager.FOVCircle.Visible = true
+		
+		if config.FOVType == "Sparkle" then
+			local time = os_clock() * 3
+			local radius = config.FOVRadius
+			local px = mouseLocation.X + math_cos(time) * radius
+			local py = mouseLocation.Y + math_sin(time) * radius
+			
+			CombatManager.SparkleHead.Position = Vector2_new(px, py)
+			CombatManager.SparkleHead.Color = Color3_fromRGB(255, 255, 255)
+			CombatManager.SparkleHead.Visible = true
+			
+			if math_random() > 0.3 then
+				local particle
+				if #CombatManager.SparklesPool > 0 then
+					particle = table.remove(CombatManager.SparklesPool)
+				else
+					particle = Drawing.new("Circle")
+				end
+				particle.Position = Vector2_new(px, py)
+				particle.Radius = math_random(1, 3)
+				particle.Color = Color3_fromRGB(255, 255, 255)
+				particle.Filled = true
+				particle.Transparency = 1
+				particle.Visible = true
+				table.insert(CombatManager.Sparkles, {
+					Drawing = particle,
+					Life = 0.5 + math_random() * 0.5,
+					MaxLife = 1,
+					Velocity = Vector2_new((math_random() - 0.5) * 60, (math_random() - 0.5) * 60)
+				})
+			end
+		else
+			CombatManager.SparkleHead.Visible = false
+		end
 	else
 		CombatManager.FOVCircle.Visible = false
+		CombatManager.SparkleHead.Visible = false
+	end
+	
+	local dt = 0.016
+	for i = #CombatManager.Sparkles, 1, -1 do
+		local p = CombatManager.Sparkles[i]
+		p.Life = p.Life - dt
+		if p.Life <= 0 or not config.ShowFOV or config.FOVType ~= "Sparkle" then
+			p.Drawing.Visible = false
+			table.insert(CombatManager.SparklesPool, p.Drawing)
+			table.remove(CombatManager.Sparkles, i)
+		else
+			p.Drawing.Position = p.Drawing.Position + p.Velocity * dt
+			p.Drawing.Transparency = p.Life / p.MaxLife
+		end
 	end
 
 	-- Update Snapline
 	TargetManager.CurrentTarget = TargetManager.GetClosestTargetToMouse()
 
 	if config.ShowSnapline and TargetManager.CurrentTarget then
-		local headPosition = TargetManager.CurrentTarget.Head.Position
+		local targetPartName = config.TargetPart or "Head"
+		local aimPart = (
+			TargetManager.CurrentTarget.Character
+			and TargetManager.CurrentTarget.Character:FindFirstChild(targetPartName)
+		) or TargetManager.CurrentTarget.Head
+		local headPosition = aimPart.Position
 		local screenPosition, isVisible = Camera:WorldToViewportPoint(headPosition)
 
 		if isVisible and screenPosition.Z > 0 then
 			local isVisible3D = config.VisibleCheck
 				and CharacterManager.IsVisible(
-					TargetManager.CurrentTarget.Head,
+					aimPart,
 					TargetManager.CurrentTarget.Player and TargetManager.CurrentTarget.Player.Character
 						or TargetManager.CurrentTarget.Head.Parent
 				)
@@ -1381,11 +1815,14 @@ getgenv().DebugLogBuffer = getgenv().DebugLogBuffer or {}
 
 if not getgenv().AutoCopyLogsHooked then
 	getgenv().AutoCopyLogsHooked = true
-	table.insert(ConnectionList, game:GetService("GuiService").ErrorMessageChanged:Connect(function(msg)
-		if msg and msg ~= "" and setclipboard then
-			setclipboard(table.concat(getgenv().DebugLogBuffer, "\n"))
-		end
-	end))
+	table.insert(
+		ConnectionList,
+		(GuiService :: any).ErrorMessageChanged:Connect(function(msg)
+			if msg and msg ~= "" and setclipboard then
+				setclipboard(table.concat(getgenv().DebugLogBuffer, "\n"))
+			end
+		end)
+	)
 end
 
 local function LogLine(msg)
@@ -1400,6 +1837,27 @@ function ESPManager.CreateTextDrawing()
 	textDrawing.Center = true
 	textDrawing.Outline = true
 	return textDrawing
+end
+
+function ESPManager.RemoveDrawing(character)
+	local cacheData = ESPManager.Cache[character]
+	if cacheData then
+		if type(cacheData) == "table" then
+			cacheData.Text:Remove()
+			if cacheData.DistanceText then
+				cacheData.DistanceText:Remove()
+			end
+			if cacheData.Bg then
+				cacheData.Bg:Remove()
+			end
+			if cacheData.Bar then
+				cacheData.Bar:Remove()
+			end
+		else
+			cacheData:Remove()
+		end
+		ESPManager.Cache[character] = nil
+	end
 end
 
 function ESPManager.FormatPlayerText(playerData)
@@ -1463,21 +1921,7 @@ function ESPManager.Update()
 			and not activeCorpses[cachedCharacter]
 			and not activeExits[cachedCharacter]
 		then
-			if type(cacheData) == "table" then
-				cacheData.Text:Remove()
-				if cacheData.DistanceText then
-					cacheData.DistanceText:Remove()
-				end
-				if cacheData.Bg then
-					cacheData.Bg:Remove()
-				end
-				if cacheData.Bar then
-					cacheData.Bar:Remove()
-				end
-			else
-				cacheData:Remove()
-			end
-			ESPManager.Cache[cachedCharacter] = nil
+			ESPManager.RemoveDrawing(cachedCharacter)
 		end
 	end
 
@@ -1494,6 +1938,13 @@ function ESPManager.Update()
 	end
 
 	local function DrawEntity(character, data)
+		local distStuds = (Camera.CFrame.Position - data.Head.Position).Magnitude
+		local distMeters = math.floor(distStuds * 0.28)
+		if distMeters > (config.MaxDistance or 1500) then
+			ESPManager.RemoveDrawing(character)
+			return
+		end
+
 		local isVisible3D = false
 		if
 			config.VisibleCheck
@@ -1501,7 +1952,9 @@ function ESPManager.Update()
 			and not data.IsExit
 			and (config.Enabled or config.ChamsEnabled or config.NPCESPEnabled)
 		then
-			isVisible3D = CharacterManager.IsVisible(data.Head, character)
+			local targetPartName = getgenv().Config.SilentAim.TargetPart or "Head"
+			local aimPart = (character and character:FindFirstChild(targetPartName)) or data.Head
+			isVisible3D = CharacterManager.IsVisible(aimPart, character)
 		end
 
 		-- Handle Text ESP
@@ -1668,18 +2121,30 @@ local BulletTracerManager = {
 getgenv().DeltaTracersCache = BulletTracerManager.Tracers
 
 function BulletTracerManager.ParseColor(cColor)
-	if typeof(cColor) == "Color3" then return cColor end
+	if typeof(cColor) == "Color3" then
+		return cColor
+	end
 	if type(cColor) == "string" then
-		local s, r = pcall(function() return Color3.fromHex(cColor) end)
-		if s then return r end
+		local s, r = pcall(function()
+			return Color3.fromHex(cColor)
+		end)
+		if s then
+			return r
+		end
 	end
 	if type(cColor) == "table" then
 		local s, r = pcall(function()
-			if cColor.R and cColor.G and cColor.B then return Color3.new(cColor.R, cColor.G, cColor.B) end
-			if cColor[1] and cColor[2] and cColor[3] then return Color3.new(cColor[1], cColor[2], cColor[3]) end
+			if cColor.R and cColor.G and cColor.B then
+				return Color3.new(cColor.R, cColor.G, cColor.B)
+			end
+			if cColor[1] and cColor[2] and cColor[3] then
+				return Color3.new(cColor[1], cColor[2], cColor[3])
+			end
 			return Color3.fromRGB(255, 255, 255)
 		end)
-		if s then return r end
+		if s then
+			return r
+		end
 	end
 	return Color3.fromRGB(255, 255, 255)
 end
@@ -1941,14 +2406,10 @@ function BulletTracerManager.Update()
 	end
 end
 
--- ==========================================
--- Bullet Prediction Hook (CreateBullet)
--- ==========================================
 if not getgenv().DeltaTimeTracker then
 	getgenv().DeltaTimeTracker = {
 		dt = 0.016666,
-		connection = game:GetService("RunService").RenderStepped:Connect(function(step)
-			-- EMA to smooth out frame spikes for more accurate future dt prediction
+		connection = RunService.RenderStepped:Connect(function(step)
 			getgenv().DeltaTimeTracker.dt = getgenv().DeltaTimeTracker.dt * 0.9 + step * 0.1
 		end),
 	}
@@ -1971,7 +2432,9 @@ if BulletMod then
 				local args = table.pack(...)
 				if getgenv().Config.SilentAim.Enabled and TargetManager.CurrentTarget then
 					local target = TargetManager.CurrentTarget
-					local targetAimPart = target.Head
+					local targetPartName = getgenv().Config.SilentAim.TargetPart or "Head"
+					local targetAimPart = (target.Character and target.Character:FindFirstChild(targetPartName))
+						or target.Head
 					local targetRoot = target.RootPart
 
 					local ammoName = type(args[7]) == "string" and args[7] or ""
@@ -2101,47 +2564,60 @@ table.insert(
 			end
 		end
 
-		-- Cache all existing ammo types
 		for _, ammoType in ipairs(ammoTypes:GetChildren()) do
 			cacheAmmoType(ammoType)
 		end
 
-		-- Watch for new ammo types added later (weapon pickups etc.)
-		table.insert(ConnectionList, ammoTypes.ChildAdded:Connect(function(child)
-			task.wait(0.2)
-			cacheAmmoType(child)
-		end))
+		table.insert(
+			ConnectionList,
+			ammoTypes.ChildAdded:Connect(function(child)
+				task.wait(0.2)
+				cacheAmmoType(child)
+			end)
+		)
 	end)
 )
--- ==========================================
--- Unified Firearm Detection
--- ==========================================
 getgenv().DeltaIsGun = function(wName)
-	if type(wName) ~= "string" or wName == "" or wName == "unknown" then return false end
+	if type(wName) ~= "string" or wName == "" or wName == "unknown" then
+		return false
+	end
 	local lower = string.lower(wName)
-	local isMeleeOrConsumable = string.find(lower, "scythe") or string.find(lower, "ninjato") 
-		or string.find(lower, "dv2") or string.find(lower, "dagger") 
-		or string.find(lower, "m9xr7") or string.find(lower, "karambit") 
-		or string.find(lower, "sword") or string.find(lower, "kukri") 
-		or string.find(lower, "tomahawk") or string.find(lower, "cutlass") 
-		or string.find(lower, "axe") or string.find(lower, "dressing")
-		or string.find(lower, "bandage") or string.find(lower, "rags")
-		or string.find(lower, "ai2") or string.find(lower, "ai4")
-		or string.find(lower, "milk") or string.find(lower, "ifak")
-		or string.find(lower, "bottle") or string.find(lower, "beans")
-		or string.find(lower, "kola") or string.find(lower, "cola")
-		or string.find(lower, "soda") or string.find(lower, "serum")
-		or string.find(lower, "key") or string.find(lower, "f1")
-		or string.find(lower, "rgo") or string.find(lower, "rgd")
-		or string.find(lower, "m84") or string.find(lower, "flare")
-		or string.find(lower, "spsh") or string.find(lower, "lighter")
-		
+	local isMeleeOrConsumable = string.find(lower, "scythe")
+		or string.find(lower, "ninjato")
+		or string.find(lower, "dv2")
+		or string.find(lower, "dagger")
+		or string.find(lower, "m9xr7")
+		or string.find(lower, "karambit")
+		or string.find(lower, "sword")
+		or string.find(lower, "kukri")
+		or string.find(lower, "tomahawk")
+		or string.find(lower, "cutlass")
+		or string.find(lower, "axe")
+		or string.find(lower, "dressing")
+		or string.find(lower, "bandage")
+		or string.find(lower, "rags")
+		or string.find(lower, "ai2")
+		or string.find(lower, "ai4")
+		or string.find(lower, "milk")
+		or string.find(lower, "ifak")
+		or string.find(lower, "bottle")
+		or string.find(lower, "beans")
+		or string.find(lower, "kola")
+		or string.find(lower, "cola")
+		or string.find(lower, "soda")
+		or string.find(lower, "serum")
+		or string.find(lower, "key")
+		or string.find(lower, "f1")
+		or string.find(lower, "rgo")
+		or string.find(lower, "rgd")
+		or string.find(lower, "m84")
+		or string.find(lower, "flare")
+		or string.find(lower, "spsh")
+		or string.find(lower, "lighter")
+
 	return not isMeleeOrConsumable
 end
 
--- ==========================================
--- SpringV2 Hook (NoRecoil Viewmodel Fix)
--- ==========================================
 table.insert(
 	ThreadList,
 	task.spawn(function()
@@ -2151,7 +2627,6 @@ table.insert(
 			pcall(function()
 				for _, v in pairs(getgc(true)) do
 					if type(v) == "table" then
-						-- 1. Hook SpringV2 Prototype (Camera Recoil)
 						if not springHooked and type(rawget(v, "create")) == "function" then
 							local keys = 0
 							for _, _ in pairs(v) do
@@ -2170,19 +2645,14 @@ table.insert(
 										getgenv().OldSpringCreate = v.create
 										v.create = function(...)
 											local newSpring = getgenv().OldSpringCreate(...)
-											-- Removed SpringV2 shove intercept to preserve ADS physics
 											return newSpring
 										end
 									end
 									springHooked = true
-									if LogLine then
-										LogLine("[SpringV2] Hooked prototype successfully!")
-									end
 								end
 							end
 						end
 
-						-- 2. Hook FPS Prototype (Gun Kickback & Bobbing)
 						if
 							not fpsHooked
 							and type(rawget(v, "equip")) == "function"
@@ -2193,25 +2663,31 @@ table.insert(
 								getgenv().OldFPSEquip = v.equip
 								v.equip = function(self, ...)
 									local ret = getgenv().OldFPSEquip(self, ...)
-									
-									if type(self) == "table" and rawget(self, "weapon") and typeof(self.weapon) == "Instance" then
+
+									if
+										type(self) == "table"
+										and rawget(self, "weapon")
+										and typeof(self.weapon) == "Instance"
+									then
 										local wName = string.lower(self.weapon.Name)
-										
+
 										if type(rawget(self, "settings")) == "table" then
-											-- Cache original recoil upon equip
-											if self.settings.MaximumKickBack and self.settings.MaximumKickBack ~= 0 and not rawget(self.settings, "OrigKick") then
+											if
+												self.settings.MaximumKickBack
+												and self.settings.MaximumKickBack ~= 0
+												and not rawget(self.settings, "OrigKick")
+											then
 												self.settings.OrigKick = self.settings.MaximumKickBack
 												self.settings.OrigRecoil = self.settings.MaxRecoil
 											end
 										end
-										
+
 										if getgenv().Config.Combat.NoRecoil then
 											getgenv().TemporaryNoRecoil = getgenv().DeltaIsGun(wName)
 										else
 											getgenv().TemporaryNoRecoil = false
 										end
-										
-										-- Apply or Restore
+
 										if type(rawget(self, "settings")) == "table" then
 											if getgenv().TemporaryNoRecoil then
 												self.settings.MaximumKickBack = 0
@@ -2223,19 +2699,25 @@ table.insert(
 												end
 											end
 										end
-										
-										-- TARGETED SPRING SILENCER (Camera Recoil Only)
+
 										if type(rawget(self, "springs")) == "table" then
 											for springName, springObj in pairs(self.springs) do
 												if type(springName) == "string" then
 													local lName = string.lower(springName)
 													if string.find(lName, "recoil") or string.find(lName, "kick") then
-														if type(springObj) == "table" and type(rawget(springObj, "shove")) == "function" then
+														if
+															type(springObj) == "table"
+															and type(rawget(springObj, "shove")) == "function"
+														then
 															if not rawget(springObj, "__recoilHooked") then
 																local oldShove = springObj.shove
 																springObj.shove = function(selfObj, force, ...)
 																	if getgenv().TemporaryNoRecoil then
-																		return oldShove(selfObj, Vector3.new(0, 0, 0), ...)
+																		return oldShove(
+																			selfObj,
+																			Vector3.new(0, 0, 0),
+																			...
+																		)
 																	end
 																	return oldShove(selfObj, force, ...)
 																end
@@ -2247,28 +2729,19 @@ table.insert(
 											end
 										end
 									end
-									
+
 									return ret
 								end
 								fpsHooked = true
-								if LogLine then
-									LogLine("[FPS] Hooked prototype successfully!")
-								end
 							end
 						end
 
-						-- Fix any already existing springs (if user equipped gun before prototype loaded)
 						if type(rawget(v, "shove")) == "function" and type(rawget(v, "update")) == "function" then
 							if not rawget(v, "__isHooked") then
-								-- Removed SpringV2 shove intercept to preserve ADS physics
 								rawset(v, "__isHooked", true)
-								if LogLine then
-									LogLine("[SpringV2] Hooked existing instance!")
-								end
 							end
 						end
 
-						-- Fix any already existing FPS controllers
 						if type(rawget(v, "settings")) == "table" and type(rawget(v, "springs")) == "table" then
 							local isActive = false
 							if type(rawget(v, "isEquipped")) == "boolean" then
@@ -2295,11 +2768,15 @@ table.insert(
 							end
 
 							if type(rawget(v, "settings")) == "table" then
-								if v.settings.MaximumKickBack and v.settings.MaximumKickBack ~= 0 and not rawget(v.settings, "OrigKick") then
+								if
+									v.settings.MaximumKickBack
+									and v.settings.MaximumKickBack ~= 0
+									and not rawget(v.settings, "OrigKick")
+								then
 									v.settings.OrigKick = v.settings.MaximumKickBack
 									v.settings.OrigRecoil = v.settings.MaxRecoil
 								end
-								
+
 								if getgenv().TemporaryNoRecoil then
 									v.settings.MaximumKickBack = 0
 									v.settings.MaxRecoil = 0
@@ -2310,14 +2787,16 @@ table.insert(
 									end
 								end
 							end
-							
-							-- TARGETED SPRING SILENCER (Camera Recoil Only)
+
 							if type(rawget(v, "springs")) == "table" then
 								for springName, springObj in pairs(v.springs) do
 									if type(springName) == "string" then
 										local lName = string.lower(springName)
 										if string.find(lName, "recoil") or string.find(lName, "kick") then
-											if type(springObj) == "table" and type(rawget(springObj, "shove")) == "function" then
+											if
+												type(springObj) == "table"
+												and type(rawget(springObj, "shove")) == "function"
+											then
 												if not rawget(springObj, "__recoilHooked") then
 													local oldShove = springObj.shove
 													springObj.shove = function(selfObj, force, ...)
@@ -2341,16 +2820,13 @@ table.insert(
 	end)
 )
 
--- ==========================================
--- Anti-Cheat Metamethod Hook (__namecall)
--- ==========================================
 if not getgenv().OriginalNamecall then
-	getgenv().OriginalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+	getgenv().OriginalNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
 		if getgenv().DeltaNamecallHook then
 			return getgenv().DeltaNamecallHook(self, ...)
 		end
 		return getgenv().OriginalNamecall(self, ...)
-	end)
+	end))
 end
 
 getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
@@ -2362,12 +2838,10 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 		local selfName = typeof(self) == "Instance" and self.Name or ""
 		if selfName == "ProjectileInflict" or selfName == "MeleeInflict" or selfName == "MeleeInfIict" then
 			if getgenv().HitsoundManager and getgenv().HitsoundManager.Play then
-				pcall(getgenv().HitsoundManager.Play)
+				getgenv().HitsoundManager.Play()
 			end
 		end
 	end
-
-
 
 	if method == "Play" then
 		if typeof(self) == "Instance" and self:IsA("AnimationTrack") then
@@ -2375,13 +2849,11 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 
 			if getgenv().TemporaryNoRecoil then
 				if string.match(name, "UseAiming$") or string.match(name, "Use$") or string.match(name, "UseAlt$") then
-					
-					-- Flag that a gunshot is happening to allow the SpringV2 hook to swallow the recoil shove
 					getgenv().IsFiring = true
 					task.delay(0.15, function()
 						getgenv().IsFiring = false
 					end)
-					
+
 					local track = oldNamecall(self, ...)
 					task.spawn(function()
 						pcall(function()
@@ -2401,7 +2873,6 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 		local callingScript = getcallingscript()
 		if callingScript then
 			local sName = string.lower(callingScript.Name)
-			-- Bypass Local Anti-Cheat: If UAC checks attributes, return the real ones so we don't get flagged!
 			if string.find(sName, "anticheat") or string.find(sName, "uac") or string.find(sName, "ultimate") then
 				return oldNamecall(self, ...)
 			end
@@ -2415,23 +2886,7 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 
 		if getgenv().Config.Combat.NoSpread then
 			if string.find(lowerAttr, "spread") or string.find(lowerAttr, "accuracydeviation") then
-				if LogLine then
-					LogLine("[NoSpread] Spoofing GetAttribute: " .. tostring(attrName))
-				end
-				-- Return a negligible amount of spread instead of 0 to bypass server checks
 				return 0.001
-			end
-		end
-
-		if getgenv().Config.Combat.InstantHit then
-			if string.find(lowerAttr, "muzzlevelocity") then
-				return 3299
-			elseif
-				string.find(lowerAttr, "projectiledrop")
-				or string.find(lowerAttr, "gravity")
-				or string.find(lowerAttr, "drag")
-			then
-				return 0
 			end
 		end
 	elseif method == "GetAttributes" then
@@ -2441,7 +2896,6 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 			and (
 				getgenv().Config.Combat.NoRecoil
 				or getgenv().Config.Combat.NoSpread
-				or getgenv().Config.Combat.InstantHit
 				or getgenv().Config.SilentAim.Enabled
 			)
 		then
@@ -2449,7 +2903,7 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 			if callingScript then
 				local sName = string.lower(callingScript.Name)
 				if string.find(sName, "anticheat") or string.find(sName, "uac") or string.find(sName, "ultimate") then
-					return attrs -- Return original un-spoofed table to AC
+					return attrs
 				end
 			end
 			local spoofed = false
@@ -2463,25 +2917,7 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 					(string.find(lk, "spread") or string.find(lk, "accuracydeviation"))
 					and getgenv().Config.Combat.NoSpread
 				then
-					if LogLine then
-						LogLine("[NoSpread] Spoofing GetAttributes table key: " .. tostring(k))
-					end
 					newAttrs[k] = type(v) == "number" and 0.001 or v
-					spoofed = true
-				elseif
-					getgenv().Config.Combat.InstantHit
-					and (
-						string.find(lk, "muzzlevelocity")
-						or string.find(lk, "projectiledrop")
-						or string.find(lk, "gravity")
-						or string.find(lk, "drag")
-					)
-				then
-					if string.find(lk, "muzzlevelocity") then
-						newAttrs[k] = 3299
-					else
-						newAttrs[k] = 0
-					end
 					spoofed = true
 				else
 					newAttrs[k] = v
@@ -2507,8 +2943,8 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 			end
 			local baseFOV = 70
 			pcall(function()
-				local lp = game:GetService("Players").LocalPlayer
-				local pf = game:GetService("ReplicatedStorage"):FindFirstChild("Players")
+				local lp = LocalPlayer
+				local pf = ReplicatedStorage:FindFirstChild("Players")
 				local myF = pf and pf:FindFirstChild(lp.Name)
 				local setF = myF and myF:FindFirstChild("Settings")
 				local gp = setF and setF:FindFirstChild("GameplaySettings")
@@ -2546,82 +2982,13 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 		end
 	end
 
-	if
-		not checkcaller()
-		and (getgenv().Config.Combat.InstantHit or getgenv().Config.Combat.NoRecoil or getgenv().Config.Combat.NoSpread)
-	then
-		if (method == "FireServer" or method == "InvokeServer") and getgenv().Config.Combat.NoSpread then
-			local lowerName = string.lower(self.Name)
-			if string.match(lowerName, "projectile") then
-				if LogLine then
-					LogLine("[NoSpread Spy] Intercepted Remote: " .. self.Name .. " (" .. method .. ")")
-					LogLine("[NoSpread Spy] Args: " .. tostring(#args))
-					for i, v in ipairs(args) do
-						local t = typeof(v)
-						local display
-						if t == "Vector3" then
-							display = string.format("Vec3(%.2f, %.2f, %.2f)", v.X, v.Y, v.Z)
-						elseif t == "CFrame" then
-							local p = v.Position
-							local lv = v.LookVector
-							display = string.format(
-								"CFrame(pos=%.2f,%.2f,%.2f, look=%.2f,%.2f,%.2f)",
-								p.X,
-								p.Y,
-								p.Z,
-								lv.X,
-								lv.Y,
-								lv.Z
-							)
-						elseif t == "number" then
-							display = string.format("num(%.6f)", v)
-						elseif t == "Instance" then
-							display = string.format("Inst[%s]=%s", v.ClassName, v.Name)
-						elseif t == "table" then
-							local inner = "{"
-							for k2, v2 in pairs(v) do
-								inner = inner .. tostring(k2) .. "=" .. typeof(v2) .. " "
-							end
-							display = inner .. "}"
-						else
-							display = tostring(v)
-						end
-						LogLine(string.format("  [%d] %s", i, display))
-					end
-					LogLine("[NoSpread Spy] ===================================")
-				end
-			end
-		end
-
-		-- -----------------------------------------------
-		-- Instant Hit: Desync Teleporting (Method 2)
-		-- -----------------------------------------------
-		-- We spoof MuzzleVelocity to 3299 so the bullet physically hits instantly on the client.
-		-- Instead of backdating the remote or mature pool, we intercept ProjectileInflict
-		-- and use latency desync to temporarily teleport our character to the hit point,
-		-- making Distance = 0 and ExpectedTravelTime = 0.
-
-		if
-			method == "InvokeServer"
-			and string.lower(self.Name) == "fireprojectile"
-			and getgenv().Config.Combat.InstantHit
-		then
-			local bulletID = args[2]
-
-			if LogLine then
-				LogLine("[InstantHit Spy] Intercepted FireProjectile. ID: " .. tostring(bulletID))
-			end
-
-			setnamecallmethod(method)
-			return oldNamecall(self, table.unpack(args))
-		end
-
+	if not checkcaller() and getgenv().Config.Combat.NoRecoil then
 		if
 			method == "InvokeServer"
 			and string.match(string.lower(self.Name), "projectile")
 			and getgenv().Config.Combat.NoRecoil
 		then
-			local rs = game:GetService("ReplicatedStorage")
+			local rs = ReplicatedStorage
 			local updateTiltRemote = rs and rs:FindFirstChild("UpdateTilt", true)
 			if updateTiltRemote and updateTiltRemote:IsA("RemoteEvent") then
 				local fakePitch = -0.05 - (math.random() * 0.04)
@@ -2631,20 +2998,15 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 	end
 
 	setnamecallmethod(method)
+	-- Deep Enforce 'Auto' Mode
 	return oldNamecall(self, ...)
 end)
-
--- ==========================================
--- RNG Hooks (No Spread Bypass)
--- ==========================================
--- The server validates bullet trajectories based on the weapon's spread and the random seed.
--- If we lock math.random to a deterministic value for the bullet calculations,
--- We can force the bullet to fire perfectly straight while the server thinks it's a "lucky" shot.
 
 local oldRandom
 oldRandom = hookfunction(
 	math.random,
 	newcclosure(function(...)
+		-- Remove Bolt Action / Pump delays that block automatic fire loops
 		local args = { ... }
 		local min, max = args[1], args[2]
 
@@ -2655,8 +3017,6 @@ oldRandom = hookfunction(
 					if LogLine then
 						LogLine("[NoSpread] Centering math.random call from " .. callingScript.Name)
 					end
-					-- FIX: Using math.floor((min+max)/2) safely centers both spread calculations
-					-- (e.g. -50 to 50 returns 0) and array lookups (e.g. 1 to #Sound returns valid index).
 					return math.floor((min + max) / 2)
 				elseif type(min) == "number" and not max then
 					return min
@@ -2669,7 +3029,6 @@ oldRandom = hookfunction(
 	end)
 )
 
--- Hook Random.new()
 local oldRandomNew
 oldRandomNew = hookfunction(
 	Random.new,
@@ -2677,8 +3036,10 @@ oldRandomNew = hookfunction(
 		local rng = oldRandomNew(seed)
 		if getgenv().Config.Combat.NoSpread then
 			local callingScript = getcallingscript()
+			-- ==========================================
+			-- WorldMods Manager
+			-- ==========================================
 			if callingScript and string.find(string.lower(callingScript.Name), "bullet") then
-				-- We inject a proxy object that intercepts :NextNumber() and :NextInteger()
 				local proxy = {}
 				setmetatable(proxy, {
 					__index = function(self, key)
@@ -2705,6 +3066,9 @@ oldRandomNew = hookfunction(
 									return val(rng, ...)
 								end
 							end
+							-- ==========================================
+							-- Hitsound Manager
+							-- ==========================================
 							return val
 						end
 					end,
@@ -2716,9 +3080,6 @@ oldRandomNew = hookfunction(
 	end)
 )
 
--- ==========================================
--- RapidFire Manager
--- ==========================================
 local originalFireRates = {}
 local originalFireModes = {}
 local originalCurrentFireMode = {}
@@ -2755,7 +3116,6 @@ table.insert(
 									stats.FireRate = newRate
 								end
 
-								-- Deep Enforce "Auto" Mode
 								if stats.FireModes then
 									table.clear(stats.FireModes)
 									table.insert(stats.FireModes, "Auto")
@@ -2764,7 +3124,6 @@ table.insert(
 									stats.FireMode = "Auto"
 								end
 
-								-- Remove Bolt Action / Pump delays that block automatic fire loops
 								if stats.CycleTiming then
 									stats.CycleTiming = { 0, 0 }
 								end
@@ -2774,6 +3133,9 @@ table.insert(
 							else
 								if stats.FireRate ~= originalFireRates[itemName] then
 									stats.FireRate = originalFireRates[itemName]
+									-- ==========================================
+									-- InventoryViewer Manager
+									-- ==========================================
 								end
 
 								if originalFireModes[itemName] and stats.FireModes then
@@ -2794,14 +3156,9 @@ table.insert(
 	end)
 )
 
--- ==========================================
--- WorldMods Manager
--- ==========================================
 local WorldModsManager = {}
 
 function WorldModsManager.Update()
-	local Lighting = safeGetService("Lighting")
-
 	if getgenv().Config.Mods.Fullbright then
 		Lighting.Ambient = Color3.fromRGB(255, 255, 255)
 		Lighting.Brightness = 2
@@ -2824,19 +3181,16 @@ function WorldModsManager.Update()
 	end
 end
 
--- ==========================================
--- Hitsound Manager
--- ==========================================
 local HitsoundManager = {
 	Initialized = false,
 	Remotes = {},
 	Sounds = {
 		Rust = "rbxassetid://4764109000",
 		Minecraft = "rbxassetid://88387457337661",
+		Bell = "rbxassetid://138901307926331",
 	},
 }
 getgenv().HitsoundManager = HitsoundManager
-
 
 function HitsoundManager.Play()
 	local config = getgenv().Config.Mods
@@ -2869,18 +3223,23 @@ function HitsoundManager.Play()
 	end
 
 	task.spawn(function()
-		local success = pcall(function()
+		pcall(function()
 			local sound = Instance.new("Sound")
 			sound.SoundId = soundId
 			sound.Volume = config.HitsoundVolume or 1
-			sound.PlayOnRemove = true
-			sound.Parent = safeGetService("SoundService")
+			sound.Parent = SoundService
 			sound:Play()
-			sound:Destroy()
+			
+			sound.Ended:Connect(function()
+				sound:Destroy()
+			end)
+			
+			task.delay(5, function()
+				if sound and sound.Parent then
+					sound:Destroy()
+				end
+			end)
 		end)
-		if success then
-		else
-		end
 	end)
 end
 
@@ -2889,14 +3248,9 @@ function HitsoundManager.Initialize()
 		return
 	end
 
-
-
 	HitsoundManager.Initialized = true
 end
 
--- ==========================================
--- InventoryViewer Manager
--- ==========================================
 local verifiedGuns = {
 	ADAR15 = true,
 	AKM = true,
@@ -2998,6 +3352,7 @@ local InventoryViewer = {
 	LastViewportSize = nil,
 	IsDragging = false,
 	DragOffset = Vector2.new(0, 0),
+	-- Categorize and sort: Gun (1), Mag (2), Bullet (3), Other (4)
 	UserPosition = nil,
 	Width = 240,
 }
@@ -3109,7 +3464,6 @@ function InventoryViewer.Draw()
 			end
 		end
 
-		-- Categorize and sort: Gun (1), Mag (2), Bullet (3), Other (4)
 		local function getItemCategory(item)
 			local durability = item:GetAttribute("Durability") or item:GetAttribute("durability")
 			local maxDurability = item:GetAttribute("MaxDurability") or item:GetAttribute("maxDurability")
@@ -3170,6 +3524,7 @@ function InventoryViewer.Draw()
 		table.sort(itemsToDraw, function(a, b)
 			local catA = getItemCategory(a)
 			local catB = getItemCategory(b)
+			-- Position containers
 
 			if catA ~= catB then
 				return catA < catB
@@ -3275,14 +3630,15 @@ function InventoryViewer.Draw()
 	end
 
 	local x = InventoryViewer.UserPosition.X
+	-- Create background
 	local y = InventoryViewer.UserPosition.Y
 
 	x = math.clamp(x, 0, math.max(0, viewportSize.X - width))
 	y = math.clamp(y, 0, math.max(0, viewportSize.Y - totalHeight))
 	InventoryViewer.UserPosition = Vector2.new(x, y)
 
-	-- Position containers
 	InventoryViewer.Background.Position = Vector2.new(x, y)
+	-- Create border
 	InventoryViewer.Background.Size = Vector2.new(width, totalHeight)
 	InventoryViewer.Background.Visible = true
 
@@ -3291,6 +3647,7 @@ function InventoryViewer.Draw()
 	InventoryViewer.Border.Visible = true
 
 	local targetName = targetInfo.Name or (targetInfo.Player and targetInfo.Player.Name) or "Unknown"
+	-- Create title
 	InventoryViewer.TitleText.Text = string.format("%s's Inventory", targetName)
 	InventoryViewer.TitleText.Position = Vector2.new(x + width / 2, y + padding)
 	InventoryViewer.TitleText.Visible = true
@@ -3378,16 +3735,17 @@ local function setupInventoryListeners(inventoryFolder)
 			end)
 		)
 	end
+	-- Check viewport size changes
 
 	for _, child in ipairs(inventoryFolder:GetDescendants()) do
 		connectItemAttributes(child)
 	end
 
 	table.insert(inventoryConnections, inventoryFolder.DescendantAdded:Connect(connectItemAttributes))
+	-- Check closest target to mouse
 end
 
 function InventoryViewer.Initialize()
-	-- Create background
 	local background = Drawing.new("Square")
 	background.Filled = true
 	background.Color = Color3.fromRGB(15, 15, 15)
@@ -3395,7 +3753,6 @@ function InventoryViewer.Initialize()
 	background.Visible = false
 	InventoryViewer.Background = background
 
-	-- Create border
 	local border = Drawing.new("Square")
 	border.Filled = false
 	border.Thickness = 1.5
@@ -3404,7 +3761,6 @@ function InventoryViewer.Initialize()
 	border.Visible = false
 	InventoryViewer.Border = border
 
-	-- Create title
 	local titleText = Drawing.new("Text")
 	titleText.Text = "Inventory Viewer"
 	titleText.Size = 14
@@ -3416,6 +3772,7 @@ function InventoryViewer.Initialize()
 
 	local dividerText = Drawing.new("Text")
 	dividerText.Text = "---------------------------------------------------"
+	-- Listen to viewport size changes while we have a target
 	dividerText.Size = 13
 	dividerText.Center = true
 	dividerText.Outline = true
@@ -3446,10 +3803,13 @@ function InventoryViewer.Initialize()
 	)
 
 	table.insert(
+		-- Initialize InventoryViewer drawings
 		ConnectionList,
 		UserInputService.InputChanged:Connect(function(input)
+			-- Initialize Hitsounds
 			if input.UserInputType == Enum.UserInputType.MouseMovement and InventoryViewer.IsDragging then
 				local mousePos = UserInputService:GetMouseLocation()
+				-- Spawn target check loop (4 times per second for high performance)
 				InventoryViewer.UserPosition = mousePos - InventoryViewer.DragOffset
 				InventoryViewer.Draw()
 			end
@@ -3460,6 +3820,9 @@ function InventoryViewer.Initialize()
 		ConnectionList,
 		UserInputService.InputEnded:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				-- ==========================================
+				-- Main Loop
+				-- ==========================================
 				InventoryViewer.IsDragging = false
 			end
 		end)
@@ -3492,14 +3855,12 @@ function InventoryViewer.CheckTarget()
 		return
 	end
 
-	-- Check viewport size changes
 	local viewportSize = Camera.ViewportSize
 	if not InventoryViewer.LastViewportSize or InventoryViewer.LastViewportSize ~= viewportSize then
 		InventoryViewer.LastViewportSize = viewportSize
 		InventoryViewer.Draw()
 	end
 
-	-- Check closest target to mouse
 	local closestTarget = getClosestInventoryTargetToMouse()
 	local targetInstance = closestTarget and closestTarget.TargetInstance
 
@@ -3524,15 +3885,16 @@ function InventoryViewer.CheckTarget()
 								setupInventoryListeners(child)
 								InventoryViewer.Draw()
 							end
+							-- Fly up smoothly
 						end)
 					)
 				end
 			end
 
-			-- Listen to viewport size changes while we have a target
 			table.insert(
 				inventoryConnections,
 				Camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+					-- Teleport directly back to the origin
 					InventoryViewer.Draw()
 				end)
 			)
@@ -3560,13 +3922,10 @@ function InventoryViewer.CheckTarget()
 	end
 end
 
--- Initialize InventoryViewer drawings
 InventoryViewer.Initialize()
 
--- Initialize Hitsounds
 pcall(HitsoundManager.Initialize)
 
--- Spawn target check loop (4 times per second for high performance)
 table.insert(
 	ThreadList,
 	task.spawn(function()
@@ -3577,9 +3936,6 @@ table.insert(
 	end)
 )
 
--- ==========================================
--- Main Loop
--- ==========================================
 local function UpdateViewmodelTransparency()
 	local camera = Workspace.CurrentCamera
 	if not camera then
@@ -3612,13 +3968,15 @@ local function UpdateViewmodelTransparency()
 end
 
 local renderConnection = RunService.RenderStepped:Connect(function()
+	pcall(UpdateViewmodelTransparency)
 	WorldModsManager.Update()
 	ESPManager.Update()
 	CombatManager.Update()
 	BulletTracerManager.Update()
-	UpdateViewmodelTransparency()
 end)
 table.insert(ConnectionList, renderConnection)
+
+local currentSpiderTween = nil
 
 table.insert(
 	ConnectionList,
@@ -3628,6 +3986,7 @@ table.insert(
 		end
 
 		local combatConfig = getgenv().Config.Combat
+
 		if combatConfig.FlyKeybind and input.KeyCode.Name == combatConfig.FlyKeybind then
 			local character = Workspace:FindFirstChild(LocalPlayer.Name)
 			if not character then
@@ -3638,11 +3997,10 @@ table.insert(
 				return
 			end
 
-			local TweenService = game:GetService("TweenService")
+
 			local startCFrame = hrp.CFrame
 			local targetCFrame = startCFrame + Vector3.new(0, 12, 0)
 
-			-- Fly up smoothly
 			local tweenUp = TweenService:Create(
 				hrp,
 				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -3651,11 +4009,52 @@ table.insert(
 
 			tweenUp:Play()
 			tweenUp.Completed:Connect(function()
-				-- Teleport directly back to the origin
 				hrp.CFrame = startCFrame
 			end)
+		end
+
+		if combatConfig.SpiderClimbKeybind and input.KeyCode.Name == combatConfig.SpiderClimbKeybind then
+			local character = Workspace:FindFirstChild(LocalPlayer.Name)
+			if not character then
+				return
+			end
+			local hrp = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
+			if not hrp then
+				return
+			end
+
+			if currentSpiderTween then
+				currentSpiderTween:Cancel()
+			end
+
+
+			local distance = 1000
+			local speed = 18 -- 18 studs per second
+			local targetCFrame = hrp.CFrame + Vector3.new(0, distance, 0)
+
+			currentSpiderTween = TweenService:Create(
+				hrp,
+				TweenInfo.new(distance / speed, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+				{ CFrame = targetCFrame }
+			)
+			currentSpiderTween:Play()
 		end
 	end)
 )
 
-Window:SelectTab(1)
+table.insert(
+	ConnectionList,
+	UserInputService.InputEnded:Connect(function(input, gameProcessed)
+		if gameProcessed then
+			return
+		end
+		local combatConfig = getgenv().Config.Combat
+
+		if combatConfig.SpiderClimbKeybind and input.KeyCode.Name == combatConfig.SpiderClimbKeybind then
+			if currentSpiderTween then
+				currentSpiderTween:Cancel()
+				currentSpiderTween = nil
+			end
+		end
+	end)
+)
