@@ -238,7 +238,7 @@ local repo = "https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main
 local Library = assert(loadstring((game :: any):HttpGet(repo .. "Library.lua")))()
 
 local Window = Library:CreateWindow({
-	Title = "Skibidi Hub | Project Delta",
+	Title = "Cipher | Project Delta",
 	Center = true,
 	AutoShow = true,
 	TabPadding = 8,
@@ -963,40 +963,48 @@ if not getgenv().DesyncHooked then
 	getgenv().DesyncHooked = true
 	local spoofTick = 0
 	local oldIndex
-	oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
-		if not checkcaller() and getgenv().Config.Combat.UndergroundDesync and getgenv()._StoredRealCFrame then
-			if key == "CFrame" or key == "Position" then
-				local char = getTargetCharacter()
-				if char and self == char:FindFirstChild("HumanoidRootPart") then
-					spoofTick = spoofTick + 1
-					if spoofTick >= 60 and getgenv().AddLog then
-						spoofTick = 0
-						getgenv().AddLog("Spoofed __index read for " .. tostring(self.Name) .. "." .. key)
+	oldIndex = hookmetamethod(
+		game,
+		"__index",
+		newcclosure(function(self, key)
+			if not checkcaller() and getgenv().Config.Combat.UndergroundDesync and getgenv()._StoredRealCFrame then
+				if key == "CFrame" or key == "Position" then
+					local char = getTargetCharacter()
+					if char and self == char:FindFirstChild("HumanoidRootPart") then
+						spoofTick = spoofTick + 1
+						if spoofTick >= 60 and getgenv().AddLog then
+							spoofTick = 0
+							getgenv().AddLog("Spoofed __index read for " .. tostring(self.Name) .. "." .. key)
+						end
+						return key == "CFrame" and getgenv()._StoredRealCFrame or getgenv()._StoredRealCFrame.Position
 					end
-					return key == "CFrame" and getgenv()._StoredRealCFrame or getgenv()._StoredRealCFrame.Position
 				end
 			end
-		end
-		return oldIndex(self, key)
-	end))
+			return oldIndex(self, key)
+		end)
+	)
 
 	local oldNamecall
-	oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-		local method = getnamecallmethod()
-		if not checkcaller() then
-			if method == "FireServer" or method == "InvokeServer" then
-				if getgenv().AddLog then
-					local args = { ... }
-					local argStr = ""
-					for i, v in ipairs(args) do
-						argStr = argStr .. tostring(v) .. (i < #args and ", " or "")
+	oldNamecall = hookmetamethod(
+		game,
+		"__namecall",
+		newcclosure(function(self, ...)
+			local method = getnamecallmethod()
+			if not checkcaller() then
+				if method == "FireServer" or method == "InvokeServer" then
+					if getgenv().AddLog then
+						local args = { ... }
+						local argStr = ""
+						for i, v in ipairs(args) do
+							argStr = argStr .. tostring(v) .. (i < #args and ", " or "")
+						end
+						getgenv().AddLog("Remote Spy: " .. tostring(self.Name) .. ":" .. method .. "(" .. argStr .. ")")
 					end
-					getgenv().AddLog("Remote Spy: " .. tostring(self.Name) .. ":" .. method .. "(" .. argStr .. ")")
 				end
 			end
-		end
-		return oldNamecall(self, ...)
-	end))
+			return oldNamecall(self, ...)
+		end)
+	)
 end
 
 -- ==========================================
@@ -1038,9 +1046,9 @@ local ThemeDropdown
 
 -- Custom Config Manager
 
-local ConfigFolder = "Skibidi Hub/config"
-if not isfolder("Skibidi Hub") then
-	makefolder("Skibidi Hub")
+local ConfigFolder = "Cipher/config"
+if not isfolder("Cipher") then
+	makefolder("Cipher")
 end
 if not isfolder(ConfigFolder) then
 	makefolder(ConfigFolder)
@@ -1713,17 +1721,17 @@ function CombatManager.Update()
 		CombatManager.FOVCircle.Radius = config.FOVRadius
 		CombatManager.FOVCircle.Color = config.FOVColor or Color3_fromRGB(255, 255, 255)
 		CombatManager.FOVCircle.Visible = true
-		
+
 		if config.FOVType == "Sparkle" then
 			local time = os_clock() * 3
 			local radius = config.FOVRadius
 			local px = mouseLocation.X + math_cos(time) * radius
 			local py = mouseLocation.Y + math_sin(time) * radius
-			
+
 			CombatManager.SparkleHead.Position = Vector2_new(px, py)
 			CombatManager.SparkleHead.Color = Color3_fromRGB(255, 255, 255)
 			CombatManager.SparkleHead.Visible = true
-			
+
 			if math_random() > 0.3 then
 				local particle
 				if #CombatManager.SparklesPool > 0 then
@@ -1741,7 +1749,7 @@ function CombatManager.Update()
 					Drawing = particle,
 					Life = 0.5 + math_random() * 0.5,
 					MaxLife = 1,
-					Velocity = Vector2_new((math_random() - 0.5) * 60, (math_random() - 0.5) * 60)
+					Velocity = Vector2_new((math_random() - 0.5) * 60, (math_random() - 0.5) * 60),
 				})
 			end
 		else
@@ -1751,7 +1759,7 @@ function CombatManager.Update()
 		CombatManager.FOVCircle.Visible = false
 		CombatManager.SparkleHead.Visible = false
 	end
-	
+
 	local dt = 0.016
 	for i = #CombatManager.Sparkles, 1, -1 do
 		local p = CombatManager.Sparkles[i]
@@ -2821,12 +2829,16 @@ table.insert(
 )
 
 if not getgenv().OriginalNamecall then
-	getgenv().OriginalNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-		if getgenv().DeltaNamecallHook then
-			return getgenv().DeltaNamecallHook(self, ...)
-		end
-		return getgenv().OriginalNamecall(self, ...)
-	end))
+	getgenv().OriginalNamecall = hookmetamethod(
+		game,
+		"__namecall",
+		newcclosure(function(self, ...)
+			if getgenv().DeltaNamecallHook then
+				return getgenv().DeltaNamecallHook(self, ...)
+			end
+			return getgenv().OriginalNamecall(self, ...)
+		end)
+	)
 end
 
 getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
@@ -3229,11 +3241,11 @@ function HitsoundManager.Play()
 			sound.Volume = config.HitsoundVolume or 1
 			sound.Parent = SoundService
 			sound:Play()
-			
+
 			sound.Ended:Connect(function()
 				sound:Destroy()
 			end)
-			
+
 			task.delay(5, function()
 				if sound and sound.Parent then
 					sound:Destroy()
@@ -3997,7 +4009,6 @@ table.insert(
 				return
 			end
 
-
 			local startCFrame = hrp.CFrame
 			local targetCFrame = startCFrame + Vector3.new(0, 12, 0)
 
@@ -4026,7 +4037,6 @@ table.insert(
 			if currentSpiderTween then
 				currentSpiderTween:Cancel()
 			end
-
 
 			local distance = 1000
 			local speed = 18 -- 18 studs per second
