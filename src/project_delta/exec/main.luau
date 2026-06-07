@@ -4,6 +4,18 @@ end
 
 local ConnectionList = {}
 local ThreadList = {}
+getgenv()._DeltaScriptSilentToggles = true
+
+if getgenv().OriginalTerrainDecoration == nil then
+	local s, r = pcall(function()
+		return workspace.Terrain.Decoration
+	end)
+	if s then
+		getgenv().OriginalTerrainDecoration = r
+	else
+		getgenv().OriginalTerrainDecoration = true
+	end
+end
 
 getgenv()._DeltaScriptCleanup = function()
 	for _, connection in pairs(ConnectionList) do
@@ -157,17 +169,17 @@ getgenv()._DeltaScriptCleanup = function()
 	-- Restore original upvalues if InstantHit was active
 	if getgenv()._InstantHitOriginalInflict and getgenv()._InstantHitCreateBulletFn then
 		pcall(function()
-			(debug :: any).setupvalue(getgenv()._InstantHitCreateBulletFn, 15, getgenv()._InstantHitOriginalInflict)
+			debug.setupvalue(getgenv()._InstantHitCreateBulletFn, 15, getgenv()._InstantHitOriginalInflict)
 		end)
 	end
 	if getgenv()._InstantHitOriginalRicochet and getgenv()._InstantHitCreateBulletFn then
 		pcall(function()
-			(debug :: any).setupvalue(getgenv()._InstantHitCreateBulletFn, 14, getgenv()._InstantHitOriginalRicochet)
+			debug.setupvalue(getgenv()._InstantHitCreateBulletFn, 14, getgenv()._InstantHitOriginalRicochet)
 		end)
 	end
 	if getgenv()._InstantHitOriginalFireProj and getgenv()._InstantHitCreateBulletFn then
 		pcall(function()
-			(debug :: any).setupvalue(getgenv()._InstantHitCreateBulletFn, 11, getgenv()._InstantHitOriginalFireProj)
+			debug.setupvalue(getgenv()._InstantHitCreateBulletFn, 11, getgenv()._InstantHitOriginalFireProj)
 		end)
 	end
 	getgenv()._InstantHitCreateBulletFn = nil
@@ -198,9 +210,9 @@ local CoreGui = safeGetService("CoreGui")
 local UserInputService = safeGetService("UserInputService")
 local GuiService = safeGetService("GuiService")
 local HttpService = safeGetService("HttpService")
-local TweenService = safeGetService("TweenService")
-local SoundService = safeGetService("SoundService")
-local Lighting = safeGetService("Lighting")
+local _TweenService = safeGetService("TweenService")
+local _SoundService = safeGetService("SoundService")
+local _Lighting = safeGetService("Lighting")
 
 local LocalPlayer = cloneref(Players.LocalPlayer)
 local Camera = cloneref(Workspace.CurrentCamera)
@@ -224,11 +236,17 @@ getgenv().Config = getgenv().Config
 			ChamsFillColor = Color3.fromRGB(255, 0, 0),
 			NPCChamsFillColor = Color3.fromRGB(255, 0, 0),
 			ChamsOutlineColor = Color3.fromRGB(255, 255, 255),
+			BoundingBox2DEnabled = false,
+			BoundingBox2DStyle = "Default",
+			BoundingBox2DColor = Color3.fromRGB(0, 0, 0),
 			VisibleCheck = false,
 			VisibleColor = Color3.fromRGB(0, 255, 0),
 			NPCESPEnabled = false,
 			NPCTextColor = Color3.fromRGB(255, 255, 255),
 			NPCOutlineColor = Color3.fromRGB(0, 0, 0),
+			HelicopterESPEnabled = false,
+			HelicopterTextColor = Color3.fromRGB(204, 0, 255),
+			HelicopterOutlineColor = Color3.fromRGB(0, 0, 0),
 			CorpseESPEnabled = false,
 			CorpseTextColor = Color3.fromRGB(169, 169, 169),
 			CorpseOutlineColor = Color3.fromRGB(0, 0, 0),
@@ -242,7 +260,7 @@ getgenv().Config = getgenv().Config
 			ViewmodelGunChams = false,
 			ViewmodelGunFillColor = Color3.fromRGB(255, 255, 255),
 			ViewmodelGunOutlineColor = Color3.fromRGB(255, 255, 255),
-			EnableGunSparkles = true,
+			EnableGunSparkles = false,
 			GunGlowIntensity = 0.8,
 			ViewmodelChamsTransparency = 0.55,
 			ViewmodelChamsEffect = 1,
@@ -275,6 +293,8 @@ getgenv().Config = getgenv().Config
 			RapidFireValue = 3,
 			UndergroundDesync = false,
 			UndergroundDesyncKeybind = "U",
+			AntiAim = false,
+			AntiAimMethod = "Orbital Dodge",
 			FlyKeybind = "T",
 			SpiderClimbKeybind = "Y",
 		},
@@ -283,8 +303,11 @@ getgenv().Config = getgenv().Config
 			ThirdPersonKeybind = "J",
 			ZoomDistance = 15,
 			FOV = 70,
+			NoVisor = false,
 			Fullbright = false,
 			NoFog = false,
+			NoFoliage = false,
+			RemoveGrass = false,
 			Hitsound = false,
 			HitsoundType = "Rust",
 			HitsoundVolume = 1.0,
@@ -421,6 +444,33 @@ end)
 
 ESPSection:AddDivider()
 
+ESPSection:AddToggle("Enable2DBoundingBox", {
+	Text = "Enable 2D Bounding Box",
+	Default = getgenv().Config.ESP.BoundingBox2DEnabled,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.BoundingBox2DEnabled = value
+end)
+
+ESPSection:AddDropdown("BoundingBox2DStyle", {
+	Values = { "Default", "Corner" },
+	Default = 1,
+	Multi = false,
+	Text = "2D Bounding Box Style",
+})
+getgenv().Options.BoundingBox2DStyle:OnChanged(function(value)
+	getgenv().Config.ESP.BoundingBox2DStyle = value
+end)
+
+ESPSection:AddLabel("2D Box Color"):AddColorPicker("2DBoxColor", {
+	Default = getgenv().Config.ESP.BoundingBox2DColor,
+	Title = "2D Box Color",
+})
+getgenv().Options["2DBoxColor"]:OnChanged(function(value)
+	getgenv().Config.ESP.BoundingBox2DColor = value
+end)
+
+ESPSection:AddDivider()
+
 ESPSection:AddToggle("VisibleCheck", {
 	Text = "Visible Check",
 	Default = getgenv().Config.ESP.VisibleCheck,
@@ -459,6 +509,31 @@ ESPSection:AddLabel("NPC Outline Color"):AddColorPicker("NPCOutlineColor", {
 })
 getgenv().Options.NPCOutlineColor:OnChanged(function(value)
 	getgenv().Config.ESP.NPCOutlineColor = value
+end)
+
+ESPSection:AddDivider()
+
+ESPSection:AddToggle("EnableHelicopterESP", {
+	Text = "Enable Helicopter ESP",
+	Default = getgenv().Config.ESP.HelicopterESPEnabled,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.HelicopterESPEnabled = value
+end)
+
+ESPSection:AddLabel("Helicopter Text Color"):AddColorPicker("HelicopterTextColor", {
+	Default = getgenv().Config.ESP.HelicopterTextColor,
+	Title = "Helicopter Text Color",
+})
+getgenv().Options.HelicopterTextColor:OnChanged(function(value)
+	getgenv().Config.ESP.HelicopterTextColor = value
+end)
+
+ESPSection:AddLabel("Helicopter Outline Color"):AddColorPicker("HelicopterOutlineColor", {
+	Default = getgenv().Config.ESP.HelicopterOutlineColor,
+	Title = "Helicopter Outline Color",
+})
+getgenv().Options.HelicopterOutlineColor:OnChanged(function(value)
+	getgenv().Config.ESP.HelicopterOutlineColor = value
 end)
 
 ESPSection:AddDivider()
@@ -639,93 +714,14 @@ getgenv().Options.GunChamsOutlineColor:OnChanged(function(value)
 	getgenv().Config.ESP.ViewmodelGunOutlineColor = value
 end)
 
+CharacterSection:AddDivider()
+
 CharacterSection:AddToggle("EnableGunSparkles", {
 	Text = "Enable Gun Sparkles",
 	Default = getgenv().Config.ESP.EnableGunSparkles,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.EnableGunSparkles = value
 end)
-
-CharacterSection:AddButton({
-	Text = "Debug Viewmodel Chams",
-	Func = function()
-		print("--- DEBUG VIEWMODEL CHAMS ---")
-		local camera = Workspace.CurrentCamera
-		if not camera then
-			print("No camera found")
-			return
-		end
-		local foundViewModel = false
-		for _, child in ipairs(camera:GetChildren()) do
-			if child:IsA("Model") and child.Name == "ViewModel" then
-				foundViewModel = true
-				print("Found ViewModel")
-				local function isBodyPart(name)
-					name = string.lower(name)
-					return string.find(name, "arm")
-						or string.find(name, "hand")
-						or string.find(name, "shirt")
-						or string.find(name, "sleeve")
-						or string.find(name, "glove")
-				end
-				local gunParts = {}
-				for _, desc in ipairs(child:GetChildren()) do
-					if not isBodyPart(desc.Name) then
-						if desc:IsA("BasePart") then
-							table.insert(gunParts, desc)
-						end
-						for _, sub in ipairs(desc:GetDescendants()) do
-							if sub:IsA("BasePart") then
-								table.insert(gunParts, sub)
-							end
-						end
-					end
-				end
-				print("Gun Parts count:", #gunParts)
-				local rootPart = child:FindFirstChild("Barrel", true)
-					or child:FindFirstChild("Slide", true)
-					or child:FindFirstChild("ItemRoot", true)
-				if not rootPart then
-					for _, p in ipairs(gunParts) do
-						if p.Transparency < 1 then
-							rootPart = p
-							break
-						end
-					end
-				end
-				print("RootPart selected for Sparkles:", rootPart and rootPart.Name or "NONE")
-				local sparkles = child:FindFirstChild("DeltaGunSparkles", true)
-				if sparkles then
-					print(
-						"Sparkles found! Parent:",
-						sparkles.Parent and sparkles.Parent.Name or "NONE",
-						"Size:",
-						tostring(sparkles.Size)
-					)
-				else
-					print("No Sparkles found in ViewModel!")
-				end
-				for _, p in ipairs(gunParts) do
-					local tex = ""
-					if p:IsA("MeshPart") then
-						tex = "MeshTex: " .. tostring(p.TextureID)
-					end
-					local spec = p:FindFirstChildWhichIsA("SpecialMesh")
-					if spec then
-						tex = tex .. " SpecTex: " .. tostring(spec.TextureId)
-					end
-					print("GunPart:", p.Name, "| Trans:", p.Transparency, "| Mat:", tostring(p.Material), "|", tex)
-				end
-			end
-		end
-		if not foundViewModel then
-			print("No ViewModel found in camera.")
-		end
-		print("-----------------------------")
-	end,
-	DoubleClick = false,
-	Tooltip = "Prints viewmodel state to F9 console",
-})
 
 CharacterSection:AddSlider("GunGlowIntensity", {
 	Text = "Gun Glow Intensity",
@@ -779,32 +775,6 @@ end)
 
 local MovementSection = CombatTab:AddLeftGroupbox("Movement")
 
-MovementSection:AddToggle("UndergroundDesync", {
-	Text = "Underground Desync",
-	Default = false,
-}):AddKeyPicker("UndergroundDesyncKeybind", {
-	Default = getgenv().Config.Combat.UndergroundDesyncKeybind or "U",
-	SyncToggleState = true,
-	Mode = "Toggle",
-	Text = "Underground Desync",
-	NoUI = false,
-})
-
-getgenv().Toggles.UndergroundDesync:OnChanged(function(value)
-	getgenv().Config.Combat.UndergroundDesync = value
-	if getgenv().LinoriaLibrary then
-		if value then
-			getgenv().LinoriaLibrary:Notify("Enabled Underground Desync", 3)
-		else
-			getgenv().LinoriaLibrary:Notify("Disabled Underground Desync", 3)
-		end
-	end
-end)
-
-getgenv().Options.UndergroundDesyncKeybind:OnChanged(function()
-	getgenv().Config.Combat.UndergroundDesyncKeybind = getgenv().Options.UndergroundDesyncKeybind.Value
-end)
-
 MovementSection:AddLabel("Fly"):AddKeyPicker("FlyKeybind", {
 	Default = getgenv().Config.Combat.FlyKeybind,
 	SyncToggleState = false,
@@ -825,6 +795,57 @@ MovementSection:AddLabel("Spider Climb"):AddKeyPicker("SpiderClimbKeybind", {
 })
 getgenv().Options.SpiderClimbKeybind:OnClick(function()
 	getgenv().Config.Combat.SpiderClimbKeybind = getgenv().Options.SpiderClimbKeybind.Value
+end)
+
+local AntiAimSection = CombatTab:AddLeftGroupbox("Anti Aim")
+
+AntiAimSection:AddToggle("UndergroundDesync", {
+	Text = "Underground Desync",
+	Default = false,
+}):AddKeyPicker("UndergroundDesyncKeybind", {
+	Default = getgenv().Config.Combat.UndergroundDesyncKeybind or "U",
+	SyncToggleState = true,
+	Mode = "Toggle",
+	Text = "Underground Desync",
+	NoUI = false,
+})
+getgenv().Toggles.UndergroundDesync:OnChanged(function(value)
+	getgenv().Config.Combat.UndergroundDesync = value
+	if not getgenv()._DeltaScriptSilentToggles and getgenv().LinoriaLibrary then
+		if value then
+			getgenv().LinoriaLibrary:Notify("Enabled Underground Desync", 3)
+		else
+			getgenv().LinoriaLibrary:Notify("Disabled Underground Desync", 3)
+		end
+	end
+end)
+
+getgenv().Options.UndergroundDesyncKeybind:OnChanged(function()
+	getgenv().Config.Combat.UndergroundDesyncKeybind = getgenv().Options.UndergroundDesyncKeybind.Value
+end)
+
+AntiAimSection:AddToggle("AntiAim", {
+	Text = "Absolute Anti-Aim",
+	Default = false,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.AntiAim = value
+	if not getgenv()._DeltaScriptSilentToggles and getgenv().LinoriaLibrary then
+		if value then
+			getgenv().LinoriaLibrary:Notify("Enabled Absolute Anti-Aim", 3)
+		else
+			getgenv().LinoriaLibrary:Notify("Disabled Absolute Anti-Aim", 3)
+		end
+	end
+end)
+
+AntiAimSection:AddDropdown("AntiAimMethod", {
+	Values = { "Orbital Dodge", "Prediction Breaker", "Micro Jitter" },
+	Default = 1,
+	Multi = false,
+	Text = "Anti-Aim Method",
+})
+getgenv().Options.AntiAimMethod:OnChanged(function(value)
+	getgenv().Config.Combat.AntiAimMethod = value
 end)
 
 local SilentAimSection = CombatTab:AddRightGroupbox("Silent Aim")
@@ -938,11 +959,163 @@ ModsSection:AddToggle("NoSpread", {
 	getgenv().Config.Combat.NoSpread = value
 end)
 
+local function applyRapidFireToGC(enabled)
+	local multiplier = getgenv().Config.Combat.RapidFireValue or 3
+	local originalRates = {}
+	local newRates = {}
+	local validWeaponTables = {}
+
+	for _, v in pairs(getgc(true)) do
+		if type(v) == "table" then
+			local fr = rawget(v, "FireRate")
+			if type(fr) == "number" then
+				local hasEjection = rawget(v, "EjectionDelay") ~= nil
+				local hasFireModes = rawget(v, "FireModes") ~= nil
+				local hasAmmo = rawget(v, "Ammo") ~= nil
+
+				if hasEjection or hasFireModes or hasAmmo then
+					validWeaponTables[v] = true
+
+					if not rawget(v, "_OriginalFireRate") then
+						rawset(v, "_OriginalFireRate", fr)
+						local origModes = {}
+						local currentModes = rawget(v, "FireModes")
+						if type(currentModes) == "table" then
+							for _, mode in ipairs(currentModes) do
+								table.insert(origModes, mode)
+							end
+						end
+						rawset(v, "_OriginalFireModes", origModes)
+						rawset(v, "_OriginalFireMode", rawget(v, "FireMode"))
+					end
+
+					local orig = v._OriginalFireRate
+					local target = enabled and (orig / multiplier) or orig
+
+					originalRates[orig] = target
+					newRates[v.FireRate] = target
+
+					v.FireRate = target
+
+					if enabled then
+						if type(v.FireModes) == "table" then
+							table.clear(v.FireModes)
+							table.insert(v.FireModes, "Auto")
+						end
+						v.FireMode = "Auto"
+						if rawget(v, "CycleTiming") then
+							v.CycleTiming = { 0, 0 }
+						end
+						if hasEjection then
+							v.EjectionDelay = 0
+						end
+					else
+						if v._OriginalFireModes and type(v.FireModes) == "table" then
+							table.clear(v.FireModes)
+							for _, mode in ipairs(v._OriginalFireModes) do
+								table.insert(v.FireModes, mode)
+							end
+						end
+						if v._OriginalFireMode then
+							v.FireMode = v._OriginalFireMode
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if not getgenv().DeltaOriginalClosureFireModes then
+		local weakTable = {}
+		setmetatable(weakTable, { __mode = "k" })
+		getgenv().DeltaOriginalClosureFireModes = weakTable
+	end
+
+	for _, fn in pairs(getgc(true)) do
+		if type(fn) == "function" and not iscclosure(fn) then
+			local ups = debug.getupvalues(fn)
+			if ups then
+				local hasMatch = false
+				for _, upval in pairs(ups) do
+					if type(upval) == "number" and (originalRates[upval] or newRates[upval]) then
+						hasMatch = true
+						break
+					end
+					if
+						type(upval) == "string"
+						and (
+							upval == "Semi"
+							or upval == "Burst"
+							or upval == "Pump"
+							or upval == "Bolt"
+							or upval == "Auto"
+						)
+					then
+						hasMatch = true
+						-- Do not break here; just confirming it has a mode
+					end
+				end
+
+				if hasMatch then
+					for i, upval in pairs(ups) do
+						-- Modify FireRate upvalue
+						if type(upval) == "number" and (originalRates[upval] or newRates[upval]) then
+							local targetRate = originalRates[upval] or newRates[upval]
+							if upval ~= targetRate then
+								pcall(function()
+									debug.setupvalue(fn, i, targetRate)
+								end)
+							end
+						end
+
+						-- Modify FireMode upvalue
+						if
+							type(upval) == "string"
+							and (
+								upval == "Semi"
+								or upval == "Burst"
+								or upval == "Pump"
+								or upval == "Bolt"
+								or upval == "Auto"
+							)
+						then
+							if enabled then
+								if upval ~= "Auto" then
+									-- Save original mode for this specific closure
+									if not getgenv().DeltaOriginalClosureFireModes[fn] then
+										getgenv().DeltaOriginalClosureFireModes[fn] = {}
+									end
+									getgenv().DeltaOriginalClosureFireModes[fn][i] = upval
+
+									pcall(function()
+										debug.setupvalue(fn, i, "Auto")
+									end)
+								end
+							else
+								-- Restore original mode if saved
+								local saved = getgenv().DeltaOriginalClosureFireModes[fn]
+								if saved and saved[i] and upval ~= saved[i] then
+									pcall(function()
+										debug.setupvalue(fn, i, saved[i])
+									end)
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
 ModsSection:AddToggle("RapidFire", {
 	Text = "Rapid Fire",
 	Default = getgenv().Config.Combat.RapidFire,
 }):OnChanged(function(value)
 	getgenv().Config.Combat.RapidFire = value
+	pcall(function()
+		applyRapidFireToGC(value)
+	end)
 end)
 
 ModsSection:AddSlider("RapidFireMultiplier", {
@@ -955,6 +1128,11 @@ ModsSection:AddSlider("RapidFireMultiplier", {
 })
 getgenv().Options.RapidFireMultiplier:OnChanged(function(value)
 	getgenv().Config.Combat.RapidFireValue = value
+	if getgenv().Config.Combat.RapidFire then
+		pcall(function()
+			applyRapidFireToGC(true)
+		end)
+	end
 end)
 
 local originalHitsoundVolumes = {}
@@ -1042,11 +1220,9 @@ WorldModsSection:AddToggle("ThirdPerson", {
 	Text = "Enable 3rd Person",
 	NoUI = false,
 })
-
 getgenv().Toggles.ThirdPerson:OnChanged(function(value)
 	getgenv().Config.Mods.ThirdPerson = value
-
-	if getgenv().LinoriaLibrary then
+	if not getgenv()._DeltaScriptSilentToggles and getgenv().LinoriaLibrary then
 		if value then
 			getgenv().LinoriaLibrary:Notify("Enabled 3rd Person", 3)
 		else
@@ -1086,6 +1262,147 @@ WorldModsSection:AddToggle("NoFog", {
 	getgenv().Config.Mods.NoFog = value
 end)
 
+local grassConnection = nil
+
+local function hidePart(part)
+	if part:IsA("BasePart") or part:IsA("Decal") or part:IsA("Texture") then
+		if not part:GetAttribute("OriginalTransparency") then
+			part:SetAttribute("OriginalTransparency", part.Transparency)
+		end
+		part.Transparency = 1
+	end
+end
+
+local function restorePart(part)
+	if part:IsA("BasePart") or part:IsA("Decal") or part:IsA("Texture") then
+		local orig = part:GetAttribute("OriginalTransparency")
+		if orig then
+			part.Transparency = orig
+		end
+	end
+end
+
+-- ==========================================
+-- Environment Setup
+-- ==========================================
+local getgenv = getfenv().getgenv or function()
+	return _G
+end
+
+if not getgenv().DebugLogs then
+	getgenv().DebugLogs = {}
+end
+
+getgenv().AddLog = function(msg)
+	local timestamp = os.date("%H:%M:%S")
+	table.insert(getgenv().DebugLogs, 1, "[" .. timestamp .. "] " .. tostring(msg))
+	if #getgenv().DebugLogs > 500 then
+		table.remove(getgenv().DebugLogs, 501)
+	end
+end
+
+local function toggleFoliageAlgorithm(enabled)
+	local spawnerZones = workspace:FindFirstChild("SpawnerZones")
+	local foliage = spawnerZones and spawnerZones:FindFirstChild("Foliage")
+
+	if not foliage then
+		return
+	end
+
+	local function processFoliageItem(item, isEnabled)
+		if item:IsA("Model") then
+			local processedCount = 0
+
+			for _, child in ipairs(item:GetChildren()) do
+				if child:IsA("BasePart") then
+					local attr = child:GetAttribute("Leaf")
+					if child:IsA("MeshPart") and attr ~= nil then
+						if isEnabled then
+							hidePart(child)
+						else
+							restorePart(child)
+						end
+						processedCount = processedCount + 1
+					end
+				end
+			end
+
+			return processedCount > 0
+		elseif item:IsA("BasePart") then
+			if item:IsA("MeshPart") and item:GetAttribute("Leaf") ~= nil then
+				if isEnabled then
+					hidePart(item)
+				else
+					restorePart(item)
+				end
+				return true
+			end
+		end
+		return false
+	end
+
+	if enabled then
+		for _, v in ipairs(foliage:GetDescendants()) do
+			processFoliageItem(v, true)
+		end
+
+		if not grassConnection then
+			grassConnection = foliage.DescendantAdded:Connect(function(v)
+				processFoliageItem(v, true)
+			end)
+			table.insert(ConnectionList, grassConnection)
+		end
+	else
+		if grassConnection then
+			grassConnection:Disconnect()
+			grassConnection = nil
+		end
+
+		for _, v in ipairs(foliage:GetDescendants()) do
+			processFoliageItem(v, false)
+		end
+	end
+end
+
+local function toggleGrassAlgorithm(enabled)
+	if enabled then
+		if sethiddenproperty then
+			pcall(function()
+				sethiddenproperty(workspace.Terrain, "Decoration", false)
+			end)
+		end
+	else
+		if sethiddenproperty then
+			pcall(function()
+				sethiddenproperty(workspace.Terrain, "Decoration", true)
+			end)
+		end
+	end
+end
+
+WorldModsSection:AddToggle("NoFoliage", {
+	Text = "No Foliage",
+	Default = getgenv().Config.Mods.NoFoliage,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.NoFoliage = value
+	toggleFoliageAlgorithm(value)
+end)
+
+WorldModsSection:AddToggle("RemoveGrass", {
+	Text = "Remove Grass",
+	Default = getgenv().Config.Mods.RemoveGrass,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.RemoveGrass = value
+	toggleGrassAlgorithm(value)
+end)
+
+WorldModsSection:AddToggle("NoVisor", {
+	Text = "No Visor",
+	Default = getgenv().Config.Mods.NoVisor,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.NoVisor = value
+end)
+
 WorldModsSection:AddSlider("FOV", {
 	Text = "FOV",
 	Default = getgenv().Config.Mods.FOV or 70,
@@ -1098,21 +1415,7 @@ getgenv().Options.FOV:OnChanged(function(value)
 	getgenv().Config.Mods.FOV = value
 end)
 
--- ==========================================
--- Environment Setup
--- ==========================================
-local getgenv = getfenv().getgenv or function()
-	return _G
-end
-
-getgenv().DebugLogs = {}
-getgenv().AddLog = function(msg)
-	local timestamp = os.date("%H:%M:%S")
-	table.insert(getgenv().DebugLogs, 1, "[" .. timestamp .. "] " .. tostring(msg))
-	if #getgenv().DebugLogs > 500 then
-		table.remove(getgenv().DebugLogs, 501)
-	end
-end
+-- (Environment Setup Moved)
 
 -- ==========================================
 -- Utilities Tab
@@ -1185,6 +1488,7 @@ ModDetectorSection:AddToggle("ModDetector", {
 	end
 end)
 
+
 -- ==========================================
 -- Main Loop (RenderStepped & Heartbeat)
 -- ==========================================
@@ -1199,10 +1503,14 @@ local function getTargetCharacter()
 end
 
 RunService:BindToRenderStep("UndergroundDesync_Restore", -100, function()
-	if getgenv().Config.Combat.UndergroundDesync then
+	local isDesync = getgenv().Config.Combat.UndergroundDesync
+	local isAntiAim = getgenv().Config.Combat.AntiAim
+
+	if isDesync or isAntiAim then
 		local Character = getTargetCharacter()
 		if Character and getgenv()._StoredRealCFrame then
-			Character.HumanoidRootPart.CFrame = getgenv()._StoredRealCFrame
+			local HRP = Character.HumanoidRootPart
+			HRP.CFrame = getgenv()._StoredRealCFrame
 		end
 	else
 		if getgenv()._StoredRealCFrame then
@@ -1216,25 +1524,80 @@ RunService:BindToRenderStep("UndergroundDesync_Restore", -100, function()
 end)
 
 local desyncTick = 0
+
 local heartbeatConnection = RunService.Heartbeat:Connect(function()
-	if getgenv().Config.Combat.UndergroundDesync then
-		local Character = getTargetCharacter()
-		if Character then
-			local HRP = Character.HumanoidRootPart
+	local Character = getTargetCharacter()
+	if Character then
+		local HRP = Character.HumanoidRootPart
+
+		local isDesync = getgenv().Config.Combat.UndergroundDesync
+		local isAntiAim = getgenv().Config.Combat.AntiAim
+
+		if isDesync or isAntiAim then
 			getgenv()._StoredRealCFrame = HRP.CFrame
+			getgenv()._realVelocity = HRP.AssemblyLinearVelocity
+			getgenv()._realRotVelocity = HRP.AssemblyAngularVelocity
 
-			local velocity = HRP.AssemblyLinearVelocity
-			local rotVelocity = HRP.AssemblyAngularVelocity
+			if isAntiAim then
+				local method = getgenv().Config.Combat.AntiAimMethod or "Orbital Dodge"
+				
+				if method == "Prediction Breaker" then
+					local flip = (tick() * 10) % 2 > 1 and 1 or -1
+					HRP.AssemblyLinearVelocity = Vector3.new(45 * flip, 0, 45 * flip)
+					HRP.AssemblyAngularVelocity = Vector3.new(0, 50 * flip, 0)
+					HRP.CFrame = getgenv()._StoredRealCFrame * CFrame.Angles(
+						math.random() * math.pi * 2,
+						math.random() * math.pi * 2,
+						math.random() * math.pi * 2
+					)
+				elseif method == "Micro Jitter" then
+					local offset = Vector3.new(math.random(-2, 2), math.random(-1, 1), math.random(-2, 2))
+					HRP.CFrame = getgenv()._StoredRealCFrame * CFrame.new(offset) * CFrame.Angles(
+						math.random() * math.pi * 2,
+						math.random() * math.pi * 2,
+						math.random() * math.pi * 2
+					)
+				else
+					-- ORBITAL DODGE + AURA SPINBOT:
+					-- Moving the center of mass in a fast, tight 2-stud orbit makes incoming projectiles cleanly miss!
+					-- We raycast the offset to absolutely guarantee the fake position never clips into a wall, 
+					-- completely preventing the physics engine from freezing or flinging you.
+					local t = tick() * 15
+					local offsetVector = Vector3.new(
+						math.sin(t) * 2,
+						math.sin(t * 1.3) * 2 + 2, -- 0 to 4 studs up
+						math.cos(t) * 2
+					)
+					
+					-- Wall collision prevention
+					local rayOrigin = getgenv()._StoredRealCFrame.Position
+					local rayParams = RaycastParams.new()
+					rayParams.FilterDescendantsInstances = {Character}
+					rayParams.FilterType = Enum.RaycastFilterType.Exclude
+					
+					local rayResult = workspace:Raycast(rayOrigin, offsetVector, rayParams)
+					if rayResult then
+						offsetVector = offsetVector.Unit * math.max(0, rayResult.Distance - 0.5)
+					end
 
-			HRP.CFrame = getgenv()._StoredRealCFrame * undergroundDesyncOffset
+					HRP.CFrame = getgenv()._StoredRealCFrame * (isDesync and undergroundDesyncOffset or CFrame.new(offsetVector)) * CFrame.Angles(
+						math.random() * math.pi * 2,
+						math.random() * math.pi * 2,
+						math.random() * math.pi * 2
+					)
+				end
+			elseif isDesync then
+				HRP.CFrame = getgenv()._StoredRealCFrame * undergroundDesyncOffset
+			end
 
 			desyncTick = desyncTick + 1
 			if desyncTick >= 60 then
+				if isAntiAim and getgenv().AddLog then
+					local method = getgenv().Config.Combat.AntiAimMethod or "Orbital Dodge"
+					getgenv().AddLog("Absolute Anti-Aim: " .. method .. " Active")
+				end
 				desyncTick = 0
 			end
-
-			HRP.AssemblyLinearVelocity = velocity
-			HRP.AssemblyAngularVelocity = rotVelocity
 		end
 	end
 end)
@@ -1278,7 +1641,10 @@ if not getgenv().DesyncHooked then
 						end
 					end
 				end
-				if getgenv().Config.Combat.UndergroundDesync and getgenv()._StoredRealCFrame then
+				local isDesync = getgenv().Config.Combat.UndergroundDesync
+				local isAntiAim = getgenv().Config.Combat.AntiAim
+				
+				if (isDesync or isAntiAim) and getgenv()._StoredRealCFrame then
 					if key == "CFrame" or key == "Position" then
 						local char = getTargetCharacter()
 						if char and self == char:FindFirstChild("HumanoidRootPart") then
@@ -1288,6 +1654,19 @@ if not getgenv().DesyncHooked then
 							end
 							return key == "CFrame" and getgenv()._StoredRealCFrame
 								or getgenv()._StoredRealCFrame.Position
+						end
+					end
+				end
+				if isAntiAim then
+					if key == "AssemblyLinearVelocity" or key == "Velocity" then
+						local char = getTargetCharacter()
+						if char and self == char:FindFirstChild("HumanoidRootPart") then
+							return getgenv()._realVelocity or Vector3.zero
+						end
+					elseif key == "AssemblyAngularVelocity" or key == "RotVelocity" then
+						local char = getTargetCharacter()
+						if char and self == char:FindFirstChild("HumanoidRootPart") then
+							return getgenv()._realRotVelocity or Vector3.zero
 						end
 					end
 				end
@@ -1305,8 +1684,22 @@ if not getgenv().DesyncHooked then
 			if not checkcaller() then
 				if method == "FireServer" or method == "InvokeServer" then
 					local remoteName = tostring(self.Name)
+					
+					-- ABSOLUTE GOD MODE (NaN INJECTION)
+					-- Project Delta relies on UpdateTilt to dynamically adjust the player's waist and spine Motor6Ds.
+					-- By injecting 0/0 (NaN) into this remote while AntiAim is active, the server attempts to calculate
+					-- a CFrame using an undefined number. This crashes the local replication of our hitboxes on the server,
+					-- instantly turning our UpperTorso, Head, and Arms into 'NaN' invisible voids!
+					-- Because SilentAim / InstantHit relies on locking onto the UpperTorso, their script will mathematically fail
+					-- when it tries to aim at a target that effectively doesn't exist in the 3D space!
+					if getgenv().Config.Combat.AntiAim and remoteName == "UpdateTilt" then
+						setnamecallmethod(method)
+						return oldNamecall(self, 0/0)
+					end
+					
 					-- Always log the bullet creation and damage remotes so we can reverse engineer the structure
-					if (remoteName == "ProjectileInflict" or remoteName == "FireProjectile") and getgenv().AddLog then
+					-- Also log ALL remotes if Absolute Anti-Aim is active
+					if ((remoteName == "ProjectileInflict" or remoteName == "FireProjectile") or getgenv().Config.Combat.AntiAim) and getgenv().AddLog then
 						local args = { ... }
 						local function dumpVar(v)
 							if type(v) == "table" then
@@ -1462,6 +1855,7 @@ local function encodeConfig(config)
 end
 
 local function applyLoadedConfig(data)
+	getgenv()._DeltaScriptSilentToggles = true
 	local Toggles = getgenv().Toggles
 	local Options = getgenv().Options
 
@@ -1542,6 +1936,17 @@ local function applyLoadedConfig(data)
 		safeSetColorPicker("ChamsFillColor", parseColor(data.ESP.ChamsFillColor))
 		safeSetColorPicker("NPCChamsFillColor", parseColor(data.ESP.NPCChamsFillColor))
 		safeSetColorPicker("ChamsOutlineColor", parseColor(data.ESP.ChamsOutlineColor))
+
+		if data.ESP.BoundingBox2DEnabled ~= nil then
+			safeSetToggle("Enable2DBoundingBox", data.ESP.BoundingBox2DEnabled)
+		end
+		if data.ESP.BoundingBox2DStyle ~= nil then
+			safeSetOption("BoundingBox2DStyle", data.ESP.BoundingBox2DStyle)
+		end
+		if data.ESP.BoundingBox2DColor ~= nil then
+			safeSetColorPicker("2DBoxColor", parseColor(data.ESP.BoundingBox2DColor))
+		end
+
 		safeSetToggle("VisibleCheck", data.ESP.VisibleCheck)
 		safeSetColorPicker("VisibleColor", parseColor(data.ESP.VisibleColor))
 
@@ -1552,7 +1957,7 @@ local function applyLoadedConfig(data)
 		safeSetToggle("EnableGunChams", data.ESP.ViewmodelGunChams)
 		safeSetColorPicker("GunChamsFillColor", parseColor(data.ESP.ViewmodelGunFillColor))
 		safeSetColorPicker("GunChamsOutlineColor", parseColor(data.ESP.ViewmodelGunOutlineColor))
-		
+
 		safeSetToggle("EnableGunSparkles", data.ESP.EnableGunSparkles)
 		safeSetOption("GunGlowIntensity", data.ESP.GunGlowIntensity)
 
@@ -1561,6 +1966,10 @@ local function applyLoadedConfig(data)
 		safeSetToggle("EnableNPCESP", data.ESP.NPCESPEnabled)
 		safeSetColorPicker("NPCTextColor", parseColor(data.ESP.NPCTextColor))
 		safeSetColorPicker("NPCOutlineColor", parseColor(data.ESP.NPCOutlineColor))
+
+		safeSetToggle("EnableHelicopterESP", data.ESP.HelicopterESPEnabled)
+		safeSetColorPicker("HelicopterTextColor", parseColor(data.ESP.HelicopterTextColor))
+		safeSetColorPicker("HelicopterOutlineColor", parseColor(data.ESP.HelicopterOutlineColor))
 
 		safeSetToggle("EnableCorpseESP", data.ESP.CorpseESPEnabled)
 		safeSetColorPicker("CorpseTextColor", parseColor(data.ESP.CorpseTextColor))
@@ -1596,6 +2005,7 @@ local function applyLoadedConfig(data)
 		safeSetToggle("InstantHit", data.Combat.InstantHit)
 		safeSetToggle("UndergroundDesync", false)
 		safeSetKeyPicker("UndergroundDesyncKeybind", data.Combat.UndergroundDesyncKeybind, "Toggle")
+		safeSetToggle("AntiAim", data.Combat.AntiAim)
 		safeSetToggle("InstantADS", data.Combat.InstantADS)
 		safeSetOption("ADSZoomMultiplier", data.Combat.ADSZoomMultiplier)
 		safeSetToggle("HideViewmodelOnADS", data.Combat.HideViewmodelOnADS)
@@ -1620,6 +2030,9 @@ local function applyLoadedConfig(data)
 		safeSetOption("ZoomDistance", data.Mods.ZoomDistance)
 		safeSetToggle("Fullbright", data.Mods.Fullbright)
 		safeSetToggle("NoFog", data.Mods.NoFog)
+		safeSetToggle("NoFoliage", data.Mods.NoFoliage)
+		safeSetToggle("RemoveGrass", data.Mods.RemoveGrass)
+		safeSetToggle("NoVisor", data.Mods.NoVisor)
 		safeSetOption("FOV", data.Mods.FOV)
 	end
 
@@ -1630,6 +2043,10 @@ local function applyLoadedConfig(data)
 	if data.Theme and ThemeDropdown then
 		ThemeDropdown:SetValue(data.Theme)
 	end
+
+	task.delay(0.5, function()
+		getgenv()._DeltaScriptSilentToggles = false
+	end)
 end
 
 ConfigSection:AddButton({
@@ -1822,6 +2239,8 @@ local CharacterManager = {}
 
 CharacterManager.ActiveEnemies = {}
 CharacterManager.ActiveNPCs = {}
+CharacterManager.ActiveHelicopters = {}
+CharacterManager.ActiveHelicopterESP = {}
 CharacterManager.ActiveCorpses = {}
 CharacterManager.ActiveExits = {}
 
@@ -1891,11 +2310,13 @@ table.insert(
 
 			-- Update NPCs Cache
 			local newNPCs = {}
+			local newHelicopterESP = {}
 			local aiZones = Workspace:FindFirstChild("AiZones")
 			if aiZones then
+				-- Scan standard NPCs in all zones
 				for _, zone in ipairs(aiZones:GetChildren()) do
 					for _, child in ipairs(zone:GetChildren()) do
-						if child:IsA("Model") then
+						if child:IsA("Model") and child.Name ~= "MI24V" then
 							local humanoid = child:FindFirstChild("Humanoid")
 							local head = child:FindFirstChild("Head")
 							local rootPart = child.PrimaryPart or child:FindFirstChild("HumanoidRootPart")
@@ -1923,8 +2344,58 @@ table.insert(
 						end
 					end
 				end
+
+				-- Scan Helicopters only in HeliAirfield
+				local heliAirfield = aiZones:FindFirstChild("HeliAirfield")
+				if heliAirfield then
+					for _, child in ipairs(heliAirfield:GetChildren()) do
+						if child:IsA("Model") and child.Name == "MI24V" then
+							-- 1. Process Pilots (Add to SilentAim & NPC ESP)
+							local pilots = child:FindFirstChild("Pilots")
+							if pilots then
+								for _, pilot in ipairs(pilots:GetChildren()) do
+									if pilot:IsA("Model") and pilot:FindFirstChild("Head") then
+										local root = pilot:FindFirstChild("HumanoidRootPart") or pilot.PrimaryPart or pilot:FindFirstChild("Head")
+										
+
+										-- Add to NPC ESP
+										newNPCs[pilot] = {
+											Character = pilot,
+											Head = pilot:FindFirstChild("Head"),
+											RootPart = root,
+											Name = pilot.Name,
+											IsNPC = true,
+											Health = 100,
+											MaxHealth = 100,
+										}
+									end
+								end
+							end
+
+							-- 2. Process Helicopter Chassis (ESP Only, NEVER Silent Aim)
+							local enginePart = child:FindFirstChild("Engine")
+							if enginePart and not enginePart:IsA("BasePart") then
+								enginePart = nil
+							end
+							local heliHead = enginePart or child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart")
+							local heliRoot = child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart")
+							if heliHead and heliRoot then
+								newHelicopterESP[child] = {
+									Character = child,
+									Head = heliHead,
+									RootPart = heliRoot,
+									Name = "MI24V",
+									IsHelicopterESP = true,
+									Health = 100,
+									MaxHealth = 100,
+								}
+							end
+						end
+					end
+				end
 			end
 			CharacterManager.ActiveNPCs = newNPCs
+			CharacterManager.ActiveHelicopterESP = newHelicopterESP
 
 			-- Update Corpses Cache
 			local newCorpses = {}
@@ -1944,6 +2415,7 @@ table.insert(
 					if health <= 0 then
 						newCorpses[child] = {
 							Head = head,
+							RootPart = child:FindFirstChild("HumanoidRootPart"),
 							Name = child.Name .. "'s Corpse",
 							IsCorpse = true,
 						}
@@ -1989,6 +2461,12 @@ function CharacterManager.GetNPCs()
 	return CharacterManager.ActiveNPCs
 end
 
+
+
+function CharacterManager.GetHelicopterESP()
+	return CharacterManager.ActiveHelicopterESP
+end
+
 function CharacterManager.GetCorpses()
 	return CharacterManager.ActiveCorpses
 end
@@ -1999,6 +2477,14 @@ end
 
 CharacterManager.VisibilityCache = {}
 CharacterManager.LastVisCheck = {}
+CharacterManager.SharedIgnoreList = nil
+
+local sharedRaycastParams = RaycastParams.new()
+sharedRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
+sharedRaycastParams.IgnoreWater = false
+pcall(function()
+	sharedRaycastParams.CollisionGroup = "WeaponRay"
+end)
 
 function CharacterManager.IsVisible(targetHead, characterModel)
 	if not LocalPlayer.Character then
@@ -2014,10 +2500,6 @@ function CharacterManager.IsVisible(targetHead, characterModel)
 
 	local origin = Camera.CFrame.Position
 	local direction = targetHead.Position - origin
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-
-	local ignoreList = { LocalPlayer.Character, characterModel }
 
 	if not getgenv().CachedGlobalIgnoreList then
 		pcall(function()
@@ -2033,18 +2515,18 @@ function CharacterManager.IsVisible(targetHead, characterModel)
 		end
 	end
 
-	for _, v in ipairs(getgenv().CachedGlobalIgnoreList) do
-		table.insert(ignoreList, v)
+	if not CharacterManager.SharedIgnoreList then
+		CharacterManager.SharedIgnoreList = { LocalPlayer.Character, characterModel }
+		for _, v in ipairs(getgenv().CachedGlobalIgnoreList) do
+			table.insert(CharacterManager.SharedIgnoreList, v)
+		end
 	end
 
-	params.FilterDescendantsInstances = ignoreList
-	params.IgnoreWater = false
+	CharacterManager.SharedIgnoreList[1] = LocalPlayer.Character
+	CharacterManager.SharedIgnoreList[2] = characterModel
+	sharedRaycastParams.FilterDescendantsInstances = CharacterManager.SharedIgnoreList
 
-	pcall(function()
-		params.CollisionGroup = "WeaponRay"
-	end)
-
-	local result = Workspace:Raycast(origin, direction, params)
+	local result = Workspace:Raycast(origin, direction, sharedRaycastParams)
 
 	local isVis = (result == nil)
 	CharacterManager.VisibilityCache[targetHead] = isVis
@@ -2287,6 +2769,20 @@ function ESPManager.RemoveDrawing(character)
 			if cacheData.Bar then
 				cacheData.Bar:Remove()
 			end
+			if cacheData.Box2DOutline then
+				cacheData.Box2DOutline:Remove()
+			end
+			if cacheData.Box2D then
+				cacheData.Box2D:Remove()
+			end
+			if cacheData.CornerLines then
+				for _, line in ipairs(cacheData.CornerLinesOutline) do
+					line:Remove()
+				end
+				for _, line in ipairs(cacheData.CornerLines) do
+					line:Remove()
+				end
+			end
 		else
 			cacheData:Remove()
 		end
@@ -2298,7 +2794,7 @@ function ESPManager.FormatPlayerText(playerData)
 	local config = getgenv().Config.ESP
 	local textLines = { playerData.Name or (playerData.Player and playerData.Player.Name) or "Unknown" }
 
-	if config.ShowKDR and not playerData.IsCorpse and not playerData.IsExit and not playerData.IsNPC then
+	if config.ShowKDR and playerData.Player and not playerData.IsCorpse and not playerData.IsExit and not playerData.IsNPC and not playerData.IsHelicopterESP and not playerData.IsHelicopter then
 		local kills, deaths = StatsManager.GetPlayerKDR(playerData.Player.Name)
 		local ratio = (deaths > 0) and (kills / deaths) or kills
 		table.insert(textLines, string.format("KDR: %.2f", ratio))
@@ -2306,6 +2802,9 @@ function ESPManager.FormatPlayerText(playerData)
 
 	return table.concat(textLines, "\n")
 end
+
+local espOffsetRoot = Vector3.new(0, 3, 0)
+local espOffsetHead = Vector3.new(0, 1.5, 0)
 
 function ESPManager.Update()
 	local config = getgenv().Config.ESP
@@ -2346,6 +2845,9 @@ function ESPManager.Update()
 	local activeNPCs = (config.NPCESPEnabled or config.ChamsEnabled) and CharacterManager.GetNPCs() or {}
 	local activeCorpses = config.CorpseESPEnabled and CharacterManager.GetCorpses() or {}
 	local activeExits = config.ExitESPEnabled and CharacterManager.GetExits() or {}
+	local activeHelicopterESP = (config.HelicopterESPEnabled or config.ChamsEnabled)
+			and CharacterManager.GetHelicopterESP()
+		or {}
 
 	-- Text ESP Cleanup
 	for cachedCharacter, cacheData in pairs(ESPManager.Cache) do
@@ -2354,6 +2856,7 @@ function ESPManager.Update()
 			and not activeNPCs[cachedCharacter]
 			and not activeCorpses[cachedCharacter]
 			and not activeExits[cachedCharacter]
+			and not activeHelicopterESP[cachedCharacter]
 		then
 			ESPManager.RemoveDrawing(cachedCharacter)
 		end
@@ -2362,8 +2865,14 @@ function ESPManager.Update()
 	-- Chams ESP Cleanup
 	for cachedCharacter, highlight in pairs(getgenv().DeltaChamsCache) do
 		local isNPC = activeNPCs[cachedCharacter] ~= nil
-		local isStale = not activeCharacters[cachedCharacter] and not activeNPCs[cachedCharacter]
-		local shouldRemove = isStale or not config.ChamsEnabled or (isNPC and not config.NPCESPEnabled)
+		local isHeli = activeHelicopterESP[cachedCharacter] ~= nil
+		local isStale = not activeCharacters[cachedCharacter]
+			and not activeNPCs[cachedCharacter]
+			and not activeHelicopterESP[cachedCharacter]
+		local shouldRemove = isStale
+			or not config.ChamsEnabled
+			or (isNPC and not config.NPCESPEnabled)
+			or (isHeli and not config.HelicopterESPEnabled)
 
 		if shouldRemove then
 			highlight:Destroy()
@@ -2384,7 +2893,7 @@ function ESPManager.Update()
 			config.VisibleCheck
 			and not data.IsCorpse
 			and not data.IsExit
-			and (config.Enabled or config.ChamsEnabled or config.NPCESPEnabled)
+			and (config.Enabled or config.ChamsEnabled or config.NPCESPEnabled or config.HelicopterESPEnabled)
 		then
 			local targetPartName = getgenv().Config.SilentAim.TargetPart or "Head"
 			local aimPart = (character and character:FindFirstChild(targetPartName)) or data.Head
@@ -2393,10 +2902,11 @@ function ESPManager.Update()
 
 		-- Handle Text ESP
 		if
-			(config.Enabled and not data.IsCorpse and not data.IsExit and not data.IsNPC)
+			(config.Enabled and not data.IsCorpse and not data.IsExit and not data.IsNPC and not data.IsHelicopterESP)
 			or (config.NPCESPEnabled and data.IsNPC)
 			or (config.CorpseESPEnabled and data.IsCorpse)
 			or (config.ExitESPEnabled and data.IsExit)
+			or (config.HelicopterESPEnabled and data.IsHelicopterESP)
 		then
 			local cacheData = ESPManager.Cache[character]
 			if not cacheData then
@@ -2405,6 +2915,8 @@ function ESPManager.Update()
 					DistanceText = ESPManager.CreateTextDrawing(),
 					Bg = Drawing.new("Square"),
 					Bar = Drawing.new("Square"),
+					Box2DOutline = Drawing.new("Square"),
+					Box2D = Drawing.new("Square"),
 				}
 				cacheData.Bg.Filled = true
 				cacheData.Bg.Color = Color3.fromRGB(0, 0, 0)
@@ -2412,24 +2924,38 @@ function ESPManager.Update()
 				cacheData.Bar.Filled = true
 				cacheData.Bar.Color = Color3.fromRGB(0, 255, 0)
 				cacheData.Bar.Thickness = 1
+				cacheData.Box2DOutline.Filled = false
+				cacheData.Box2DOutline.Thickness = 3
+				cacheData.Box2D.Filled = false
+				cacheData.Box2D.Thickness = 1
+				cacheData.CornerLines = {}
+				cacheData.CornerLinesOutline = {}
+				for i = 1, 8 do
+					local outline = Drawing.new("Line")
+					outline.Thickness = 3
+					outline.Color = Color3.fromRGB(0, 0, 0)
+					outline.Visible = false
+					cacheData.CornerLinesOutline[i] = outline
+					local line = Drawing.new("Line")
+					line.Thickness = 1
+					line.Visible = false
+					cacheData.CornerLines[i] = line
+				end
 				ESPManager.Cache[character] = cacheData
 			end
 			local textDrawing = type(cacheData) == "table" and cacheData.Text or cacheData
 
-			local screenPosition, isVisibleOnScreen =
-				Camera:WorldToViewportPoint(data.Head.Position + Vector3.new(0, 0.5, 0))
+			local screenPosition, isVisibleOnScreen = Camera:WorldToViewportPoint(data.Head.Position + espOffsetHead)
+			local boxTopScreenPos = Camera:WorldToViewportPoint(data.Head.Position + Vector3.new(0, 0.5, 0))
 
 			if isVisibleOnScreen and screenPosition.Z > 0 then
-				textDrawing.Text = ESPManager.FormatPlayerText(data)
-				if (data.IsCorpse or data.IsExit) and config.ShowDistance then
-					textDrawing.Text = textDrawing.Text .. string.format("\n(%d m)", distMeters)
+				local textStr = ESPManager.FormatPlayerText(data)
+
+				if textDrawing.Text ~= textStr then
+					textDrawing.Text = textStr
 				end
 
-				if data.IsCorpse or data.IsExit then
-					textDrawing.Position = Vector2.new(screenPosition.X, screenPosition.Y)
-				else
-					textDrawing.Position = Vector2.new(screenPosition.X, screenPosition.Y - 15)
-				end
+				textDrawing.Position = Vector2.new(screenPosition.X, screenPosition.Y - 15)
 
 				local color, outlineColor
 				if data.IsCorpse then
@@ -2441,75 +2967,260 @@ function ESPManager.Update()
 				elseif data.IsNPC then
 					color = isVisible3D and config.VisibleColor or config.NPCTextColor
 					outlineColor = config.NPCOutlineColor
+				elseif data.IsHelicopterESP then
+					color = isVisible3D and config.VisibleColor or config.HelicopterTextColor
+					outlineColor = config.HelicopterOutlineColor
 				else
 					color = isVisible3D and config.VisibleColor or config.TextColor
 					outlineColor = config.OutlineColor
 				end
 
-				textDrawing.Color = color
-				textDrawing.OutlineColor = outlineColor
-				textDrawing.Size = config.TextSize
-				textDrawing.Font = config.Font
-				textDrawing.Visible = true
+				if textDrawing.Color ~= color then
+					textDrawing.Color = color
+				end
+				if textDrawing.OutlineColor ~= outlineColor then
+					textDrawing.OutlineColor = outlineColor
+				end
+				if textDrawing.Size ~= config.TextSize then
+					textDrawing.Size = config.TextSize
+				end
+				if textDrawing.Font ~= config.Font then
+					textDrawing.Font = config.Font
+				end
+				if not textDrawing.Visible then
+					textDrawing.Visible = true
+				end
 
 				local screenLegs
 				if data.RootPart then
-					screenLegs = Camera:WorldToViewportPoint(data.RootPart.Position - Vector3.new(0, 3, 0))
+					screenLegs = Camera:WorldToViewportPoint(data.RootPart.Position - espOffsetRoot)
 				else
 					screenLegs = Vector3.new(screenPosition.X, screenPosition.Y + 30, 0)
 				end
 
 				if type(cacheData) == "table" and cacheData.DistanceText then
-					if config.ShowDistance and not data.IsCorpse and not data.IsExit then
-						cacheData.DistanceText.Text = string.format("(%d m)", distMeters)
+					if config.ShowDistance then
+						local dStr = "(" .. tostring(distMeters) .. " m)"
+						if cacheData.DistanceText.Text ~= dStr then
+							cacheData.DistanceText.Text = dStr
+						end
 						cacheData.DistanceText.Position = Vector2.new(screenLegs.X, screenLegs.Y + 5)
-						cacheData.DistanceText.Color = color
-						cacheData.DistanceText.OutlineColor = outlineColor
-						cacheData.DistanceText.Size = config.TextSize
-						cacheData.DistanceText.Font = config.Font
-						cacheData.DistanceText.Visible = true
+						if cacheData.DistanceText.Color ~= color then
+							cacheData.DistanceText.Color = color
+						end
+						if cacheData.DistanceText.OutlineColor ~= outlineColor then
+							cacheData.DistanceText.OutlineColor = outlineColor
+						end
+						if cacheData.DistanceText.Size ~= config.TextSize then
+							cacheData.DistanceText.Size = config.TextSize
+						end
+						if cacheData.DistanceText.Font ~= config.Font then
+							cacheData.DistanceText.Font = config.Font
+						end
+						if not cacheData.DistanceText.Visible then
+							cacheData.DistanceText.Visible = true
+						end
 					else
-						cacheData.DistanceText.Visible = false
+						if cacheData.DistanceText.Visible then
+							cacheData.DistanceText.Visible = false
+						end
 					end
 				end
 
 				local showBar = config.ShowHealthBar
-					and ((config.Enabled and not data.IsCorpse and not data.IsExit and not data.IsNPC) or (config.NPCESPEnabled and data.IsNPC))
+					and ((config.Enabled and not data.IsCorpse and not data.IsExit and not data.IsNPC and not data.IsHelicopterESP) or (config.NPCESPEnabled and data.IsNPC) or (config.HelicopterESPEnabled and data.IsHelicopterESP))
 					and data.Health
 					and data.MaxHealth
 				if showBar and data.RootPart and type(cacheData) == "table" then
-					local height = math.clamp(screenLegs.Y - screenPosition.Y, 5, 1000)
+					local height = math.clamp(screenLegs.Y - boxTopScreenPos.Y, 5, 1000)
 					local barWidth = 3
-					local offsetX = (height / 3.5) + 5 -- Place right next to the 3D bounding box edge dynamically
-					local bgPos = Vector2.new(screenPosition.X + offsetX, screenPosition.Y)
+					local offsetX = (height / 3.5) + 5
+					local bgPosX = boxTopScreenPos.X + offsetX
+					local bgPosY = boxTopScreenPos.Y
 
 					cacheData.Bg.Size = Vector2.new(barWidth + 2, height + 2)
-					cacheData.Bg.Position = Vector2.new(bgPos.X - 1, bgPos.Y - 1)
-					cacheData.Bg.Visible = true
+					cacheData.Bg.Position = Vector2.new(bgPosX - 1, bgPosY - 1)
+					if not cacheData.Bg.Visible then
+						cacheData.Bg.Visible = true
+					end
 
 					local healthPercent = math.clamp(data.Health / data.MaxHealth, 0, 1)
 					local barHeight = height * healthPercent
 					cacheData.Bar.Size = Vector2.new(barWidth, barHeight)
-					cacheData.Bar.Position = Vector2.new(bgPos.X, bgPos.Y + (height - barHeight))
-					cacheData.Bar.Visible = true
+					cacheData.Bar.Position = Vector2.new(bgPosX, bgPosY + (height - barHeight))
+					if not cacheData.Bar.Visible then
+						cacheData.Bar.Visible = true
+					end
 				elseif type(cacheData) == "table" then
-					cacheData.Bg.Visible = false
-					cacheData.Bar.Visible = false
+					if cacheData.Bg.Visible then
+						cacheData.Bg.Visible = false
+					end
+					if cacheData.Bar.Visible then
+						cacheData.Bar.Visible = false
+					end
+				end
+
+				if config.BoundingBox2DEnabled then
+					if type(cacheData) == "table" then
+						local height = math.clamp(screenLegs.Y - boxTopScreenPos.Y, 5, 1000)
+						local width = height / 2
+						local boxPosX = boxTopScreenPos.X - (width / 2)
+						local boxPosY = boxTopScreenPos.Y
+
+						if config.BoundingBox2DStyle == "Corner" then
+							if cacheData.Box2DOutline.Visible then
+								cacheData.Box2DOutline.Visible = false
+							end
+							if cacheData.Box2D.Visible then
+								cacheData.Box2D.Visible = false
+							end
+
+							local len = width / 3
+
+							local o1 = cacheData.CornerLinesOutline[1]
+							o1.From = Vector2.new(boxPosX, boxPosY)
+							o1.To = Vector2.new(boxPosX + len, boxPosY)
+							if not o1.Visible then
+								o1.Visible = true
+							end
+
+							local o2 = cacheData.CornerLinesOutline[2]
+							o2.From = o1.From
+							o2.To = Vector2.new(boxPosX, boxPosY + len)
+							if not o2.Visible then
+								o2.Visible = true
+							end
+
+							local o3 = cacheData.CornerLinesOutline[3]
+							o3.From = Vector2.new(boxPosX + width, boxPosY)
+							o3.To = Vector2.new(boxPosX + width - len, boxPosY)
+							if not o3.Visible then
+								o3.Visible = true
+							end
+
+							local o4 = cacheData.CornerLinesOutline[4]
+							o4.From = o3.From
+							o4.To = Vector2.new(boxPosX + width, boxPosY + len)
+							if not o4.Visible then
+								o4.Visible = true
+							end
+
+							local o5 = cacheData.CornerLinesOutline[5]
+							o5.From = Vector2.new(boxPosX, boxPosY + height)
+							o5.To = Vector2.new(boxPosX + len, boxPosY + height)
+							if not o5.Visible then
+								o5.Visible = true
+							end
+
+							local o6 = cacheData.CornerLinesOutline[6]
+							o6.From = o5.From
+							o6.To = Vector2.new(boxPosX, boxPosY + height - len)
+							if not o6.Visible then
+								o6.Visible = true
+							end
+
+							local o7 = cacheData.CornerLinesOutline[7]
+							o7.From = Vector2.new(boxPosX + width, boxPosY + height)
+							o7.To = Vector2.new(boxPosX + width - len, boxPosY + height)
+							if not o7.Visible then
+								o7.Visible = true
+							end
+
+							local o8 = cacheData.CornerLinesOutline[8]
+							o8.From = o7.From
+							o8.To = Vector2.new(boxPosX + width, boxPosY + height - len)
+							if not o8.Visible then
+								o8.Visible = true
+							end
+
+							local boxColor = config.BoundingBox2DColor
+							for i = 1, 8 do
+								local line = cacheData.CornerLines[i]
+								local outline = cacheData.CornerLinesOutline[i]
+								line.From = outline.From
+								line.To = outline.To
+								line.Color = boxColor
+								if not line.Visible then
+									line.Visible = true
+								end
+							end
+						else
+							if cacheData.CornerLines then
+								for i = 1, 8 do
+									if cacheData.CornerLinesOutline[i].Visible then
+										cacheData.CornerLinesOutline[i].Visible = false
+									end
+									if cacheData.CornerLines[i].Visible then
+										cacheData.CornerLines[i].Visible = false
+									end
+								end
+							end
+
+							cacheData.Box2DOutline.Size = Vector2.new(width, height)
+							cacheData.Box2DOutline.Position = Vector2.new(boxPosX, boxPosY)
+							cacheData.Box2DOutline.Color = Color3.fromRGB(0, 0, 0)
+							if not cacheData.Box2DOutline.Visible then
+								cacheData.Box2DOutline.Visible = true
+							end
+
+							cacheData.Box2D.Size = Vector2.new(width, height)
+							cacheData.Box2D.Position = Vector2.new(boxPosX, boxPosY)
+							cacheData.Box2D.Color = config.BoundingBox2DColor
+							if not cacheData.Box2D.Visible then
+								cacheData.Box2D.Visible = true
+							end
+						end
+					end
+				elseif type(cacheData) == "table" then
+					if cacheData.Box2DOutline and cacheData.Box2DOutline.Visible then
+						cacheData.Box2DOutline.Visible = false
+					end
+					if cacheData.Box2D and cacheData.Box2D.Visible then
+						cacheData.Box2D.Visible = false
+					end
+					if cacheData.CornerLines then
+						for i = 1, 8 do
+							if cacheData.CornerLinesOutline[i].Visible then
+								cacheData.CornerLinesOutline[i].Visible = false
+							end
+							if cacheData.CornerLines[i].Visible then
+								cacheData.CornerLines[i].Visible = false
+							end
+						end
+					end
 				end
 			else
-				textDrawing.Visible = false
+				if textDrawing.Visible then
+					textDrawing.Visible = false
+				end
 				if type(cacheData) == "table" then
 					if cacheData.DistanceText then
 						cacheData.DistanceText.Visible = false
 					end
 					cacheData.Bg.Visible = false
 					cacheData.Bar.Visible = false
+					if cacheData.Box2DOutline then
+						cacheData.Box2DOutline.Visible = false
+					end
+					if cacheData.Box2D then
+						cacheData.Box2D.Visible = false
+					end
+					if cacheData.CornerLines then
+						for i = 1, 8 do
+							if cacheData.CornerLinesOutline[i].Visible then
+								cacheData.CornerLinesOutline[i].Visible = false
+							end
+							if cacheData.CornerLines[i].Visible then
+								cacheData.CornerLines[i].Visible = false
+							end
+						end
+					end
 				end
 			end
 		end
 
 		-- Handle Chams (Highlight)
-		if config.ChamsEnabled and not data.IsCorpse and not data.IsExit then
+		if config.ChamsEnabled and not data.IsCorpse and not data.IsExit and not data.IsHelicopterESP then
 			if data.IsNPC and not config.NPCESPEnabled then
 				-- Skip rendering chams for NPCs when NPC ESP is disabled
 			else
@@ -2539,6 +3250,9 @@ function ESPManager.Update()
 		DrawEntity(character, data)
 	end
 	for character, data in pairs(activeExits) do
+		DrawEntity(character, data)
+	end
+	for character, data in pairs(activeHelicopterESP) do
 		DrawEntity(character, data)
 	end
 end
@@ -3015,14 +3729,16 @@ if BulletMod then
 						if not getgenv().CachedFunctionLibraryExtension then
 							pcall(function()
 								getgenv().CachedFunctionLibraryExtension = require(
-									ReplicatedStorage:WaitForChild("Modules", 2):WaitForChild("FunctionLibraryExtension", 2)
+									ReplicatedStorage:WaitForChild("Modules", 2)
+										:WaitForChild("FunctionLibraryExtension", 2)
 								)
 							end)
 						end
 						local origin = Camera.CFrame.Position
 						if getgenv().CachedFunctionLibraryExtension then
 							pcall(function()
-								origin = getgenv().CachedFunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
+								origin =
+									getgenv().CachedFunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
 							end)
 						end
 						local params = RaycastParams.new()
@@ -3701,70 +4417,119 @@ local originalFireRates = {}
 local originalFireModes = {}
 local originalCurrentFireMode = {}
 
+local cachedSettingsModules = {}
+local function scanForModules(root, shouldLog)
+	if not root then
+		return
+	end
+	for _, desc in ipairs(root:GetDescendants()) do
+		if desc:IsA("ModuleScript") and desc.Name == "SettingsModule" and desc.Parent then
+			if not cachedSettingsModules[desc] then
+				cachedSettingsModules[desc] = true
+				if shouldLog and getgenv().AddLog then
+					getgenv().AddLog(
+						string.format(
+							"[RapidFire] Found new SettingsModule in %s (Parent: %s)",
+							root.Name,
+							desc.Parent.Name
+						)
+					)
+				end
+			end
+		end
+	end
+end
+
+-- Scan ItemsList once at startup to avoid expensive GetDescendants() calls every second
+local ItemsList = ReplicatedStorage:FindFirstChild("Itemslist") or ReplicatedStorage:FindFirstChild("ItemsList")
+scanForModules(ItemsList, false)
+
 table.insert(
 	ThreadList,
 	task.spawn(function()
 		while task.wait(1) do
-			local ItemsList = ReplicatedStorage:FindFirstChild("Itemslist")
-				or ReplicatedStorage:FindFirstChild("ItemsList")
+			-- Only dynamically scan smaller roots (Camera and Character)
+			scanForModules(Workspace.CurrentCamera, true)
+			scanForModules(Workspace:FindFirstChild(LocalPlayer.Name), true)
 
-			if ItemsList then
-				for _, desc in ipairs(ItemsList:GetDescendants()) do
-					if desc:IsA("ModuleScript") and desc.Name == "SettingsModule" and desc.Parent then
-						local itemName = desc.Parent.Name
-						local success, stats = pcall(require, desc)
+			for desc in pairs(cachedSettingsModules) do
+				if not desc.Parent then
+					cachedSettingsModules[desc] = nil
+					continue
+				end
 
-						if success and type(stats) == "table" and stats.FireRate then
-							if not originalFireRates[itemName] then
-								originalFireRates[itemName] = stats.FireRate
+				local success, stats = pcall(require, desc)
+
+				if success and type(stats) == "table" and stats.FireRate then
+					if not originalFireRates[desc] then
+						originalFireRates[desc] = stats.FireRate
+					end
+					if stats.FireModes and not originalFireModes[desc] then
+						originalFireModes[desc] = table.clone(stats.FireModes)
+					end
+					if stats.FireMode and not originalCurrentFireMode[desc] then
+						originalCurrentFireMode[desc] = stats.FireMode
+					end
+
+					if getgenv().Config.Combat.RapidFire then
+						local multiplier = getgenv().Config.Combat.RapidFireValue or 3
+						local newRate = originalFireRates[desc] / multiplier
+
+						if stats.FireRate ~= newRate then
+							if getgenv().AddLog then
+								getgenv().AddLog(
+									string.format(
+										"[RapidFire] Modified %s (Parent: %s) FireRate: %f -> %f",
+										desc.Name,
+										desc.Parent and desc.Parent.Name or "Unknown",
+										stats.FireRate,
+										newRate
+									)
+								)
 							end
-							if stats.FireModes and not originalFireModes[itemName] then
-								originalFireModes[itemName] = table.clone(stats.FireModes)
+							stats.FireRate = newRate
+						end
+
+						if stats.FireModes then
+							table.clear(stats.FireModes)
+							table.insert(stats.FireModes, "Auto")
+						end
+						if stats.FireMode then
+							stats.FireMode = "Auto"
+						end
+
+						if stats.CycleTiming then
+							stats.CycleTiming = { 0, 0 }
+						end
+						if stats.EjectionDelay then
+							stats.EjectionDelay = 0
+						end
+					else
+						if stats.FireRate ~= originalFireRates[desc] then
+							if getgenv().AddLog then
+								getgenv().AddLog(
+									string.format(
+										"[RapidFire] Restored %s (Parent: %s) FireRate: %f",
+										desc.Name,
+										desc.Parent and desc.Parent.Name or "Unknown",
+										originalFireRates[desc]
+									)
+								)
 							end
-							if stats.FireMode and not originalCurrentFireMode[itemName] then
-								originalCurrentFireMode[itemName] = stats.FireMode
+							stats.FireRate = originalFireRates[desc]
+							-- ==========================================
+							-- InventoryViewer Manager
+							-- ==========================================
+						end
+
+						if originalFireModes[desc] and stats.FireModes then
+							table.clear(stats.FireModes)
+							for _, mode in ipairs(originalFireModes[desc]) do
+								table.insert(stats.FireModes, mode)
 							end
-
-							if getgenv().Config.Combat.RapidFire then
-								local multiplier = getgenv().Config.Combat.RapidFireValue or 3
-								local newRate = originalFireRates[itemName] / multiplier
-
-								if stats.FireRate ~= newRate then
-									stats.FireRate = newRate
-								end
-
-								if stats.FireModes then
-									table.clear(stats.FireModes)
-									table.insert(stats.FireModes, "Auto")
-								end
-								if stats.FireMode then
-									stats.FireMode = "Auto"
-								end
-
-								if stats.CycleTiming then
-									stats.CycleTiming = { 0, 0 }
-								end
-								if stats.EjectionDelay then
-									stats.EjectionDelay = 0
-								end
-							else
-								if stats.FireRate ~= originalFireRates[itemName] then
-									stats.FireRate = originalFireRates[itemName]
-									-- ==========================================
-									-- InventoryViewer Manager
-									-- ==========================================
-								end
-
-								if originalFireModes[itemName] and stats.FireModes then
-									table.clear(stats.FireModes)
-									for _, mode in ipairs(originalFireModes[itemName]) do
-										table.insert(stats.FireModes, mode)
-									end
-								end
-								if originalCurrentFireMode[itemName] and stats.FireMode then
-									stats.FireMode = originalCurrentFireMode[itemName]
-								end
-							end
+						end
+						if originalCurrentFireMode[desc] and stats.FireMode then
+							stats.FireMode = originalCurrentFireMode[desc]
 						end
 					end
 				end
@@ -3777,35 +4542,66 @@ local WorldModsManager = {}
 
 function WorldModsManager.Update()
 	if getgenv().Config.Mods.ThirdPerson then
-		game:GetService("UserInputService").MouseBehavior = Enum.MouseBehavior.LockCenter
+		local UIS = game:GetService("UserInputService")
+		if UIS.MouseBehavior ~= Enum.MouseBehavior.LockCenter then
+			UIS.MouseBehavior = Enum.MouseBehavior.LockCenter
+		end
 	else
 		local char = Workspace:FindFirstChild(LocalPlayer.Name)
 		if char then
 			local humanoid = char:FindFirstChildOfClass("Humanoid")
-			if humanoid then
+			if humanoid and not humanoid.AutoRotate then
 				humanoid.AutoRotate = true
 			end
 		end
 	end
 
 	if getgenv().Config.Mods.Fullbright then
-		Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-		Lighting.Brightness = 2
-		Lighting.ClockTime = 14
-		Lighting.GlobalShadows = false
+		if _Lighting.Ambient ~= Color3.fromRGB(255, 255, 255) then
+			_Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+			_Lighting.Brightness = 2
+			_Lighting.ClockTime = 14
+			_Lighting.GlobalShadows = false
+		end
 	end
 
 	if getgenv().Config.Mods.NoFog then
-		Lighting.FogEnd = 100000
-		local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-		if atmosphere then
+		if _Lighting.FogEnd ~= 100000 then
+			_Lighting.FogEnd = 100000
+		end
+		local atmosphere = _Lighting:FindFirstChildOfClass("Atmosphere")
+		if atmosphere and atmosphere.Density ~= 0 then
 			atmosphere.Density = 0
+		end
+	end
+
+	local visor = getgenv()._cachedVisorUI
+	if not visor or not visor.Parent then
+		local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+		local noInset = pGui and pGui:FindFirstChild("NoInsetGui")
+		local mFrame = noInset and noInset:FindFirstChild("MainFrame")
+		local sEffects = mFrame and mFrame:FindFirstChild("ScreenEffects")
+		visor = sEffects and sEffects:FindFirstChild("Visor")
+		getgenv()._cachedVisorUI = visor
+	end
+
+	if visor then
+		if getgenv().Config.Mods.NoVisor then
+			if visor.Visible then
+				visor.Visible = false
+				getgenv()._deltaVisorHidden = true
+			end
+		elseif getgenv()._deltaVisorHidden then
+			visor.Visible = true
+			getgenv()._deltaVisorHidden = false
 		end
 	end
 
 	if getgenv().Config.Mods.FOV and getgenv().Config.Mods.FOV ~= 70 then
 		if not getgenv().DeltaIsZooming then
-			Camera.FieldOfView = getgenv().Config.Mods.FOV
+			if Camera.FieldOfView ~= getgenv().Config.Mods.FOV then
+				Camera.FieldOfView = getgenv().Config.Mods.FOV
+			end
 		end
 	end
 end
@@ -3856,7 +4652,7 @@ function HitsoundManager.Play()
 			local sound = Instance.new("Sound")
 			sound.SoundId = soundId
 			sound.Volume = config.HitsoundVolume or 1
-			sound.Parent = SoundService
+			sound.Parent = _SoundService
 			sound:Play()
 
 			sound.Ended:Connect(function()
@@ -4811,22 +5607,21 @@ local function UpdateViewmodelTransparency()
 		isADS = true
 	end
 
-	for _, child in ipairs(camera:GetChildren()) do
-		if child:IsA("Model") then
-			local parts = getgenv().DeltaCachedViewmodelParts
-			if not parts or getgenv().DeltaCachedViewmodelParent ~= child then
-				parts = {}
-				for _, desc in ipairs(child:GetDescendants()) do
-					if desc:IsA("BasePart") then
-						table.insert(parts, desc)
-					end
+	local viewModel = camera:FindFirstChild("ViewModel")
+	if viewModel and viewModel:IsA("Model") then
+		local parts = getgenv().DeltaCachedViewmodelParts
+		if not parts or getgenv().DeltaCachedViewmodelParent ~= viewModel then
+			parts = {}
+			for _, desc in ipairs(viewModel:GetDescendants()) do
+				if desc:IsA("BasePart") then
+					table.insert(parts, desc)
 				end
-				getgenv().DeltaCachedViewmodelParts = parts
-				getgenv().DeltaCachedViewmodelParent = child
 			end
-			for _, desc in ipairs(parts) do
-				desc.LocalTransparencyModifier = isADS and 1 or 0
-			end
+			getgenv().DeltaCachedViewmodelParts = parts
+			getgenv().DeltaCachedViewmodelParent = viewModel
+		end
+		for _, desc in ipairs(parts) do
+			desc.LocalTransparencyModifier = isADS and 1 or 0
 		end
 	end
 end
@@ -4841,9 +5636,17 @@ local function UpdateViewmodelChams()
 		getgenv().DeltaViewmodelChamsCache = {}
 	end
 
+	local isADS = false
+	if getgenv().Config.Combat.HideViewmodelOnADS then
+		isADS = getgenv().DeltaIsZooming == true
+	end
+	if getgenv().Config.Mods.ThirdPerson then
+		isADS = true
+	end
+
 	local config = getgenv().Config.ESP
-	local bodyEnabled = config.ViewmodelBodyChams
-	local gunEnabled = config.ViewmodelGunChams
+	local bodyEnabled = config.ViewmodelBodyChams and not isADS
+	local gunEnabled = config.ViewmodelGunChams and not isADS
 
 	local effect = config.ViewmodelChamsEffect or 1
 	local isPulse = (effect == 2 or effect == 4)
@@ -4856,113 +5659,158 @@ local function UpdateViewmodelChams()
 	local activeTargets = {}
 	local activeParts = {}
 
+	local viewModel = camera:FindFirstChild("ViewModel")
 	if bodyEnabled or gunEnabled then
-		for _, child in ipairs(camera:GetChildren()) do
-			if child:IsA("Model") and child.Name == "ViewModel" then
-				if getgenv().DeltaCachedViewmodelParent ~= child or not getgenv().DeltaCachedActiveTargets then
-					getgenv().DeltaCachedViewmodelParent = child
-					local tTargets, tParts = {}, {}
-					local function isBodyPart(name)
-						name = string.lower(name)
-						return string.find(name, "arm")
-							or string.find(name, "hand")
-							or string.find(name, "shirt")
-							or string.find(name, "sleeve")
-							or string.find(name, "glove")
-					end
-					for _, desc in ipairs(child:GetChildren()) do
-						local isBody = isBodyPart(desc.Name)
-						if isBody then
-							tTargets[desc] = "Body"
-							if desc:IsA("BasePart") then
-								tParts[desc] = "Body"
-							else
-								for _, sub in ipairs(desc:GetDescendants()) do
-									if sub:IsA("BasePart") then
-										tParts[sub] = "Body"
-									end
-								end
-							end
+		if viewModel and viewModel:IsA("Model") then
+			if getgenv().DeltaCachedViewmodelParent ~= viewModel or not getgenv().DeltaCachedActiveTargets then
+				getgenv().DeltaCachedViewmodelParent = viewModel
+				getgenv().ViewmodelDebugCount = 0
+				local tTargets, tParts = {}, {}
+				local function isBodyPart(name)
+					name = string.lower(name)
+					return string.find(name, "arm")
+						or string.find(name, "hand")
+						or string.find(name, "shirt")
+						or string.find(name, "sleeve")
+						or string.find(name, "glove")
+				end
+				for _, desc in ipairs(viewModel:GetChildren()) do
+					local isBody = isBodyPart(desc.Name)
+					if isBody then
+						tTargets[desc] = "Body"
+						if desc:IsA("BasePart") then
+							tParts[desc] = "Body"
 						else
-							tTargets[desc] = "Gun"
-							if desc:IsA("BasePart") then
-								tParts[desc] = "Gun"
-							else
-								for _, sub in ipairs(desc:GetDescendants()) do
-									if sub:IsA("BasePart") then
-										tParts[sub] = "Gun"
-									end
+							for _, sub in ipairs(desc:GetDescendants()) do
+								if sub:IsA("BasePart") then
+									tParts[sub] = "Body"
+								end
+							end
+						end
+					else
+						tTargets[desc] = "Gun"
+						if desc:IsA("BasePart") then
+							tParts[desc] = "Gun"
+						else
+							for _, sub in ipairs(desc:GetDescendants()) do
+								if sub:IsA("BasePart") then
+									tParts[sub] = "Gun"
 								end
 							end
 						end
 					end
-					getgenv().DeltaCachedActiveTargets = tTargets
-					getgenv().DeltaCachedActiveParts = tParts
 				end
+				getgenv().DeltaCachedActiveTargets = tTargets
+				getgenv().DeltaCachedActiveParts = tParts
 
-				for desc, typ in pairs(getgenv().DeltaCachedActiveTargets) do
-					if typ == "Body" and bodyEnabled then
-						activeTargets[desc] = "Body"
-					elseif typ == "Gun" and gunEnabled then
-						activeTargets[desc] = "Gun"
-					end
-				end
-				for desc, typ in pairs(getgenv().DeltaCachedActiveParts) do
-					if typ == "Body" and bodyEnabled then
-						activeParts[desc] = "Body"
-					elseif typ == "Gun" and gunEnabled then
-						activeParts[desc] = "Gun"
-					end
-				end
+				if not getgenv().ViewmodelDebugCount or getgenv().ViewmodelDebugCount < 1 then
+					getgenv().ViewmodelDebugCount = (getgenv().ViewmodelDebugCount or 0) + 1
+					getgenv().AddLog("--- DEBUG VIEWMODEL CHAMS ---")
+					getgenv().AddLog("Found ViewModel")
 
-				if gunEnabled then
-					local rootPart = nil
-					for p, pType in pairs(activeParts) do
-						if pType == "Gun" then
-							local orig = getgenv().DeltaViewmodelOriginalProps
-								and getgenv().DeltaViewmodelOriginalProps[p]
-							if orig and orig.Transparency < 1 then
-								rootPart = p
-								break
-							end
+					local gunParts = {}
+					for p, typ in pairs(tParts) do
+						if typ == "Gun" then
+							table.insert(gunParts, p)
 						end
 					end
-
-					local sparkles = child:FindFirstChild("DeltaGunSparkles", true)
-					if sparkles and rootPart and sparkles.Parent ~= rootPart then
-						sparkles:Destroy()
-						sparkles = nil
-					end
-
-					if config.EnableGunSparkles and rootPart then
-						if not sparkles then
-							sparkles = Instance.new("ParticleEmitter")
-							sparkles.Name = "DeltaGunSparkles"
-							sparkles.Texture = "rbxassetid://27398118"
-							sparkles.Size = NumberSequence.new({
-								NumberSequenceKeypoint.new(0, 0),
-								NumberSequenceKeypoint.new(0.5, 0.25),
-								NumberSequenceKeypoint.new(1, 0),
-							})
-							sparkles.Rate = 15
-							sparkles.Lifetime = NumberRange.new(0.3, 0.6)
-							sparkles.Speed = NumberRange.new(0.2, 0.5)
-							sparkles.LightEmission = 1
-							sparkles.ZOffset = 1
-							sparkles.Parent = rootPart
+					getgenv().AddLog("Gun Parts count: " .. tostring(#gunParts))
+					for _, p in ipairs(gunParts) do
+						local tex = ""
+						if p:IsA("MeshPart") then
+							tex = "MeshTex: " .. tostring(p.TextureID)
 						end
-						if sparkles then
-							local c = isChroma and rgbColor or config.ViewmodelGunFillColor
-							sparkles.Color = ColorSequence.new(c)
+						local spec = p:FindFirstChildWhichIsA("SpecialMesh")
+						if spec then
+							tex = tex .. " SpecTex: " .. tostring(spec.TextureId)
 						end
-					elseif sparkles then
-						sparkles:Destroy()
+						getgenv().AddLog(
+							"GunPart: "
+								.. p.Name
+								.. " | Trans: "
+								.. tostring(p.Transparency)
+								.. " | Mat: "
+								.. tostring(p.Material)
+								.. " | "
+								.. tex
+						)
 					end
-				else
-					local sparkles = child:FindFirstChild("DeltaGunSparkles", true)
+					local sparkles = viewModel:FindFirstChild("DeltaGunSparkles", true)
 					if sparkles then
-						sparkles:Destroy()
+						getgenv().AddLog(
+							"Sparkles found! Parent: "
+								.. (sparkles.Parent and sparkles.Parent.Name or "NONE")
+								.. " Size: "
+								.. tostring(sparkles.Size)
+						)
+					else
+						getgenv().AddLog("No Sparkles found in ViewModel!")
 					end
+					getgenv().AddLog("-----------------------------")
+				end
+			end
+
+			for desc, typ in pairs(getgenv().DeltaCachedActiveTargets) do
+				if typ == "Body" and bodyEnabled then
+					activeTargets[desc] = "Body"
+				elseif typ == "Gun" and gunEnabled then
+					activeTargets[desc] = "Gun"
+				end
+			end
+			for desc, typ in pairs(getgenv().DeltaCachedActiveParts) do
+				if typ == "Body" and bodyEnabled then
+					activeParts[desc] = "Body"
+				elseif typ == "Gun" and gunEnabled then
+					activeParts[desc] = "Gun"
+				end
+			end
+
+			if gunEnabled then
+				local rootPart = nil
+				for p, pType in pairs(activeParts) do
+					if pType == "Gun" then
+						local orig = getgenv().DeltaViewmodelOriginalProps and getgenv().DeltaViewmodelOriginalProps[p]
+						if orig and orig.Transparency < 1 then
+							rootPart = p
+							break
+						end
+					end
+				end
+
+				local sparkles = viewModel:FindFirstChild("DeltaGunSparkles", true)
+				if sparkles and rootPart and sparkles.Parent ~= rootPart then
+					sparkles:Destroy()
+					sparkles = nil
+				end
+
+				if config.EnableGunSparkles and rootPart then
+					if not sparkles then
+						sparkles = Instance.new("ParticleEmitter")
+						sparkles.Name = "DeltaGunSparkles"
+						sparkles.Texture = "rbxassetid://27398118"
+						sparkles.Size = NumberSequence.new({
+							NumberSequenceKeypoint.new(0, 0),
+							NumberSequenceKeypoint.new(0.5, 0.25),
+							NumberSequenceKeypoint.new(1, 0),
+						})
+						sparkles.Rate = 15
+						sparkles.Lifetime = NumberRange.new(0.3, 0.6)
+						sparkles.Speed = NumberRange.new(0.2, 0.5)
+						sparkles.LightEmission = 1
+						sparkles.ZOffset = 1
+						sparkles.Parent = rootPart
+					end
+					if sparkles then
+						local c = isChroma and rgbColor or config.ViewmodelGunFillColor
+						sparkles.Color = ColorSequence.new(c)
+					end
+				elseif sparkles then
+					sparkles:Destroy()
+				end
+			else
+				local sparkles = viewModel:FindFirstChild("DeltaGunSparkles", true)
+				if sparkles then
+					sparkles:Destroy()
 				end
 			end
 		end
@@ -4976,57 +5824,55 @@ local function UpdateViewmodelChams()
 	end
 	local appliedProps = getgenv().DeltaViewmodelAppliedProps
 
-	for _, child in ipairs(camera:GetChildren()) do
-		if child:IsA("Model") and child.Name == "ViewModel" then
-			for _, desc in ipairs(child:GetDescendants()) do
-				if desc:IsA("BasePart") then
-					local props = getgenv().DeltaViewmodelOriginalProps[desc]
-					if not props then
-						local specMesh = desc:FindFirstChildWhichIsA("SpecialMesh")
-						props = {
-							Transparency = desc.Transparency,
-							Material = desc.Material,
-							Color = desc.Color,
-							TextureID = desc:IsA("MeshPart") and desc.TextureID or nil,
-							SpecMesh = specMesh,
-							SpecMeshTex = specMesh and specMesh.TextureId or nil,
-						}
-						getgenv().DeltaViewmodelOriginalProps[desc] = props
+	if viewModel and viewModel:IsA("Model") then
+		for _, desc in ipairs(viewModel:GetDescendants()) do
+			if desc:IsA("BasePart") then
+				local props = getgenv().DeltaViewmodelOriginalProps[desc]
+				if not props then
+					local specMesh = desc:FindFirstChildWhichIsA("SpecialMesh")
+					props = {
+						Transparency = desc.Transparency,
+						Material = desc.Material,
+						Color = desc.Color,
+						TextureID = desc:IsA("MeshPart") and desc.TextureID or nil,
+						SpecMesh = specMesh,
+						SpecMeshTex = specMesh and specMesh.TextureId or nil,
+					}
+					getgenv().DeltaViewmodelOriginalProps[desc] = props
+				end
+
+				local current = appliedProps[desc]
+				local pType = activeParts[desc]
+				if pType and props.Transparency < 1 then
+					local targetTrans = (pType == "Gun") and math.clamp(baseTrans - config.GunGlowIntensity, 0, 1)
+						or baseTrans
+					local targetColor = isChroma and rgbColor
+						or ((pType == "Body") and config.ViewmodelBodyFillColor or config.ViewmodelGunFillColor)
+
+					if not current or current.T ~= targetTrans or current.C ~= targetColor then
+						desc.Transparency = targetTrans
+						desc.Material = Enum.Material.Neon
+						desc.Color = targetColor
+						if desc:IsA("MeshPart") then
+							desc.TextureID = ""
+						end
+						if props.SpecMesh then
+							props.SpecMesh.TextureId = ""
+						end
+						appliedProps[desc] = { T = targetTrans, C = targetColor }
 					end
-
-					local current = appliedProps[desc]
-					local pType = activeParts[desc]
-					if pType and props.Transparency < 1 then
-						local targetTrans = (pType == "Gun") and math.clamp(baseTrans - config.GunGlowIntensity, 0, 1)
-							or baseTrans
-						local targetColor = isChroma and rgbColor
-							or ((pType == "Body") and config.ViewmodelBodyFillColor or config.ViewmodelGunFillColor)
-
-						if not current or current.T ~= targetTrans or current.C ~= targetColor then
-							desc.Transparency = targetTrans
-							desc.Material = Enum.Material.Neon
-							desc.Color = targetColor
-							if desc:IsA("MeshPart") then
-								desc.TextureID = ""
-							end
-							if props.SpecMesh then
-								props.SpecMesh.TextureId = ""
-							end
-							appliedProps[desc] = { T = targetTrans, C = targetColor }
+				else
+					if not current or current.T ~= props.Transparency or current.C ~= props.Color then
+						desc.Transparency = props.Transparency
+						desc.Material = props.Material
+						desc.Color = props.Color
+						if desc:IsA("MeshPart") and props.TextureID then
+							desc.TextureID = props.TextureID
 						end
-					else
-						if not current or current.T ~= props.Transparency or current.C ~= props.Color then
-							desc.Transparency = props.Transparency
-							desc.Material = props.Material
-							desc.Color = props.Color
-							if desc:IsA("MeshPart") and props.TextureID then
-								desc.TextureID = props.TextureID
-							end
-							if props.SpecMesh and props.SpecMeshTex then
-								props.SpecMesh.TextureId = props.SpecMeshTex
-							end
-							appliedProps[desc] = { T = props.Transparency, C = props.Color }
+						if props.SpecMesh and props.SpecMeshTex then
+							props.SpecMesh.TextureId = props.SpecMeshTex
 						end
+						appliedProps[desc] = { T = props.Transparency, C = props.Color }
 					end
 				end
 			end
@@ -5147,7 +5993,7 @@ table.insert(
 			local startCFrame = hrp.CFrame
 			local targetCFrame = startCFrame + Vector3.new(0, 5, 0)
 
-			local tweenUp = TweenService:Create(
+			local tweenUp = _TweenService:Create(
 				hrp,
 				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 				{ CFrame = targetCFrame }
@@ -5177,7 +6023,7 @@ table.insert(
 			local speed = 18 -- 18 studs per second
 			local targetCFrame = hrp.CFrame + Vector3.new(0, distance, 0)
 
-			currentSpiderTween = TweenService:Create(
+			currentSpiderTween = _TweenService:Create(
 				hrp,
 				TweenInfo.new(distance / speed, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
 				{ CFrame = targetCFrame }
@@ -5203,3 +6049,7 @@ table.insert(
 		end
 	end)
 )
+
+task.delay(1, function()
+	getgenv()._DeltaScriptSilentToggles = false
+end)
