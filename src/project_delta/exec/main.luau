@@ -187,6 +187,12 @@ getgenv()._DeltaScriptCleanup = function()
 	getgenv()._InstantHitOriginalRicochet = nil
 	getgenv()._InstantHitOriginalFireProj = nil
 
+	if getgenv()._TriggerBotDeactivate then
+		pcall(getgenv()._TriggerBotDeactivate)
+		getgenv()._TriggerBotDeactivate = nil
+	end
+	getgenv()._TB_FireRemote = nil
+
 	print("[Delta Cleanup] --- Starting Memory Wipe ---")
 	print("[Delta Cleanup] Disconnected loops:", #ConnectionList)
 	print("[Delta Cleanup] Config present before wipe:", getgenv().Config ~= nil)
@@ -254,6 +260,8 @@ getgenv().Config = getgenv().Config
 			ExitTextColor = Color3.fromRGB(255, 165, 0),
 			ExitOutlineColor = Color3.fromRGB(0, 0, 0),
 			InventoryViewer = false,
+			InventoryViewerOnlyNecessary = false,
+			InventoryViewerTextSize = 13,
 			ViewmodelBodyChams = false,
 			ViewmodelBodyFillColor = Color3.fromRGB(255, 255, 255),
 			ViewmodelBodyOutlineColor = Color3.fromRGB(255, 255, 255),
@@ -270,6 +278,10 @@ getgenv().Config = getgenv().Config
 			TargetType = "Players",
 			FOVRadius = 150,
 			TargetPart = "Head",
+			WhitelistPlayers = {},
+			UndergroundResolverKeybind = "C",
+			UndergroundDuration = 1.0,
+			UndergroundDistance = 20,
 			ShowFOV = false,
 			FOVType = "Default",
 			FOVColor = Color3.fromRGB(255, 255, 255),
@@ -283,6 +295,12 @@ getgenv().Config = getgenv().Config
 			TracerGlowEffect = false,
 		},
 		Combat = {
+			ShowCrosshair = false,
+			CrosshairType = "Default",
+			CrosshairColor = Color3.fromRGB(255, 255, 255),
+			CrosshairSize = 13.6,
+			CrosshairDistance = 6.8,
+			TriggerBot = false,
 			InstantHit = false,
 			NoRecoil = false,
 			NoSpread = false,
@@ -295,7 +313,9 @@ getgenv().Config = getgenv().Config
 			UndergroundDesyncKeybind = "U",
 			AntiAim = false,
 			AntiAimMethod = "Orbital Dodge",
-			FlyKeybind = "T",
+			SkyPeekKeybind = "T",
+			SkyPeekDistance = 20,
+			SkyPeekDuration = 1.0,
 			SpiderClimbKeybind = "Y",
 		},
 		Mods = {
@@ -304,6 +324,9 @@ getgenv().Config = getgenv().Config
 			ZoomDistance = 15,
 			FOV = 70,
 			NoVisor = false,
+			NoFallDamage = false,
+			Speedhack = false,
+			WalkspeedValue = 16,
 			Fullbright = false,
 			NoFog = false,
 			NoFoliage = false,
@@ -315,6 +338,9 @@ getgenv().Config = getgenv().Config
 		},
 		Utilities = {
 			ModDetector = false,
+			ModDetectorVolume = 1.0,
+			KeybindHUDX = nil,
+			KeybindHUDY = nil,
 		},
 	}
 
@@ -350,6 +376,37 @@ ESPSection:AddToggle("EnableESP", {
 	Default = getgenv().Config.ESP.Enabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.Enabled = value
+	if not value then
+		if getgenv().ESPManager and getgenv().ESPManager.Cache then
+			for character, cacheData in pairs(getgenv().ESPManager.Cache) do
+				-- Players have a valid Humanoid and usually aren't an NPC/Corpse/Exit/Heli based on the existing ActiveEnemies list
+				-- We can just check if CharacterManager.GetActiveCharacters() has it
+				local activePlayers = nil
+				if getgenv().CharacterManager and getgenv().CharacterManager.GetActiveCharacters then
+					activePlayers = getgenv().CharacterManager.GetActiveCharacters()
+				end
+				if activePlayers and activePlayers[character] then
+					if getgenv().ESPManager.RemoveDrawing then
+						getgenv().ESPManager.RemoveDrawing(character)
+					end
+				end
+			end
+		end
+		if getgenv().DeltaChamsCache then
+			local activePlayers = nil
+			if getgenv().CharacterManager and getgenv().CharacterManager.GetActiveCharacters then
+				activePlayers = getgenv().CharacterManager.GetActiveCharacters()
+			end
+			if activePlayers then
+				for character, highlight in pairs(getgenv().DeltaChamsCache) do
+					if activePlayers[character] then
+						highlight:Destroy()
+						getgenv().DeltaChamsCache[character] = nil
+					end
+				end
+			end
+		end
+	end
 end)
 
 ESPSection:AddSlider("ESPMaxDistance", {
@@ -416,6 +473,14 @@ ESPSection:AddToggle("EnableChams", {
 	Default = getgenv().Config.ESP.ChamsEnabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.ChamsEnabled = value
+	if not value then
+		if getgenv().DeltaChamsCache then
+			for character, highlight in pairs(getgenv().DeltaChamsCache) do
+				highlight:Destroy()
+			end
+			table.clear(getgenv().DeltaChamsCache)
+		end
+	end
 end)
 
 ESPSection:AddLabel("Player Chams Fill Color"):AddColorPicker("ChamsFillColor", {
@@ -493,6 +558,17 @@ ESPSection:AddToggle("EnableNPCESP", {
 	Default = getgenv().Config.ESP.NPCESPEnabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.NPCESPEnabled = value
+	if not value then
+		if getgenv().ESPManager and getgenv().ESPManager.Cache then
+			for character, cacheData in pairs(getgenv().ESPManager.Cache) do
+				if character and character.Name and string.match(character.Name, "^NPC") then
+					if getgenv().ESPManager.RemoveDrawing then
+						getgenv().ESPManager.RemoveDrawing(character)
+					end
+				end
+			end
+		end
+	end
 end)
 
 ESPSection:AddLabel("NPC Text Color"):AddColorPicker("NPCTextColor", {
@@ -518,6 +594,17 @@ ESPSection:AddToggle("EnableHelicopterESP", {
 	Default = getgenv().Config.ESP.HelicopterESPEnabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.HelicopterESPEnabled = value
+	if not value then
+		if getgenv().ESPManager and getgenv().ESPManager.Cache then
+			for character, cacheData in pairs(getgenv().ESPManager.Cache) do
+				if character and (character.Name == "C130" or character.Name == "Littlebird") then
+					if getgenv().ESPManager.RemoveDrawing then
+						getgenv().ESPManager.RemoveDrawing(character)
+					end
+				end
+			end
+		end
+	end
 end)
 
 ESPSection:AddLabel("Helicopter Text Color"):AddColorPicker("HelicopterTextColor", {
@@ -543,6 +630,17 @@ ESPSection:AddToggle("EnableCorpseESP", {
 	Default = getgenv().Config.ESP.CorpseESPEnabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.CorpseESPEnabled = value
+	if not value then
+		if getgenv().ESPManager and getgenv().ESPManager.Cache then
+			for character, cacheData in pairs(getgenv().ESPManager.Cache) do
+				if character and character:IsA("Model") and character:FindFirstChild("LootingCollider") then
+					if getgenv().ESPManager.RemoveDrawing then
+						getgenv().ESPManager.RemoveDrawing(character)
+					end
+				end
+			end
+		end
+	end
 end)
 
 ESPSection:AddLabel("Corpse Text Color"):AddColorPicker("CorpseTextColor", {
@@ -568,6 +666,17 @@ ESPSection:AddToggle("EnableExitESP", {
 	Default = getgenv().Config.ESP.ExitESPEnabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.ExitESPEnabled = value
+	if not value then
+		if getgenv().ESPManager and getgenv().ESPManager.Cache then
+			for character, cacheData in pairs(getgenv().ESPManager.Cache) do
+				if character and character:IsA("BasePart") and character.Name == "ExfilCollider" then
+					if getgenv().ESPManager.RemoveDrawing then
+						getgenv().ESPManager.RemoveDrawing(character)
+					end
+				end
+			end
+		end
+	end
 end)
 
 ESPSection:AddLabel("Exit Text Color"):AddColorPicker("ExitTextColor", {
@@ -639,6 +748,40 @@ InventoryViewerSection:AddToggle("EnableInventoryViewer", {
 	Default = getgenv().Config.ESP.InventoryViewer,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.InventoryViewer = value
+end)
+
+InventoryViewerSection:AddToggle("LockInventoryViewer", {
+	Text = "Lock Inventory Viewer",
+	Default = false,
+}):OnChanged(function(value)
+	if getgenv().InventoryViewer then
+		getgenv().InventoryViewer.Locked = value
+	end
+end)
+
+InventoryViewerSection:AddToggle("InventoryViewerOnlyNecessary", {
+	Text = "Only Show Necessary",
+	Default = getgenv().Config.ESP.InventoryViewerOnlyNecessary or false,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.InventoryViewerOnlyNecessary = value
+	if getgenv().InventoryViewer and getgenv().InventoryViewer.Draw then
+		getgenv().InventoryViewer.Draw()
+	end
+end)
+
+InventoryViewerSection:AddSlider("InventoryViewerTextSize", {
+	Text = "Text Size",
+	Default = getgenv().Config.ESP.InventoryViewerTextSize or 13,
+	Min = 8,
+	Max = 20,
+	Rounding = 0,
+	Compact = false,
+})
+getgenv().Options.InventoryViewerTextSize:OnChanged(function(value)
+	getgenv().Config.ESP.InventoryViewerTextSize = value
+	if getgenv().InventoryViewer and getgenv().InventoryViewer.Draw then
+		getgenv().InventoryViewer.Draw()
+	end
 end)
 
 local CharacterSection = VisualsTab:AddRightGroupbox("Character")
@@ -747,6 +890,13 @@ CombatSection:AddToggle("InstantHit", {
 	getgenv().Config.Combat.InstantHit = value
 end)
 
+CombatSection:AddToggle("Wallbang", {
+	Text = "Wallbang",
+	Default = getgenv().Config.Combat.Wallbang,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.Wallbang = value
+end)
+
 CombatSection:AddToggle("InstantADS", {
 	Text = "Instant ADS",
 	Default = getgenv().Config.Combat.InstantADS,
@@ -775,17 +925,6 @@ end)
 
 local MovementSection = CombatTab:AddLeftGroupbox("Movement")
 
-MovementSection:AddLabel("Fly"):AddKeyPicker("FlyKeybind", {
-	Default = getgenv().Config.Combat.FlyKeybind,
-	SyncToggleState = false,
-	Mode = "Toggle",
-	Text = "Fly",
-	NoUI = false,
-})
-getgenv().Options.FlyKeybind:OnClick(function()
-	getgenv().Config.Combat.FlyKeybind = getgenv().Options.FlyKeybind.Value
-end)
-
 MovementSection:AddLabel("Spider Climb"):AddKeyPicker("SpiderClimbKeybind", {
 	Default = getgenv().Config.Combat.SpiderClimbKeybind,
 	SyncToggleState = false,
@@ -795,6 +934,43 @@ MovementSection:AddLabel("Spider Climb"):AddKeyPicker("SpiderClimbKeybind", {
 })
 getgenv().Options.SpiderClimbKeybind:OnClick(function()
 	getgenv().Config.Combat.SpiderClimbKeybind = getgenv().Options.SpiderClimbKeybind.Value
+end)
+
+MovementSection:AddDivider()
+
+MovementSection:AddLabel("Sky Peek"):AddKeyPicker("SkyPeekKeybind", {
+	Default = getgenv().Config.Combat.SkyPeekKeybind,
+	SyncToggleState = false,
+	Mode = "Toggle",
+	Text = "Sky Peek",
+	NoUI = false,
+})
+getgenv().Options.SkyPeekKeybind:OnClick(function()
+	getgenv().Config.Combat.SkyPeekKeybind = getgenv().Options.SkyPeekKeybind.Value
+end)
+
+MovementSection:AddSlider("SkyPeekDistance", {
+	Text = "Sky Peek Distance",
+	Default = getgenv().Config.Combat.SkyPeekDistance,
+	Min = 10,
+	Max = 80,
+	Rounding = 0,
+	Compact = false,
+})
+getgenv().Options.SkyPeekDistance:OnChanged(function(value)
+	getgenv().Config.Combat.SkyPeekDistance = value
+end)
+
+MovementSection:AddSlider("SkyPeekDuration", {
+	Text = "Sky Peek Duration",
+	Default = getgenv().Config.Combat.SkyPeekDuration,
+	Min = 0.5,
+	Max = 2.0,
+	Rounding = 1,
+	Compact = false,
+})
+getgenv().Options.SkyPeekDuration:OnChanged(function(value)
+	getgenv().Config.Combat.SkyPeekDuration = value
 end)
 
 local AntiAimSection = CombatTab:AddLeftGroupbox("Anti Aim")
@@ -811,6 +987,31 @@ AntiAimSection:AddToggle("UndergroundDesync", {
 })
 getgenv().Toggles.UndergroundDesync:OnChanged(function(value)
 	getgenv().Config.Combat.UndergroundDesync = value
+
+	if value then
+		task.spawn(function()
+			pcall(function()
+				local char = cloneref(game:GetService("Players").LocalPlayer.Character)
+				if char then
+					local hum = char:FindFirstChildOfClass("Humanoid")
+					local animator = hum and hum:FindFirstChildOfClass("Animator")
+					if animator then
+						for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+							local lowerName = string.lower(track.Name or "")
+							if
+								string.find(lowerName, "crouch")
+								or string.find(lowerName, "walk")
+								or string.find(lowerName, "run")
+							then
+								track:Stop(0)
+							end
+						end
+					end
+				end
+			end)
+		end)
+	end
+
 	if not getgenv()._DeltaScriptSilentToggles and getgenv().LinoriaLibrary then
 		if value then
 			getgenv().LinoriaLibrary:Notify("Enabled Underground Desync", 3)
@@ -825,30 +1026,78 @@ getgenv().Options.UndergroundDesyncKeybind:OnChanged(function()
 end)
 
 AntiAimSection:AddToggle("AntiAim", {
-	Text = "Absolute Anti-Aim",
+	Text = "Enabled Anti Aim",
 	Default = false,
 }):OnChanged(function(value)
 	getgenv().Config.Combat.AntiAim = value
 	if not getgenv()._DeltaScriptSilentToggles and getgenv().LinoriaLibrary then
 		if value then
-			getgenv().LinoriaLibrary:Notify("Enabled Absolute Anti-Aim", 3)
+			getgenv().LinoriaLibrary:Notify("Enabled Anti Aim", 3)
 		else
-			getgenv().LinoriaLibrary:Notify("Disabled Absolute Anti-Aim", 3)
+			getgenv().LinoriaLibrary:Notify("Disabled Anti Aim", 3)
 		end
 	end
 end)
 
-AntiAimSection:AddDropdown("AntiAimMethod", {
-	Values = { "Orbital Dodge", "Prediction Breaker", "Micro Jitter" },
-	Default = 1,
-	Multi = false,
-	Text = "Anti-Aim Method",
-})
-getgenv().Options.AntiAimMethod:OnChanged(function(value)
-	getgenv().Config.Combat.AntiAimMethod = value
+local SilentAimSection = CombatTab:AddRightGroupbox("Aiming")
+
+SilentAimSection:AddToggle("ShowCrosshair", {
+	Text = "Show Crosshair",
+	Default = getgenv().Config.Combat.ShowCrosshair,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.ShowCrosshair = value
 end)
 
-local SilentAimSection = CombatTab:AddRightGroupbox("Silent Aim")
+SilentAimSection:AddDropdown("CrosshairType", {
+	Values = { "Default", "Rotation", "Nazi" },
+	Default = 1,
+	Multi = false,
+	Text = "Crosshair Type",
+})
+getgenv().Options.CrosshairType:OnChanged(function(value)
+	getgenv().Config.Combat.CrosshairType = value
+end)
+
+SilentAimSection:AddLabel("Crosshair Color"):AddColorPicker("CrosshairColor", {
+	Default = getgenv().Config.Combat.CrosshairColor or Color3.fromRGB(255, 255, 255),
+	Title = "Crosshair Color",
+})
+getgenv().Options.CrosshairColor:OnChanged(function()
+	getgenv().Config.Combat.CrosshairColor = getgenv().Options.CrosshairColor.Value
+end)
+
+SilentAimSection:AddSlider("CrosshairSize", {
+	Text = "Crosshair Size",
+	Default = getgenv().Config.Combat.CrosshairSize,
+	Min = 1,
+	Max = 50,
+	Rounding = 1,
+	Compact = false,
+})
+getgenv().Options.CrosshairSize:OnChanged(function(value)
+	getgenv().Config.Combat.CrosshairSize = value
+end)
+
+SilentAimSection:AddSlider("CrosshairDistance", {
+	Text = "Crosshair Distance",
+	Default = getgenv().Config.Combat.CrosshairDistance,
+	Min = 0,
+	Max = 50,
+	Rounding = 1,
+	Compact = false,
+})
+getgenv().Options.CrosshairDistance:OnChanged(function(value)
+	getgenv().Config.Combat.CrosshairDistance = value
+end)
+
+SilentAimSection:AddDivider()
+
+SilentAimSection:AddToggle("EnableTriggerBot", {
+	Text = "Enable Trigger Bot",
+	Default = getgenv().Config.Combat.TriggerBot,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.TriggerBot = value
+end)
 
 SilentAimSection:AddToggle("EnableSilentAim", {
 	Text = "Enable Silent Aim",
@@ -875,6 +1124,99 @@ SilentAimSection:AddDropdown("SilentAimTargetPart", {
 })
 getgenv().Options.SilentAimTargetPart:OnChanged(function(value)
 	getgenv().Config.SilentAim.TargetPart = value
+end)
+
+SilentAimSection:AddDivider()
+
+local function GetCurrentPlayerNames()
+	local names = {}
+	if game and game:GetService("Players") then
+		for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+			if player ~= game:GetService("Players").LocalPlayer then
+				table.insert(names, player.Name)
+			end
+		end
+	end
+	return names
+end
+
+SilentAimSection:AddDropdown("PlayerToWhitelist", {
+	Values = GetCurrentPlayerNames(),
+	Default = 1,
+	Multi = false,
+	Text = "Select Player",
+})
+
+SilentAimSection:AddButton({
+	Text = "Add To Whitelist",
+	Func = function()
+		local player = getgenv().Options.PlayerToWhitelist.Value
+		if player and player ~= "" then
+			getgenv().Config.SilentAim.WhitelistPlayers[player] = true
+			if getgenv().LinoriaLibrary then
+				getgenv().LinoriaLibrary:Notify("Added " .. player .. " to whitelist")
+			end
+		end
+	end,
+})
+
+SilentAimSection:AddButton({
+	Text = "Remove From Whitelist",
+	Func = function()
+		local player = getgenv().Options.PlayerToWhitelist.Value
+		if player and player ~= "" then
+			getgenv().Config.SilentAim.WhitelistPlayers[player] = nil
+			if getgenv().LinoriaLibrary then
+				getgenv().LinoriaLibrary:Notify("Removed " .. player .. " from whitelist")
+			end
+		end
+	end,
+})
+
+SilentAimSection:AddButton({
+	Text = "Refresh Player List",
+	Func = function()
+		getgenv().Options.PlayerToWhitelist:SetValues(GetCurrentPlayerNames())
+	end,
+})
+
+SilentAimSection:AddDivider()
+
+SilentAimSection:AddLabel("Underground Resolver"):AddKeyPicker("UndergroundResolverKeybind", {
+	Default = (getgenv().Config.SilentAim.UndergroundResolverKeybind == "" and "C")
+		or getgenv().Config.SilentAim.UndergroundResolverKeybind
+		or "C",
+	SyncToggleState = false,
+	Mode = "Toggle",
+	Text = "Underground Resolver",
+	NoUI = false,
+})
+getgenv().Options.UndergroundResolverKeybind:OnClick(function()
+	getgenv().Config.SilentAim.UndergroundResolverKeybind = getgenv().Options.UndergroundResolverKeybind.Value
+end)
+
+SilentAimSection:AddSlider("UndergroundDistance", {
+	Text = "Underground Distance",
+	Default = getgenv().Config.SilentAim.UndergroundDistance or 20,
+	Min = 10,
+	Max = 80,
+	Rounding = 0,
+	Compact = false,
+})
+getgenv().Options.UndergroundDistance:OnChanged(function(value)
+	getgenv().Config.SilentAim.UndergroundDistance = value
+end)
+
+SilentAimSection:AddSlider("UndergroundDuration", {
+	Text = "Underground Duration",
+	Default = getgenv().Config.SilentAim.UndergroundDuration or 1.0,
+	Min = 0.5,
+	Max = 2.0,
+	Rounding = 1,
+	Compact = false,
+})
+getgenv().Options.UndergroundDuration:OnChanged(function(value)
+	getgenv().Config.SilentAim.UndergroundDuration = value
 end)
 
 SilentAimSection:AddDivider()
@@ -950,6 +1292,20 @@ ModsSection:AddToggle("NoRecoil", {
 	Default = getgenv().Config.Combat.NoRecoil,
 }):OnChanged(function(value)
 	getgenv().Config.Combat.NoRecoil = value
+	if getgenv()._DeltaActiveWeaponTable then
+		local self = getgenv()._DeltaActiveWeaponTable
+		local wName = string.lower((self.weapon and self.weapon.Name) or "")
+		getgenv().TemporaryNoRecoil = value and getgenv().DeltaIsGun(wName) or false
+		if type(rawget(self, "settings")) == "table" then
+			if getgenv().TemporaryNoRecoil then
+				self.settings.MaximumKickBack = 0
+				self.settings.MaxRecoil = 0
+			elseif rawget(self.settings, "OrigKick") then
+				self.settings.MaximumKickBack = self.settings.OrigKick
+				self.settings.MaxRecoil = self.settings.OrigRecoil
+			end
+		end
+	end
 end)
 
 ModsSection:AddToggle("NoSpread", {
@@ -1415,6 +1771,34 @@ getgenv().Options.FOV:OnChanged(function(value)
 	getgenv().Config.Mods.FOV = value
 end)
 
+local CharacterModsSection = ModsTab:AddRightGroupbox("Character")
+
+CharacterModsSection:AddToggle("NoFallDamage", {
+	Text = "No Fall Damage",
+	Default = getgenv().Config.Mods.NoFallDamage,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.NoFallDamage = value
+end)
+
+CharacterModsSection:AddToggle("Speedhack", {
+	Text = "Speedhack",
+	Default = getgenv().Config.Mods.Speedhack,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.Speedhack = value
+end)
+
+CharacterModsSection:AddSlider("WalkspeedValue", {
+	Text = "Walkspeed Value",
+	Default = getgenv().Config.Mods.WalkspeedValue or 16,
+	Min = 16,
+	Max = 20,
+	Rounding = 0,
+	Compact = false,
+})
+getgenv().Options.WalkspeedValue:OnChanged(function(value)
+	getgenv().Config.Mods.WalkspeedValue = value
+end)
+
 -- (Environment Setup Moved)
 
 -- ==========================================
@@ -1448,7 +1832,19 @@ local function CheckMod(player)
 		end
 
 		if isMod then
-			getgenv().LinoriaLibrary:Notify("A mod has joined: " .. player.Name, 10)
+			getgenv().LinoriaLibrary:Notify("A mod has joined: " .. player.Name, 5)
+
+			local SoundService = cloneref and cloneref(game:GetService("SoundService"))
+				or game:GetService("SoundService")
+			local Debris = cloneref and cloneref(game:GetService("Debris")) or game:GetService("Debris")
+
+			local alertSound = Instance.new("Sound")
+			alertSound.SoundId = "rbxassetid://124568679525758"
+			alertSound.Volume = getgenv().Config.Utilities.ModDetectorVolume or 1.0
+			alertSound.Parent = SoundService
+			alertSound:Play()
+
+			Debris:AddItem(alertSound, 10)
 		end
 	end)
 end
@@ -1488,6 +1884,16 @@ ModDetectorSection:AddToggle("ModDetector", {
 	end
 end)
 
+ModDetectorSection:AddSlider("ModDetectorVolume", {
+	Text = "Mod Detector Volume",
+	Default = getgenv().Config.Utilities.ModDetectorVolume,
+	Min = 0.5,
+	Max = 5.0,
+	Rounding = 1,
+	Compact = false,
+}):OnChanged(function(value)
+	getgenv().Config.Utilities.ModDetectorVolume = value
+end)
 
 -- ==========================================
 -- Main Loop (RenderStepped & Heartbeat)
@@ -1502,7 +1908,37 @@ local function getTargetCharacter()
 	return nil
 end
 
-RunService:BindToRenderStep("UndergroundDesync_Restore", -100, function()
+-- ======================================================
+-- ANTI-AIM RUNTIME: PIPELINE DESYNC (The "12 Meter Fly")
+-- Exploits the Roblox execution pipeline:
+-- 1. Stepped (before physics): Applies a 35-stud offset to RootJoint.
+--    -> This replicates to the server and enemy clients.
+-- 2. RenderStepped (before render): Restores RootJoint to normal.
+--    -> Your local screen and camera remain 100% stable.
+-- Result: Enemies see you jittering in a 35-stud radius, but your
+-- actual RootPart position never changes (no AC flags).
+-- ======================================================
+
+local function getRootJoint(Character)
+	if not Character then
+		return nil
+	end
+	-- R15
+	local lowerTorso = Character:FindFirstChild("LowerTorso")
+	if lowerTorso and lowerTorso:FindFirstChild("Root") then
+		return lowerTorso.Root
+	end
+	-- R6
+	local hrp = Character:FindFirstChild("HumanoidRootPart")
+	if hrp and hrp:FindFirstChild("RootJoint") then
+		return hrp.RootJoint
+	end
+	return nil
+end
+
+-- [RenderStepped] Fires right before the local frame renders.
+-- Restores RootJoint to normal so local view/camera is perfectly clean.
+RunService:BindToRenderStep("UndergroundDesync_Restore", -1000, function()
 	local isDesync = getgenv().Config.Combat.UndergroundDesync
 	local isAntiAim = getgenv().Config.Combat.AntiAim
 
@@ -1513,6 +1949,7 @@ RunService:BindToRenderStep("UndergroundDesync_Restore", -100, function()
 			HRP.CFrame = getgenv()._StoredRealCFrame
 		end
 	else
+		-- Anti-aim turned off: clean up
 		if getgenv()._StoredRealCFrame then
 			local Character = getTargetCharacter()
 			if Character and Character:FindFirstChild("HumanoidRootPart") then
@@ -1520,85 +1957,220 @@ RunService:BindToRenderStep("UndergroundDesync_Restore", -100, function()
 			end
 			getgenv()._StoredRealCFrame = nil
 		end
+		getgenv()._OrigRootJointC0 = nil
+	end
+
+	-- Hitbox Contortion Cleanup
+	if getgenv()._OrigMotorC0s then
+		for joint, origC0 in pairs(getgenv()._OrigMotorC0s) do
+			pcall(function()
+				if joint and joint.Parent then
+					joint.C0 = origC0
+				end
+			end)
+		end
+		getgenv()._OrigMotorC0s = nil
+	end
+
+	-- Layer 1: Restore RootJoint to clean local position BEFORE camera updates
+	if getgenv().Config.Combat.AntiAim and getgenv()._OrigRootJointC0 then
+		local Character = getTargetCharacter()
+		local rootJoint = getRootJoint(Character)
+		if rootJoint then
+			rootJoint.C0 = getgenv()._OrigRootJointC0
+		end
 	end
 end)
 
-local desyncTick = 0
+-- [Stepped] Fires before physics simulation/network replication.
+-- Spoofs RootJoint with a WORLD-SPACE horizontal-only offset so it replicates to enemies.
+-- World-space Y=0 means no fly hack regardless of HRP pitch/tilt.
+local _steppedDbgTick = 0
+local steppedRestoreConnection = RunService.Stepped:Connect(function()
+	local isDesync = getgenv().Config.Combat.UndergroundDesync
+	local isAntiAim = getgenv().Config.Combat.AntiAim
 
-local heartbeatConnection = RunService.Heartbeat:Connect(function()
 	local Character = getTargetCharacter()
-	if Character then
-		local HRP = Character.HumanoidRootPart
+	local HRP = Character and Character:FindFirstChild("HumanoidRootPart")
 
-		local isDesync = getgenv().Config.Combat.UndergroundDesync
-		local isAntiAim = getgenv().Config.Combat.AntiAim
-
-		if isDesync or isAntiAim then
+	if (isDesync or isAntiAim) and getgenv()._StoredRealCFrame and HRP then
+		local prevPos = HRP.CFrame.Position
+		-- If the server rubberbands the player drastically (e.g., > 15 studs),
+		-- accept the server's position to prevent an infinite fight and a Noclip kick.
+		local guardBlocked = getgenv()._UndergroundResolverActive or getgenv()._SkyPeekActive
+		if not guardBlocked and (tick() - (getgenv()._LastGuardDeactivate or 0) > 1.5) and (prevPos - getgenv()._StoredRealCFrame.Position).Magnitude > 15 then
 			getgenv()._StoredRealCFrame = HRP.CFrame
-			getgenv()._realVelocity = HRP.AssemblyLinearVelocity
-			getgenv()._realRotVelocity = HRP.AssemblyAngularVelocity
+		end
+		HRP.CFrame = getgenv()._StoredRealCFrame
+		-- Debug: log every 30 Stepped ticks when UGR or SkyPeek just deactivated
+		_steppedDbgTick = _steppedDbgTick + 1
+		if _steppedDbgTick >= 30 then
+			_steppedDbgTick = 0
+			if getgenv().AddLog then
+				local stored = getgenv()._StoredRealCFrame.Position
+				getgenv().AddLog(string.format(
+					"[Stepped] HRP %.2f,%.2f,%.2f → Stored %.2f,%.2f,%.2f | UGR=%s SPeek=%s",
+					prevPos.X, prevPos.Y, prevPos.Z,
+					stored.X, stored.Y, stored.Z,
+					tostring(getgenv()._UndergroundResolverActive == true),
+					tostring(getgenv()._SkyPeekActive == true)
+				))
+			end
+		end
+	end
 
-			if isAntiAim then
-				local method = getgenv().Config.Combat.AntiAimMethod or "Orbital Dodge"
-				
-				if method == "Prediction Breaker" then
-					local flip = (tick() * 10) % 2 > 1 and 1 or -1
-					HRP.AssemblyLinearVelocity = Vector3.new(45 * flip, 0, 45 * flip)
-					HRP.AssemblyAngularVelocity = Vector3.new(0, 50 * flip, 0)
-					HRP.CFrame = getgenv()._StoredRealCFrame * CFrame.Angles(
-						math.random() * math.pi * 2,
-						math.random() * math.pi * 2,
-						math.random() * math.pi * 2
-					)
-				elseif method == "Micro Jitter" then
-					local offset = Vector3.new(math.random(-2, 2), math.random(-1, 1), math.random(-2, 2))
-					HRP.CFrame = getgenv()._StoredRealCFrame * CFrame.new(offset) * CFrame.Angles(
-						math.random() * math.pi * 2,
-						math.random() * math.pi * 2,
-						math.random() * math.pi * 2
-					)
-				else
-					-- ORBITAL DODGE + AURA SPINBOT:
-					-- Moving the center of mass in a fast, tight 2-stud orbit makes incoming projectiles cleanly miss!
-					-- We raycast the offset to absolutely guarantee the fake position never clips into a wall, 
-					-- completely preventing the physics engine from freezing or flinging you.
-					local t = tick() * 15
-					local offsetVector = Vector3.new(
-						math.sin(t) * 2,
-						math.sin(t * 1.3) * 2 + 2, -- 0 to 4 studs up
-						math.cos(t) * 2
-					)
-					
-					-- Wall collision prevention
-					local rayOrigin = getgenv()._StoredRealCFrame.Position
-					local rayParams = RaycastParams.new()
-					rayParams.FilterDescendantsInstances = {Character}
-					rayParams.FilterType = Enum.RaycastFilterType.Exclude
-					
-					local rayResult = workspace:Raycast(rayOrigin, offsetVector, rayParams)
-					if rayResult then
-						offsetVector = offsetVector.Unit * math.max(0, rayResult.Distance - 0.5)
-					end
-
-					HRP.CFrame = getgenv()._StoredRealCFrame * (isDesync and undergroundDesyncOffset or CFrame.new(offsetVector)) * CFrame.Angles(
-						math.random() * math.pi * 2,
-						math.random() * math.pi * 2,
-						math.random() * math.pi * 2
-					)
-				end
-			elseif isDesync then
-				HRP.CFrame = getgenv()._StoredRealCFrame * undergroundDesyncOffset
+	-- Layer 1: Spoof RootJoint for physics replication
+	if isAntiAim and Character and HRP then
+		local rootJoint = getRootJoint(Character)
+		if rootJoint then
+			if not getgenv()._OrigRootJointC0 then
+				getgenv()._OrigRootJointC0 = rootJoint.C0
 			end
 
+			-- Generate a WORLD-SPACE horizontal direction (Y=0 in world regardless of HRP rotation)
+			-- This is the critical fix: local-space Y=0 becomes non-zero world Y when HRP has pitch
+			local angle = math.random() * math.pi * 2
+			local dist = math.random(20, 35)
+			local worldOffset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
+
+			local origin = HRP.CFrame.Position
+
+			-- Raycast parameters to ignore the local character
+			local raycastParams = RaycastParams.new()
+			raycastParams.FilterDescendantsInstances = { Character }
+			raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+			raycastParams.IgnoreWater = true
+
+			-- Horizontal raycast: don't clip through walls
+			local wallHit = workspace:Raycast(origin, worldOffset, raycastParams)
+			if wallHit then
+				local safeLen = math.max(0, (wallHit.Position - origin).Magnitude - 1)
+				worldOffset = worldOffset.Unit * safeLen
+			end
+
+			-- Downward raycast: ensure there is ground below the offset position
+			-- Without this, body parts appear to float over ledges → fly hack detected
+			local offsetPos = origin + worldOffset
+			local groundHit = workspace:Raycast(offsetPos + Vector3.new(0, 3, 0), Vector3.new(0, -20, 0), raycastParams)
+			if not groundHit then
+				-- No ground at offset position — collapse offset to zero to avoid fly detection
+				worldOffset = Vector3.zero
+			end
+
+			-- Convert the final world-space offset to HRP local space for C0 application
+			local localOffset = HRP.CFrame:VectorToObjectSpace(worldOffset)
+
+			-- Apply ONLY a positional offset — NO CFrame.Angles rotation on the joint.
+			-- Random joint rotation changes the head's Y position → fly hack detected.
+			rootJoint.C0 = getgenv()._OrigRootJointC0 * CFrame.new(localOffset)
+		end
+	end
+end)
+table.insert(ConnectionList, steppedRestoreConnection)
+local desyncTick = 0
+local heartbeatConnection = RunService.Heartbeat:Connect(function()
+	local Character = getTargetCharacter()
+	if not Character then
+		return
+	end
+
+	local HRP = Character.HumanoidRootPart
+	local isDesync = getgenv().Config.Combat.UndergroundDesync
+	local isAntiAim = getgenv().Config.Combat.AntiAim
+	local isUGR = getgenv()._UndergroundResolverActive
+
+	if isDesync or isUGR or isAntiAim then
+		local guardBlocked = getgenv()._UndergroundResolverActive or getgenv()._SkyPeekActive
+		if not guardBlocked then
+			-- Capture real position — log when something looks wrong (Y too low = inside terrain)
+			local captured = HRP.CFrame
+			if getgenv().AddLog and getgenv()._StoredRealCFrame then
+				local prev = getgenv()._StoredRealCFrame.Position
+				local cur  = captured.Position
+				local dy   = cur.Y - prev.Y
+				-- Flag sudden downward jumps > 1 stud between frames (sign of geometry push-through)
+				if dy < -1 then
+					getgenv().AddLog(string.format(
+						"[HB WARN] _StoredRealCFrame dropped %.2f studs! prev=%.2f cur=%.2f | HRP actual Y=%.2f",
+						dy, prev.Y, cur.Y, HRP.CFrame.Position.Y
+					))
+				end
+			end
+			getgenv()._StoredRealCFrame = HRP.CFrame
+		else
+			-- Guard is active: log every 60 ticks to confirm we're not leaking
+			desyncTick = desyncTick + 1
+			if desyncTick >= 60 and getgenv().AddLog then
+				desyncTick = 0
+				local stored = getgenv()._StoredRealCFrame
+				getgenv().AddLog(string.format(
+					"[HB GUARD] UGR=%s SPeek=%s | Stored=%.2f,%.2f,%.2f | HRP=%.2f,%.2f,%.2f",
+					tostring(isUGR), tostring(getgenv()._SkyPeekActive == true),
+					stored and stored.Position.X or 0, stored and stored.Position.Y or 0, stored and stored.Position.Z or 0,
+					HRP.CFrame.Position.X, HRP.CFrame.Position.Y, HRP.CFrame.Position.Z
+				))
+			end
+		end
+		getgenv()._realVelocity = HRP.AssemblyLinearVelocity
+		getgenv()._realRotVelocity = HRP.AssemblyAngularVelocity
+
+		if isDesync then
+			-- If returning from UGR or SkyPeek, DO NOT apply the deep underground offset.
+			-- Let the character cleanly return to the surface first so the server doesn't flag noclip.
+			if not guardBlocked then
+				HRP.CFrame = getgenv()._StoredRealCFrame * undergroundDesyncOffset
+			else
+				HRP.CFrame = getgenv()._StoredRealCFrame
+			end
+		end
+
+		if not guardBlocked then
 			desyncTick = desyncTick + 1
 			if desyncTick >= 60 then
-				if isAntiAim and getgenv().AddLog then
-					local method = getgenv().Config.Combat.AntiAimMethod or "Orbital Dodge"
-					getgenv().AddLog("Absolute Anti-Aim: " .. method .. " Active")
-				end
 				desyncTick = 0
 			end
 		end
+	end
+
+	if isAntiAim and not isDesync then
+		local hum = Character:FindFirstChild("Humanoid")
+		if hum then
+			hum.AutoRotate = false
+		end
+
+		-- CRITICAL: Restore RootJoint HERE in Heartbeat (after physics, before render).
+		-- Physics commits Motor6D positions during its step. Setting C0 in Heartbeat
+		-- immediately repositions parts before the frame draws — fixing local camera jitter.
+		-- RenderStepped alone is too late because physics already committed the positions.
+		if getgenv()._OrigRootJointC0 then
+			local rootJoint = getRootJoint(Character)
+			if rootJoint then
+				rootJoint.C0 = getgenv()._OrigRootJointC0
+			end
+		end
+
+		if getgenv().AddLog then
+			getgenv()._DebugTick = (getgenv()._DebugTick or 0) + 1
+			if getgenv()._DebugTick >= 60 then
+				getgenv()._DebugTick = 0
+				getgenv().AddLog(
+					"[AntiAim] L1 RootJoint Desync Active | L2 Tilt:"
+						.. string.format("%.2f", math.sin(os.clock() * 40) * 0.8)
+				)
+			end
+		end
+	end
+
+	-- Motor6D Restoration (Hitbox Contortion Cleanup)
+	if getgenv()._OrigMotorC0s then
+		for joint, origC0 in pairs(getgenv()._OrigMotorC0s) do
+			pcall(function()
+				if joint and joint.Parent then
+					joint.C0 = origC0
+				end
+			end)
+		end
+		getgenv()._OrigMotorC0s = nil
 	end
 end)
 table.insert(ConnectionList, heartbeatConnection)
@@ -1613,7 +2185,6 @@ table.insert(ConnectionList, errorConnection)
 
 if not getgenv().DesyncHooked then
 	getgenv().DesyncHooked = true
-	local spoofTick = 0
 	local oldIndex
 	oldIndex = hookmetamethod(
 		game,
@@ -1635,38 +2206,76 @@ if not getgenv().DesyncHooked then
 						or callerName == "Effects"
 					then
 						local char = Workspace:FindFirstChild(LocalPlayer.Name)
-						if char and char:FindFirstChild("Head") then
+						if char and char:FindFirstChild("Head") and char:FindFirstChild("HumanoidRootPart") then
+							local cleanHeadPos = char.Head.Position
+							if getgenv()._StoredRealCFrame then
+								local hrp = char.HumanoidRootPart
+								local realHrpCFrame = oldIndex(hrp, "CFrame")
+								local realHeadCFrame = oldIndex(char.Head, "CFrame")
+								local relative = realHrpCFrame:ToObjectSpace(realHeadCFrame)
+
+								local baseCFrame = getgenv()._StoredRealCFrame
+								if getgenv().Config.Combat.AntiAim and getgenv().FakeCFrame then
+									baseCFrame = getgenv().FakeCFrame
+								end
+
+								-- Mathematically calculate exactly where the Head SHOULD be if we weren't jittering
+								cleanHeadPos = (baseCFrame * relative).Position
+							end
+
 							local realCFrame = oldIndex(self, key)
-							return CFrame.new(char.Head.Position, char.Head.Position + realCFrame.LookVector)
+							return CFrame.new(cleanHeadPos, cleanHeadPos + realCFrame.LookVector)
 						end
 					end
 				end
 				local isDesync = getgenv().Config.Combat.UndergroundDesync
 				local isAntiAim = getgenv().Config.Combat.AntiAim
-				
-				if (isDesync or isAntiAim) and getgenv()._StoredRealCFrame then
+				local isUGR = getgenv()._UndergroundResolverActive
+				local isWB = getgenv()._WallbangActive
+
+				if (isDesync or isUGR or isAntiAim or isWB) and getgenv()._StoredRealCFrame then
 					if key == "CFrame" or key == "Position" then
 						local char = getTargetCharacter()
-						if char and self == char:FindFirstChild("HumanoidRootPart") then
-							spoofTick = spoofTick + 1
-							if spoofTick >= 60 then
-								spoofTick = 0
+						if
+							char
+							and typeof(self) == "Instance"
+							and self:IsA("BasePart")
+							and self:IsDescendantOf(char)
+						then
+							local hrp = char:FindFirstChild("HumanoidRootPart")
+							if hrp then
+								local baseCFrame = getgenv()._StoredRealCFrame
+
+								if self == hrp then
+									return key == "CFrame" and baseCFrame or baseCFrame.Position
+								else
+									-- Calculate relative offset for all other hitboxes (Head, Torso, HeadTopHitbox)
+									-- Because the real HRP is jittering massively, we need to base it off the unjittered position
+									local realSelf = oldIndex(self, "CFrame")
+									local realHRP = oldIndex(hrp, "CFrame")
+									-- Since we manually teleport the hrp, the parts follow it physically, so we must calculate
+									-- the offset based on where the parts actually are relative to the jittered HRP
+									local relative = realHRP:ToObjectSpace(realSelf)
+									local fakeSelf = baseCFrame * relative
+
+									if getgenv().AddLog and (self.Name == "HeadTopHitbox" or self.Name == "Head") then
+										getgenv()._IndexDebugTick = (getgenv()._IndexDebugTick or 0) + 1
+										if getgenv()._IndexDebugTick >= 60 then
+											getgenv()._IndexDebugTick = 0
+											local dist = (fakeSelf.Position - realSelf.Position).Magnitude
+											getgenv().AddLog(
+												"[AntiAim __index] Spoofed "
+													.. self.Name
+													.. " | Spoof Distance: "
+													.. math.floor(dist)
+													.. " studs"
+											)
+										end
+									end
+
+									return key == "CFrame" and fakeSelf or fakeSelf.Position
+								end
 							end
-							return key == "CFrame" and getgenv()._StoredRealCFrame
-								or getgenv()._StoredRealCFrame.Position
-						end
-					end
-				end
-				if isAntiAim then
-					if key == "AssemblyLinearVelocity" or key == "Velocity" then
-						local char = getTargetCharacter()
-						if char and self == char:FindFirstChild("HumanoidRootPart") then
-							return getgenv()._realVelocity or Vector3.zero
-						end
-					elseif key == "AssemblyAngularVelocity" or key == "RotVelocity" then
-						local char = getTargetCharacter()
-						if char and self == char:FindFirstChild("HumanoidRootPart") then
-							return getgenv()._realRotVelocity or Vector3.zero
 						end
 					end
 				end
@@ -1682,24 +2291,59 @@ if not getgenv().DesyncHooked then
 		newcclosure(function(self, ...)
 			local method = getnamecallmethod()
 			if not checkcaller() then
-				if method == "FireServer" or method == "InvokeServer" then
-					local remoteName = tostring(self.Name)
-					
-					-- ABSOLUTE GOD MODE (NaN INJECTION)
-					-- Project Delta relies on UpdateTilt to dynamically adjust the player's waist and spine Motor6Ds.
-					-- By injecting 0/0 (NaN) into this remote while AntiAim is active, the server attempts to calculate
-					-- a CFrame using an undefined number. This crashes the local replication of our hitboxes on the server,
-					-- instantly turning our UpperTorso, Head, and Arms into 'NaN' invisible voids!
-					-- Because SilentAim / InstantHit relies on locking onto the UpperTorso, their script will mathematically fail
-					-- when it tries to aim at a target that effectively doesn't exist in the 3D space!
-					if getgenv().Config.Combat.AntiAim and remoteName == "UpdateTilt" then
-						setnamecallmethod(method)
-						return oldNamecall(self, 0/0)
+				if method == "GetPivot" then
+					local isDesync = getgenv().Config.Combat.UndergroundDesync
+					local isAntiAim = getgenv().Config.Combat.AntiAim
+					local isUGR = getgenv()._UndergroundResolverActive
+					local isWB = getgenv()._WallbangActive
+
+					if (isDesync or isUGR or isAntiAim or isWB) and getgenv()._StoredRealCFrame then
+						local char = getTargetCharacter()
+						if char and typeof(self) == "Instance" then
+							local hrp = char:FindFirstChild("HumanoidRootPart")
+							if hrp then
+								local baseCFrame = getgenv()._StoredRealCFrame
+
+								if self == char then
+									return baseCFrame
+								elseif self:IsA("BasePart") and self:IsDescendantOf(char) then
+									if self == hrp then
+										return baseCFrame
+									else
+										local realSelf = self.CFrame
+										local realHRP = hrp.CFrame
+										local relative = realHRP:ToObjectSpace(realSelf)
+										return baseCFrame * relative
+									end
+								end
+							end
+						end
 					end
-					
+				elseif method == "FireServer" or method == "InvokeServer" then
+					local remoteName = tostring(self.Name)
+
+					-- ===================================================
+					-- LAYER 2: UpdateTilt Pitch Oscillation (Torso Spin)
+					-- Intercepts UpdateTilt:FireServer() and replaces the pitch
+					-- argument with a 40Hz sine oscillation at 0.8 rad amplitude.
+					-- 0.8 rad ≈ 46° is within anatomical limits so the server
+					-- animation engine won't clamp or crash it (no NaN, no π).
+					-- At 40Hz, torso vibrates 40 times/sec — no aimbot can track it.
+					-- ===================================================
+					if getgenv().Config.Combat.AntiAim and remoteName == "UpdateTilt" then
+						local args = { ... }
+						args[1] = math.sin(os.clock() * 40) * 0.8
+						setnamecallmethod(method)
+						return oldNamecall(self, table.unpack(args))
+					end
+
 					-- Always log the bullet creation and damage remotes so we can reverse engineer the structure
 					-- Also log ALL remotes if Absolute Anti-Aim is active
-					if ((remoteName == "ProjectileInflict" or remoteName == "FireProjectile") or getgenv().Config.Combat.AntiAim) and getgenv().AddLog then
+					if
+						remoteName ~= "UpdateTilt"
+						and ((remoteName == "ProjectileInflict" or remoteName == "FireProjectile" or remoteName == "DamageIndicator") or getgenv().Config.Combat.AntiAim)
+						and getgenv().AddLog
+					then
 						local args = { ... }
 						local function dumpVar(v)
 							if type(v) == "table" then
@@ -1722,9 +2366,13 @@ if not getgenv().DesyncHooked then
 						for i, v in ipairs(args) do
 							argParts[i] = string.format("[%d] (%s) %s", i, typeof(v), dumpVar(v))
 						end
-						getgenv().AddLog(
-							"Remote Spy [" .. method .. "] " .. remoteName .. ":\n  " .. table.concat(argParts, "\n  ")
-						)
+						local logMsg = "Remote Spy ["
+							.. method
+							.. "] "
+							.. remoteName
+							.. ":\n  "
+							.. table.concat(argParts, "\n  ")
+						getgenv().AddLog(logMsg)
 					end
 
 					if getgenv()._IH_Interceptor then
@@ -1754,6 +2402,12 @@ local UISection = SettingsTab:AddLeftGroupbox("UI")
 
 UISection:AddButton("Unload", function() end)
 
+UISection:AddToggle("LockKeybindHUD", {
+	Text = "Lock Keybinds HUD",
+	Default = false,
+})
+getgenv().Toggles.LockKeybindHUD:OnChanged(function(val) end)
+
 UISection:AddLabel("Menu Keybind"):AddKeyPicker("MenuKeybind", {
 	Default = "RightControl",
 	NoUI = true,
@@ -1782,7 +2436,6 @@ DebugSection:AddButton({
 	end,
 	DoubleClick = false,
 })
-local ThemeDropdown
 
 -- Custom Config Manager
 
@@ -1980,6 +2633,9 @@ local function applyLoadedConfig(data)
 		safeSetColorPicker("ExitOutlineColor", parseColor(data.ESP.ExitOutlineColor))
 
 		safeSetToggle("EnableInventoryViewer", data.ESP.InventoryViewer)
+		safeSetToggle("InventoryViewerOnlyNecessary", data.ESP.InventoryViewerOnlyNecessary)
+		safeSetOption("InventoryViewerTextSize", data.ESP.InventoryViewerTextSize)
+		safeSetToggle("LockInventoryViewer", false)
 	end
 
 	if data.SilentAim then
@@ -1992,6 +2648,16 @@ local function applyLoadedConfig(data)
 		safeSetToggle("EnableSilentAim", data.SilentAim.Enabled)
 		safeSetOption("SilentAimTargetType", data.SilentAim.TargetType)
 		safeSetOption("SilentAimTargetPart", data.SilentAim.TargetPart)
+		if data.SilentAim.WhitelistPlayers then
+			getgenv().Config.SilentAim.WhitelistPlayers = data.SilentAim.WhitelistPlayers
+		end
+		safeSetKeyPicker("UndergroundResolverKeybind", data.SilentAim.UndergroundResolverKeybind, "Toggle")
+		if data.SilentAim.UndergroundDuration then
+			safeSetOption("UndergroundDuration", data.SilentAim.UndergroundDuration)
+		end
+		if data.SilentAim.UndergroundDistance then
+			safeSetOption("UndergroundDistance", data.SilentAim.UndergroundDistance)
+		end
 		safeSetToggle("ShowFOVCircle", data.SilentAim.ShowFOV)
 		safeSetOption("FOVType", data.SilentAim.FOVType)
 		safeSetColorPicker("FOVColor", parseColor(data.SilentAim.FOVColor))
@@ -2002,14 +2668,35 @@ local function applyLoadedConfig(data)
 	end
 
 	if data.Combat then
+		safeSetToggle("ShowCrosshair", data.Combat.ShowCrosshair)
+		if data.Combat.CrosshairType then
+			safeSetOption("CrosshairType", data.Combat.CrosshairType)
+		end
+		if data.Combat.CrosshairColor then
+			safeSetColorPicker("CrosshairColor", parseColor(data.Combat.CrosshairColor))
+		end
+		if data.Combat.CrosshairSize then
+			safeSetOption("CrosshairSize", data.Combat.CrosshairSize)
+		end
+		if data.Combat.CrosshairDistance then
+			safeSetOption("CrosshairDistance", data.Combat.CrosshairDistance)
+		end
+		safeSetToggle("EnableTriggerBot", data.Combat.TriggerBot)
 		safeSetToggle("InstantHit", data.Combat.InstantHit)
 		safeSetToggle("UndergroundDesync", false)
 		safeSetKeyPicker("UndergroundDesyncKeybind", data.Combat.UndergroundDesyncKeybind, "Toggle")
+
 		safeSetToggle("AntiAim", data.Combat.AntiAim)
 		safeSetToggle("InstantADS", data.Combat.InstantADS)
 		safeSetOption("ADSZoomMultiplier", data.Combat.ADSZoomMultiplier)
 		safeSetToggle("HideViewmodelOnADS", data.Combat.HideViewmodelOnADS)
-		safeSetKeyPicker("FlyKeybind", data.Combat.FlyKeybind, "Toggle")
+		safeSetKeyPicker("SkyPeekKeybind", data.Combat.SkyPeekKeybind, "Toggle")
+		if data.Combat.SkyPeekDistance then
+			safeSetOption("SkyPeekDistance", data.Combat.SkyPeekDistance)
+		end
+		if data.Combat.SkyPeekDuration then
+			safeSetOption("SkyPeekDuration", data.Combat.SkyPeekDuration)
+		end
 		safeSetKeyPicker("SpiderClimbKeybind", data.Combat.SpiderClimbKeybind, "Hold")
 
 		safeSetToggle("NoRecoil", data.Combat.NoRecoil)
@@ -2033,15 +2720,20 @@ local function applyLoadedConfig(data)
 		safeSetToggle("NoFoliage", data.Mods.NoFoliage)
 		safeSetToggle("RemoveGrass", data.Mods.RemoveGrass)
 		safeSetToggle("NoVisor", data.Mods.NoVisor)
+		safeSetToggle("NoFallDamage", data.Mods.NoFallDamage)
+		safeSetToggle("Speedhack", data.Mods.Speedhack)
+		safeSetOption("WalkspeedValue", data.Mods.WalkspeedValue)
 		safeSetOption("FOV", data.Mods.FOV)
 	end
 
 	if data.Utilities then
 		safeSetToggle("ModDetector", data.Utilities.ModDetector)
-	end
-
-	if data.Theme and ThemeDropdown then
-		ThemeDropdown:SetValue(data.Theme)
+		safeSetOption("ModDetectorVolume", data.Utilities.ModDetectorVolume)
+		safeSetToggle("LockKeybindHUD", false)
+		if data.Utilities.KeybindHUDX and data.Utilities.KeybindHUDY then
+			getgenv().Config.Utilities.KeybindHUDX = data.Utilities.KeybindHUDX
+			getgenv().Config.Utilities.KeybindHUDY = data.Utilities.KeybindHUDY
+		end
 	end
 
 	task.delay(0.5, function()
@@ -2108,89 +2800,24 @@ ConfigSection:AddButton({
 	end,
 })
 
--- Custom Theme Manager
-local ThemeSection = SettingsTab:AddRightGroupbox("Themes")
-
-local BuiltInThemes = {
-	["Default"] = {
-		FontColor = "ffffff",
-		MainColor = "1c1c1c",
-		AccentColor = "0055ff",
-		BackgroundColor = "141414",
-		OutlineColor = "323232",
-	},
-	["BBot"] = {
-		FontColor = "ffffff",
-		MainColor = "1e1e1e",
-		AccentColor = "7e48a3",
-		BackgroundColor = "232323",
-		OutlineColor = "141414",
-	},
-	["Fatality"] = {
-		FontColor = "ffffff",
-		MainColor = "1e1842",
-		AccentColor = "c50754",
-		BackgroundColor = "191335",
-		OutlineColor = "3c355d",
-	},
-	["Jester"] = {
-		FontColor = "ffffff",
-		MainColor = "242424",
-		AccentColor = "db4467",
-		BackgroundColor = "1c1c1c",
-		OutlineColor = "373737",
-	},
-	["Mint"] = {
-		FontColor = "ffffff",
-		MainColor = "242424",
-		AccentColor = "3db488",
-		BackgroundColor = "1c1c1c",
-		OutlineColor = "373737",
-	},
-	["Tokyo Night"] = {
-		FontColor = "ffffff",
-		MainColor = "191925",
-		AccentColor = "6759b3",
-		BackgroundColor = "16161f",
-		OutlineColor = "323232",
-	},
-	["Ubuntu"] = {
-		FontColor = "ffffff",
-		MainColor = "3e3e3e",
-		AccentColor = "e2581e",
-		BackgroundColor = "323232",
-		OutlineColor = "191919",
-	},
-	["Quartz"] = {
-		FontColor = "ffffff",
-		MainColor = "232330",
-		AccentColor = "426e87",
-		BackgroundColor = "1d1b26",
-		OutlineColor = "27232f",
-	},
+-- Apply Hardcoded BBot Theme
+getgenv().Config.Theme = "BBot"
+local BBotTheme = {
+	FontColor = "ffffff",
+	MainColor = "1e1e1e",
+	AccentColor = "7e48a3",
+	BackgroundColor = "232323",
+	OutlineColor = "141414",
 }
-
-ThemeDropdown = ThemeSection:AddDropdown("ThemeList", {
-	Values = { "Default", "BBot", "Fatality", "Jester", "Mint", "Quartz", "Tokyo Night", "Ubuntu" },
-	Default = 1,
-	Multi = false,
-	Text = "Select Theme",
-})
-ThemeDropdown:OnChanged(function(themeName)
-	getgenv().Config.Theme = themeName
-	local theme = BuiltInThemes[themeName]
-	if theme then
-		for idx, hex in pairs(theme) do
-			Library[idx] = Color3.fromHex(hex)
-		end
-		if Library.GetDarkerColor then
-			Library.AccentColorDark = Library:GetDarkerColor(Library.AccentColor)
-		end
-		if Library.UpdateColorsUsingRegistry then
-			Library:UpdateColorsUsingRegistry()
-		end
-	end
-end)
+for idx, hex in pairs(BBotTheme) do
+	Library[idx] = Color3.fromHex(hex)
+end
+if Library.GetDarkerColor then
+	Library.AccentColorDark = Library:GetDarkerColor(Library.AccentColor)
+end
+if Library.UpdateColorsUsingRegistry then
+	Library:UpdateColorsUsingRegistry()
+end
 
 -- ==========================================
 -- StatsManager
@@ -2355,8 +2982,9 @@ table.insert(
 							if pilots then
 								for _, pilot in ipairs(pilots:GetChildren()) do
 									if pilot:IsA("Model") and pilot:FindFirstChild("Head") then
-										local root = pilot:FindFirstChild("HumanoidRootPart") or pilot.PrimaryPart or pilot:FindFirstChild("Head")
-										
+										local root = pilot:FindFirstChild("HumanoidRootPart")
+											or pilot.PrimaryPart
+											or pilot:FindFirstChild("Head")
 
 										-- Add to NPC ESP
 										newNPCs[pilot] = {
@@ -2461,8 +3089,6 @@ function CharacterManager.GetNPCs()
 	return CharacterManager.ActiveNPCs
 end
 
-
-
 function CharacterManager.GetHelicopterESP()
 	return CharacterManager.ActiveHelicopterESP
 end
@@ -2552,6 +3178,10 @@ function TargetManager.GetClosestTargetToMouse()
 
 	local function processCharacters(characters)
 		for character, playerData in pairs(characters) do
+			if config.WhitelistPlayers and playerData.Player and config.WhitelistPlayers[playerData.Player.Name] then
+				continue
+			end
+
 			local targetPartName = config.TargetPart or "Head"
 			local aimPart = (playerData.Character and playerData.Character:FindFirstChild(targetPartName))
 				or playerData.Head
@@ -2588,11 +3218,34 @@ end
 -- ==========================================
 local CombatManager = {
 	FOVCircle = Drawing.new("Circle"),
+	FOVCircleGlows = {},
 	Snapline = Drawing.new("Line"),
 	SparkleHead = Drawing.new("Circle"),
 	Sparkles = {},
 	SparklesPool = {},
+	CrosshairLines = {},
+	CrosshairGlows = {},
 }
+for i = 1, 8 do
+	local line = Drawing.new("Line")
+	line.Color = Color3.fromRGB(255, 255, 255)
+	line.Thickness = 1.5
+	line.ZIndex = 2
+	line.Visible = false
+	table.insert(CombatManager.CrosshairLines, line)
+
+	local glowsForLine = {}
+	for g = 1, 8 do
+		local glow = Drawing.new("Line")
+		glow.Color = Color3.fromRGB(255, 255, 255)
+		glow.Thickness = math.floor(1 + (g ^ 1.2))
+		glow.Transparency = math.clamp(0.6 / (g ^ 1.1), 0.05, 0.6)
+		glow.ZIndex = 1
+		glow.Visible = false
+		table.insert(glowsForLine, glow)
+	end
+	table.insert(CombatManager.CrosshairGlows, glowsForLine)
+end
 getgenv().CombatManager = CombatManager
 
 -- Initialize Drawings
@@ -2600,6 +3253,18 @@ CombatManager.FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 CombatManager.FOVCircle.Thickness = 1
 CombatManager.FOVCircle.Filled = false
 CombatManager.FOVCircle.Transparency = 1
+CombatManager.FOVCircle.ZIndex = 2
+
+for i = 1, 8 do
+	local glow = Drawing.new("Circle")
+	glow.Filled = false
+	glow.Color = Color3.fromRGB(255, 255, 255)
+	glow.Thickness = math.floor(1 + (i ^ 1.7))
+	glow.Transparency = math.clamp(0.6 / (i ^ 1.2), 0.02, 0.6)
+	glow.ZIndex = 1
+	glow.Visible = false
+	table.insert(CombatManager.FOVCircleGlows, glow)
+end
 
 CombatManager.SparkleHead.Color = Color3.fromRGB(255, 255, 255)
 CombatManager.SparkleHead.Radius = 4
@@ -2625,10 +3290,18 @@ function CombatManager.Update()
 
 	-- Update FOV Circle
 	if config.ShowFOV then
+		local fovColor = config.FOVColor or Color3_fromRGB(255, 255, 255)
 		CombatManager.FOVCircle.Position = mouseLocation
 		CombatManager.FOVCircle.Radius = config.FOVRadius
-		CombatManager.FOVCircle.Color = config.FOVColor or Color3_fromRGB(255, 255, 255)
+		CombatManager.FOVCircle.Color = fovColor
 		CombatManager.FOVCircle.Visible = true
+
+		for _, glow in ipairs(CombatManager.FOVCircleGlows) do
+			glow.Position = mouseLocation
+			glow.Radius = config.FOVRadius
+			glow.Color = fovColor
+			glow.Visible = true
+		end
 
 		if config.FOVType == "Sparkle" then
 			local time = os_clock() * 3
@@ -2664,8 +3337,13 @@ function CombatManager.Update()
 			CombatManager.SparkleHead.Visible = false
 		end
 	else
-		CombatManager.FOVCircle.Visible = false
-		CombatManager.SparkleHead.Visible = false
+		if CombatManager.FOVCircle.Visible then
+			CombatManager.FOVCircle.Visible = false
+			for _, glow in ipairs(CombatManager.FOVCircleGlows) do
+				glow.Visible = false
+			end
+			CombatManager.SparkleHead.Visible = false
+		end
 	end
 
 	local dt = 0.016
@@ -2711,7 +3389,510 @@ function CombatManager.Update()
 	else
 		CombatManager.Snapline.Visible = false
 	end
+
+	-- Update Crosshair
+	if getgenv().Config.Combat.ShowCrosshair then
+		local camera = Workspace.CurrentCamera
+		if camera then
+			local center = camera.ViewportSize / 2
+			local cType = getgenv().Config.Combat.CrosshairType
+			local cColor = getgenv().Config.Combat.CrosshairColor or Color3.fromRGB(255, 255, 255)
+			local time = os.clock()
+
+			if cType == "Default" then
+				local size = getgenv().Config.Combat.CrosshairSize or 13.6
+				local gap = getgenv().Config.Combat.CrosshairDistance or 6.8
+				for i = 1, 4 do
+					local line = CombatManager.CrosshairLines[i]
+					local glows = CombatManager.CrosshairGlows[i]
+					local angle = (i - 1) * (math.pi / 2)
+					local dir = Vector2.new(math.cos(angle), math.sin(angle))
+
+					line.From = center + dir * gap
+					line.To = center + dir * (gap + size)
+					line.Color = cColor
+					line.Visible = true
+
+					for g = 1, 8 do
+						local glow = glows[g]
+						local inset = math.min(glow.Thickness * 0.4, size * 0.45)
+						glow.From = center + dir * (gap + inset)
+						glow.To = center + dir * (gap + size - inset)
+						glow.Color = cColor
+						glow.Visible = true
+					end
+				end
+				if CombatManager.CrosshairLines[5].Visible then
+					for i = 5, 8 do
+						CombatManager.CrosshairLines[i].Visible = false
+						for g = 1, 8 do
+							CombatManager.CrosshairGlows[i][g].Visible = false
+						end
+					end
+				end
+			elseif cType == "Rotation" then
+				local size = getgenv().Config.Combat.CrosshairSize or 17
+				local gap = getgenv().Config.Combat.CrosshairDistance or 8.5
+				local spin = time * 3
+				for i = 1, 4 do
+					local line = CombatManager.CrosshairLines[i]
+					local glows = CombatManager.CrosshairGlows[i]
+					local angle = (i - 1) * (math.pi / 2) + spin
+					local dir = Vector2.new(math.cos(angle), math.sin(angle))
+
+					line.From = center + dir * gap
+					line.To = center + dir * (gap + size)
+					line.Color = cColor
+					line.Visible = true
+
+					for g = 1, 8 do
+						local glow = glows[g]
+						local inset = math.min(glow.Thickness * 0.4, size * 0.45)
+						glow.From = center + dir * (gap + inset)
+						glow.To = center + dir * (gap + size - inset)
+						glow.Color = cColor
+						glow.Visible = true
+					end
+				end
+				if CombatManager.CrosshairLines[5].Visible then
+					for i = 5, 8 do
+						CombatManager.CrosshairLines[i].Visible = false
+						for g = 1, 8 do
+							CombatManager.CrosshairGlows[i][g].Visible = false
+						end
+					end
+				end
+			elseif cType == "Nazi" then
+				local size = getgenv().Config.Combat.CrosshairSize or 17
+				local gap = getgenv().Config.Combat.CrosshairDistance or 0
+				local spin = time * 2
+				for i = 1, 4 do
+					local idx1 = (i - 1) * 2 + 1
+					local idx2 = (i - 1) * 2 + 2
+
+					local line1 = CombatManager.CrosshairLines[idx1]
+					local line2 = CombatManager.CrosshairLines[idx2]
+					local glows1 = CombatManager.CrosshairGlows[idx1]
+					local glows2 = CombatManager.CrosshairGlows[idx2]
+
+					local angle1 = (i - 1) * (math.pi / 2) + spin
+					local angle2 = angle1 + (math.pi / 2)
+					local dir1 = Vector2.new(math.cos(angle1), math.sin(angle1))
+					local dir2 = Vector2.new(math.cos(angle2), math.sin(angle2))
+					local startPoint = center + dir1 * gap
+					local midPoint = startPoint + dir1 * size
+
+					line1.From = startPoint
+					line1.To = midPoint
+					line1.Color = cColor
+					line1.Visible = true
+
+					line2.From = midPoint
+					line2.To = midPoint + dir2 * size
+					line2.Color = cColor
+					line2.Visible = true
+
+					for g = 1, 8 do
+						local glow1 = glows1[g]
+						local inset = math.min(glow1.Thickness * 0.4, size * 0.45)
+						glow1.From = startPoint + dir1 * inset
+						glow1.To = midPoint - dir1 * inset
+						glow1.Color = cColor
+						glow1.Visible = true
+
+						local glow2 = glows2[g]
+						glow2.From = midPoint + dir2 * inset
+						glow2.To = (midPoint + dir2 * size) - dir2 * inset
+						glow2.Color = cColor
+						glow2.Visible = true
+					end
+				end
+			end
+		end
+	else
+		if CombatManager.CrosshairLines[1].Visible then
+			for i = 1, 8 do
+				CombatManager.CrosshairLines[i].Visible = false
+				for g = 1, 8 do
+					CombatManager.CrosshairGlows[i][g].Visible = false
+				end
+			end
+		end
+	end
 end
+
+-- ==========================================
+-- KeybindHUDManager
+-- ==========================================
+local KeybindHUDManager = {
+	Gui = nil,
+	Frames = {},
+	Entries = {},
+}
+
+function KeybindHUDManager.Init()
+	local success, result = pcall(function()
+		return getgenv().gethui and getgenv().gethui() or game:GetService("CoreGui")
+	end)
+	local parent = success and result or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+	if parent:FindFirstChild("DeltaKeybindHUD") then
+		parent.DeltaKeybindHUD:Destroy()
+	end
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "DeltaKeybindHUD"
+	gui.IgnoreGuiInset = true
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+	gui.Parent = parent
+	KeybindHUDManager.Gui = gui
+
+	local bg = Instance.new("Frame")
+	bg.Name = "Background"
+	bg.BorderSizePixel = 1
+	bg.ZIndex = 1
+	bg.Active = true
+	bg.Parent = gui
+	KeybindHUDManager.Frames.Background = bg
+
+	bg:GetPropertyChangedSignal("Position"):Connect(function()
+		if getgenv().Config.Utilities then
+			getgenv().Config.Utilities.KeybindHUDX = bg.Position.X.Offset
+			getgenv().Config.Utilities.KeybindHUDY = bg.Position.Y.Offset
+		end
+	end)
+
+	local top = Instance.new("Frame")
+	top.Name = "TopLine"
+	top.BorderSizePixel = 0
+	top.ZIndex = 3
+	top.Parent = bg
+	KeybindHUDManager.Frames.TopLine = top
+
+	local divider = Instance.new("Frame")
+	divider.Name = "Divider"
+	divider.BorderSizePixel = 0
+	divider.ZIndex = 3
+	divider.Parent = bg
+	KeybindHUDManager.Frames.Divider = divider
+
+	local dividerGrad = Instance.new("UIGradient")
+	dividerGrad.Parent = divider
+	KeybindHUDManager.Frames.DividerGrad = dividerGrad
+
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.BackgroundTransparency = 1
+	title.Text = "Keybinds"
+	title.TextSize = 11
+	title.Font = Enum.Font.Code
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.ZIndex = 4
+	title.TextStrokeTransparency = 0
+	title.Parent = bg
+	KeybindHUDManager.Frames.Title = title
+
+	for i = 1, 20 do
+		local text = Instance.new("TextLabel")
+		text.BackgroundTransparency = 1
+		text.TextSize = 10
+		text.Font = Enum.Font.Code
+		text.TextXAlignment = Enum.TextXAlignment.Left
+		text.ZIndex = 4
+		text.TextStrokeTransparency = 0
+		text.Visible = false
+		text.Parent = bg
+
+		local val = Instance.new("TextLabel")
+		val.BackgroundTransparency = 1
+		val.TextSize = 10
+		val.Font = Enum.Font.Code
+		val.TextXAlignment = Enum.TextXAlignment.Right
+		val.ZIndex = 4
+		val.TextStrokeTransparency = 0
+		val.Visible = false
+		val.Parent = bg
+
+		table.insert(KeybindHUDManager.Entries, { Text = text, Val = val })
+	end
+end
+
+function KeybindHUDManager.Update()
+	local active = {}
+
+	local function FormatKey(keyStr)
+		if typeof(keyStr) == "EnumItem" then
+			return keyStr.Name
+		end
+		if typeof(keyStr) == "string" and keyStr ~= "None" and keyStr ~= "" then
+			return keyStr
+		end
+		return nil
+	end
+
+	local features = {
+		{
+			Name = "Instant Hit",
+			GetState = function()
+				return getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.InstantHit
+			end,
+			GetMode = function()
+				return "(Toggle)"
+			end,
+			GetKey = function()
+				return nil
+			end,
+		},
+		{
+			Name = "Wallbang",
+			GetState = function()
+				return getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.Wallbang
+			end,
+			GetMode = function()
+				return "(Toggle)"
+			end,
+			GetKey = function()
+				return nil
+			end,
+		},
+		{
+			Name = "Triggerbot",
+			GetState = function()
+				return getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.TriggerBot
+			end,
+			GetMode = function()
+				return "(Toggle)"
+			end,
+			GetKey = function()
+				return nil
+			end,
+		},
+		{
+			Name = "Silent Aim",
+			GetState = function()
+				return getgenv().Config and getgenv().Config.SilentAim and getgenv().Config.SilentAim.Enabled
+			end,
+			GetMode = function()
+				return "(Toggle)"
+			end,
+			GetKey = function()
+				return nil
+			end,
+		},
+		{
+			Name = "Underground Desync",
+			GetState = function()
+				return getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.UndergroundDesync
+			end,
+			GetMode = function()
+				return getgenv().Options
+						and getgenv().Options.UndergroundDesyncKeybind
+						and "(" .. getgenv().Options.UndergroundDesyncKeybind.Mode .. ")"
+					or "(Toggle)"
+			end,
+			GetKey = function()
+				return getgenv().Options
+					and getgenv().Options.UndergroundDesyncKeybind
+					and FormatKey(getgenv().Options.UndergroundDesyncKeybind.Value)
+			end,
+		},
+		{
+			Name = "Spider Climb",
+			GetState = function()
+				return getgenv().Options
+					and getgenv().Options.SpiderClimbKeybind
+					and getgenv().Options.SpiderClimbKeybind:GetState()
+			end,
+			GetMode = function()
+				return getgenv().Options
+						and getgenv().Options.SpiderClimbKeybind
+						and "(" .. getgenv().Options.SpiderClimbKeybind.Mode .. ")"
+					or "(Hold)"
+			end,
+			GetKey = function()
+				return getgenv().Options
+					and getgenv().Options.SpiderClimbKeybind
+					and FormatKey(getgenv().Options.SpiderClimbKeybind.Value)
+			end,
+		},
+		{
+			Name = "Sky Peek",
+			GetState = function()
+				return getgenv()._SkyPeekActive == true
+			end,
+			GetMode = function()
+				return "(Keypress)"
+			end,
+			GetKey = function()
+				return getgenv().Options
+					and getgenv().Options.SkyPeekKeybind
+					and FormatKey(getgenv().Options.SkyPeekKeybind.Value)
+			end,
+		},
+		{
+			Name = "Underground Resolver",
+			GetState = function()
+				return getgenv()._UndergroundResolverActive == true
+			end,
+			GetMode = function()
+				return "(Keypress)"
+			end,
+			GetKey = function()
+				return getgenv().Options
+					and getgenv().Options.UndergroundResolverKeybind
+					and FormatKey(getgenv().Options.UndergroundResolverKeybind.Value)
+			end,
+		},
+		{
+			Name = "3rd Person",
+			GetState = function()
+				return getgenv().Config and getgenv().Config.Mods and getgenv().Config.Mods.ThirdPerson
+			end,
+			GetMode = function()
+				return getgenv().Options
+						and getgenv().Options.ThirdPersonKeybind
+						and "(" .. getgenv().Options.ThirdPersonKeybind.Mode .. ")"
+					or "(Toggle)"
+			end,
+			GetKey = function()
+				return getgenv().Options
+					and getgenv().Options.ThirdPersonKeybind
+					and FormatKey(getgenv().Options.ThirdPersonKeybind.Value)
+			end,
+		},
+	}
+
+	for _, f in ipairs(features) do
+		local stateVal = false
+		local modeStr = "(Toggle)"
+		local keyStr = nil
+		pcall(function()
+			stateVal = f.GetState() == true
+		end)
+		pcall(function()
+			modeStr = f.GetMode()
+		end)
+		pcall(function()
+			keyStr = f.GetKey()
+		end)
+
+		local displayName = f.Name
+		if keyStr then
+			displayName = "[" .. keyStr .. "] " .. displayName
+		end
+
+		table.insert(active, { Name = displayName, Mode = modeStr, State = stateVal })
+	end
+
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return
+	end
+	local viewport = camera.ViewportSize
+
+	local width = 180
+	local entryHeight = 15
+	local padding = 5
+	local headerHeight = 22
+	local height = headerHeight + padding + (#active * entryHeight)
+
+	local u = getgenv().Config.Utilities
+	local startX = (u and u.KeybindHUDX) or (viewport.X - width - 20)
+	local startY = (u and u.KeybindHUDY) or ((viewport.Y / 2) - (height / 2))
+
+	local d = KeybindHUDManager.Frames
+	if not d.Background then
+		return
+	end
+	local locked = false
+	if getgenv().Toggles and getgenv().Toggles.LockKeybindHUD then
+		locked = getgenv().Toggles.LockKeybindHUD.Value
+	end
+	d.Background.Draggable = not locked
+	local lib = getgenv().LinoriaLibrary
+
+	local bgColor = Color3.fromHex("232323")
+	local outlineColor = Color3.fromHex("141414")
+	local accentColor = Color3.fromHex("7e48a3")
+	if lib then
+		bgColor = lib.BackgroundColor or bgColor
+		outlineColor = lib.OutlineColor or outlineColor
+		accentColor = lib.AccentColor or accentColor
+	end
+
+	d.Background.BackgroundColor3 = bgColor
+	d.Background.BorderColor3 = outlineColor
+	d.TopLine.BackgroundColor3 = accentColor
+	d.Divider.BackgroundColor3 = Color3.new(1, 1, 1)
+	d.Title.TextColor3 = Color3.fromHex("CFCFCF")
+
+	local show = true
+	d.Background.Visible = show
+	d.Background.Size = UDim2.new(0, width, 0, height)
+	if d.Background.Position.X.Offset ~= startX or d.Background.Position.Y.Offset ~= startY then
+		d.Background.Position = UDim2.new(0, startX, 0, startY)
+	end
+
+	d.TopLine.Size = UDim2.new(0, width, 0, 2)
+	d.TopLine.Position = UDim2.new(0, 0, 0, 0)
+	d.TopLine.Visible = show
+
+	d.Divider.Size = UDim2.new(0, width, 0, 1)
+	d.Divider.Position = UDim2.new(0, 0, 0, headerHeight - 2)
+	d.Divider.Visible = show
+
+	d.Title.Size = UDim2.new(1, -12, 0, headerHeight)
+	d.Title.Position = UDim2.new(0, 6, 0, 0)
+	d.Title.Visible = show
+
+	local time = tick()
+	local speed = 1.2
+	local baseColor = Color3.fromHex("7D7D7D")
+
+	local glowColor = accentColor:Lerp(Color3.new(1, 1, 1), 0.6)
+	local seq = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, outlineColor),
+		ColorSequenceKeypoint.new(0.4, accentColor),
+		ColorSequenceKeypoint.new(0.5, glowColor),
+		ColorSequenceKeypoint.new(0.6, accentColor),
+		ColorSequenceKeypoint.new(1, outlineColor),
+	})
+
+	if d.DividerGrad then
+		d.DividerGrad.Color = seq
+		d.DividerGrad.Offset = Vector2.new(math.sin(time * speed), 0)
+	end
+
+	for i = 1, #KeybindHUDManager.Entries do
+		local entry = KeybindHUDManager.Entries[i]
+		if i <= #active and show then
+			entry.Text.Text = active[i].Name
+			entry.Text.Size = UDim2.new(1, -12, 0, entryHeight)
+			entry.Text.Position = UDim2.new(0, 6, 0, headerHeight + ((i - 1) * entryHeight))
+			entry.Text.Visible = true
+
+			entry.Val.Text = active[i].Mode
+			entry.Val.Size = UDim2.new(1, -12, 0, entryHeight)
+			entry.Val.Position = UDim2.new(0, 6, 0, headerHeight + ((i - 1) * entryHeight))
+			entry.Val.Visible = (active[i].Mode ~= "")
+
+			local isActive = active[i].State
+
+			if isActive then
+				entry.Text.TextColor3 = accentColor
+				entry.Val.TextColor3 = accentColor
+			else
+				entry.Text.TextColor3 = baseColor
+				entry.Val.TextColor3 = baseColor
+			end
+		else
+			entry.Text.Visible = false
+			entry.Val.Visible = false
+		end
+	end
+end
+
+KeybindHUDManager.Init()
 
 -- ==========================================
 -- ESPManager
@@ -2739,13 +3920,6 @@ if not getgenv().AutoCopyLogsHooked then
 			end
 		end)
 	)
-end
-
-local function LogLine(msg)
-	table.insert(getgenv().DebugLogBuffer, os.date("[%H:%M:%S] ") .. msg)
-	if #getgenv().DebugLogBuffer > 500 then
-		table.remove(getgenv().DebugLogBuffer, 1)
-	end
 end
 
 function ESPManager.CreateTextDrawing()
@@ -2794,7 +3968,15 @@ function ESPManager.FormatPlayerText(playerData)
 	local config = getgenv().Config.ESP
 	local textLines = { playerData.Name or (playerData.Player and playerData.Player.Name) or "Unknown" }
 
-	if config.ShowKDR and playerData.Player and not playerData.IsCorpse and not playerData.IsExit and not playerData.IsNPC and not playerData.IsHelicopterESP and not playerData.IsHelicopter then
+	if
+		config.ShowKDR
+		and playerData.Player
+		and not playerData.IsCorpse
+		and not playerData.IsExit
+		and not playerData.IsNPC
+		and not playerData.IsHelicopterESP
+		and not playerData.IsHelicopter
+	then
 		local kills, deaths = StatsManager.GetPlayerKDR(playerData.Player.Name)
 		local ratio = (deaths > 0) and (kills / deaths) or kills
 		table.insert(textLines, string.format("KDR: %.2f", ratio))
@@ -2832,22 +4014,18 @@ function ESPManager.Update()
 			end
 		end
 		table.clear(ESPManager.Cache)
-		if not config.ChamsEnabled then
-			for _, highlight in pairs(getgenv().DeltaChamsCache) do
-				highlight:Destroy()
-			end
-			table.clear(getgenv().DeltaChamsCache)
+		for _, highlight in pairs(getgenv().DeltaChamsCache) do
+			highlight:Destroy()
 		end
+		table.clear(getgenv().DeltaChamsCache)
 		return
 	end
 
-	local activeCharacters = (config.Enabled or config.ChamsEnabled) and CharacterManager.GetActiveCharacters() or {}
-	local activeNPCs = (config.NPCESPEnabled or config.ChamsEnabled) and CharacterManager.GetNPCs() or {}
+	local activeCharacters = CharacterManager.GetActiveCharacters() or {}
+	local activeNPCs = CharacterManager.GetNPCs() or {}
 	local activeCorpses = config.CorpseESPEnabled and CharacterManager.GetCorpses() or {}
 	local activeExits = config.ExitESPEnabled and CharacterManager.GetExits() or {}
-	local activeHelicopterESP = (config.HelicopterESPEnabled or config.ChamsEnabled)
-			and CharacterManager.GetHelicopterESP()
-		or {}
+	local activeHelicopterESP = CharacterManager.GetHelicopterESP() or {}
 
 	-- Text ESP Cleanup
 	for cachedCharacter, cacheData in pairs(ESPManager.Cache) do
@@ -2864,15 +4042,10 @@ function ESPManager.Update()
 
 	-- Chams ESP Cleanup
 	for cachedCharacter, highlight in pairs(getgenv().DeltaChamsCache) do
-		local isNPC = activeNPCs[cachedCharacter] ~= nil
-		local isHeli = activeHelicopterESP[cachedCharacter] ~= nil
 		local isStale = not activeCharacters[cachedCharacter]
 			and not activeNPCs[cachedCharacter]
 			and not activeHelicopterESP[cachedCharacter]
-		local shouldRemove = isStale
-			or not config.ChamsEnabled
-			or (isNPC and not config.NPCESPEnabled)
-			or (isHeli and not config.HelicopterESPEnabled)
+		local shouldRemove = isStale or not config.ChamsEnabled
 
 		if shouldRemove then
 			highlight:Destroy()
@@ -2880,11 +4053,19 @@ function ESPManager.Update()
 		end
 	end
 
+	local camPos = Camera.CFrame.Position
+	local worldToViewportPoint = Camera.WorldToViewportPoint
+
 	local function DrawEntity(character, data)
-		local distStuds = (Camera.CFrame.Position - data.Head.Position).Magnitude
+		local distStuds = (camPos - data.Head.Position).Magnitude
 		local distMeters = math.floor(distStuds * 0.28)
 		if distMeters > (config.MaxDistance or 1500) then
 			ESPManager.RemoveDrawing(character)
+			local highlight = getgenv().DeltaChamsCache and getgenv().DeltaChamsCache[character]
+			if highlight then
+				highlight:Destroy()
+				getgenv().DeltaChamsCache[character] = nil
+			end
 			return
 		end
 
@@ -2945,11 +4126,14 @@ function ESPManager.Update()
 			end
 			local textDrawing = type(cacheData) == "table" and cacheData.Text or cacheData
 
-			local screenPosition, isVisibleOnScreen = Camera:WorldToViewportPoint(data.Head.Position + espOffsetHead)
-			local boxTopScreenPos = Camera:WorldToViewportPoint(data.Head.Position + Vector3.new(0, 0.5, 0))
+			local screenPosition, isVisibleOnScreen = worldToViewportPoint(Camera, data.Head.Position + espOffsetHead)
+			local boxTopScreenPos = worldToViewportPoint(Camera, data.Head.Position + Vector3.new(0, 0.5, 0))
 
 			if isVisibleOnScreen and screenPosition.Z > 0 then
 				local textStr = ESPManager.FormatPlayerText(data)
+				if config.ShowDistance and (data.IsCorpse or data.IsExit) then
+					textStr = textStr .. "\n(" .. tostring(distMeters) .. " m)"
+				end
 
 				if textDrawing.Text ~= textStr then
 					textDrawing.Text = textStr
@@ -2993,13 +4177,13 @@ function ESPManager.Update()
 
 				local screenLegs
 				if data.RootPart then
-					screenLegs = Camera:WorldToViewportPoint(data.RootPart.Position - espOffsetRoot)
+					screenLegs = worldToViewportPoint(Camera, data.RootPart.Position - espOffsetRoot)
 				else
 					screenLegs = Vector3.new(screenPosition.X, screenPosition.Y + 30, 0)
 				end
 
 				if type(cacheData) == "table" and cacheData.DistanceText then
-					if config.ShowDistance then
+					if config.ShowDistance and not (data.IsCorpse or data.IsExit) then
 						local dStr = "(" .. tostring(distMeters) .. " m)"
 						if cacheData.DistanceText.Text ~= dStr then
 							cacheData.DistanceText.Text = dStr
@@ -3217,25 +4401,40 @@ function ESPManager.Update()
 					end
 				end
 			end
+		else
+			-- Garbage collect unused ESP memory when its toggle is off
+			ESPManager.RemoveDrawing(character)
 		end
 
 		-- Handle Chams (Highlight)
-		if config.ChamsEnabled and not data.IsCorpse and not data.IsExit and not data.IsHelicopterESP then
-			if data.IsNPC and not config.NPCESPEnabled then
-				-- Skip rendering chams for NPCs when NPC ESP is disabled
+		local shouldDrawChams = false
+		if config.ChamsEnabled and not data.IsCorpse and not data.IsExit then
+			local isPlayer = not data.IsNPC and not data.IsHelicopterESP
+			if isPlayer then
+				shouldDrawChams = config.Enabled -- Players require Enable ESP to be ON
 			else
-				local highlight = getgenv().DeltaChamsCache[character]
-				if not highlight then
-					highlight = Instance.new("Highlight")
-					highlight.Parent = CoreGui
-					highlight.Adornee = character
-					highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-					getgenv().DeltaChamsCache[character] = highlight
-				end
+				shouldDrawChams = true -- NPCs and Helicopters bypass the Enable ESP check
+			end
+		end
 
-				local fillCol = data.IsNPC and config.NPCChamsFillColor or config.ChamsFillColor
-				highlight.FillColor = isVisible3D and config.VisibleColor or fillCol
-				highlight.OutlineColor = config.ChamsOutlineColor
+		if shouldDrawChams then
+			local highlight = getgenv().DeltaChamsCache[character]
+			if not highlight then
+				highlight = Instance.new("Highlight")
+				highlight.Parent = CoreGui
+				highlight.Adornee = character
+				highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+				getgenv().DeltaChamsCache[character] = highlight
+			end
+
+			local fillCol = data.IsNPC and config.NPCChamsFillColor or config.ChamsFillColor
+			highlight.FillColor = isVisible3D and config.VisibleColor or fillCol
+			highlight.OutlineColor = config.ChamsOutlineColor
+		else
+			local highlight = getgenv().DeltaChamsCache and getgenv().DeltaChamsCache[character]
+			if highlight then
+				highlight:Destroy()
+				getgenv().DeltaChamsCache[character] = nil
 			end
 		end
 	end
@@ -3636,23 +4835,6 @@ if BulletMod then
 					local aimPos
 
 					local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-					if getgenv().AddLog then
-						getgenv().AddLog(
-							string.format(
-								"[SilentAim Spy] Ammo: %s | MuzzleVel: %s | Target: %s",
-								tostring(ammoName),
-								tostring(muzzleVelocity),
-								tostring(target.Name)
-							)
-						)
-						getgenv().AddLog(
-							string.format(
-								"[SilentAim Spy] RealOrigin: %s | ServerOrigin: %s",
-								tostring(realOrigin),
-								tostring(serverOrigin)
-							)
-						)
-					end
 
 					if getgenv().Config.Combat.InstantHit then
 						aimPos = targetAimPart.Position
@@ -3857,6 +5039,9 @@ table.insert(
 		local springHooked = false
 		local fpsHooked = false
 		while task.wait(3.5) do
+			if springHooked and fpsHooked then
+				break
+			end
 			pcall(function()
 				for _, v in pairs(getgc(true)) do
 					if type(v) == "table" then
@@ -3896,6 +5081,7 @@ table.insert(
 								getgenv().OldFPSEquip = v.equip
 								v.equip = function(self, ...)
 									local ret = getgenv().OldFPSEquip(self, ...)
+									getgenv()._DeltaActiveWeaponTable = self
 
 									if
 										type(self) == "table"
@@ -4100,6 +5286,15 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 	local method = getnamecallmethod()
 	local args = { ... }
 
+	if method == "TakeDamage" and typeof(self) == "Instance" and self:IsA("Humanoid") then
+		local lp = game:GetService("Players").LocalPlayer
+		if lp and lp.Character and self:IsDescendantOf(lp.Character) then
+			if getgenv().Config and getgenv().Config.Mods and getgenv().Config.Mods.NoFallDamage then
+				return
+			end
+		end
+	end
+
 	if method == "FireServer" then
 		local selfName = typeof(self) == "Instance" and self.Name or ""
 		if selfName == "ProjectileInflict" or selfName == "MeleeInflict" or selfName == "MeleeInfIict" then
@@ -4171,7 +5366,18 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 		end
 
 		if typeof(self) == "Instance" and self:IsA("AnimationTrack") then
-			local name = self.Name
+			local name = self.Name or ""
+
+			if getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.UndergroundDesync then
+				local lowerName = string.lower(name)
+				if
+					string.find(lowerName, "crouch")
+					or string.find(lowerName, "walk")
+					or string.find(lowerName, "run")
+				then
+					return
+				end
+			end
 
 			if getgenv().TemporaryNoRecoil then
 				if string.match(name, "UseAiming$") or string.match(name, "Use$") or string.match(name, "UseAlt$") then
@@ -4347,9 +5553,6 @@ oldRandom = hookfunction(
 			local callingScript = getcallingscript()
 			if callingScript and string.find(string.lower(callingScript.Name), "bullet") then
 				if type(min) == "number" and type(max) == "number" then
-					if LogLine then
-						LogLine("[NoSpread] Centering math.random call from " .. callingScript.Name)
-					end
 					return math.floor((min + max) / 2)
 				elseif type(min) == "number" and not max then
 					return min
@@ -4378,18 +5581,12 @@ oldRandomNew = hookfunction(
 					__index = function(self, key)
 						if key == "NextNumber" then
 							return function(_, min, max)
-								if LogLine then
-									LogLine("[NoSpread] Centering Random:NextNumber from " .. callingScript.Name)
-								end
 								min = min or 0
 								max = max or 1
 								return (min + max) / 2 -- Always perfectly centered
 							end
 						elseif key == "NextInteger" then
 							return function(_, min, max)
-								if LogLine then
-									LogLine("[NoSpread] Centering Random:NextInteger from " .. callingScript.Name)
-								end
 								return math.floor((min + max) / 2) -- Always perfectly centered
 							end
 						else
@@ -4450,7 +5647,9 @@ table.insert(
 		while task.wait(1) do
 			-- Only dynamically scan smaller roots (Camera and Character)
 			scanForModules(Workspace.CurrentCamera, true)
-			scanForModules(Workspace:FindFirstChild(LocalPlayer.Name), true)
+			if LocalPlayer and LocalPlayer.Character then
+				scanForModules(LocalPlayer.Character, true)
+			end
 
 			for desc in pairs(cachedSettingsModules) do
 				if not desc.Parent then
@@ -4538,6 +5737,55 @@ table.insert(
 	end)
 )
 
+if not getgenv()._deltaDamageHooksApplied then
+	getgenv()._deltaDamageHooksApplied = true
+
+	local oldNewindex
+	oldNewindex = hookmetamethod(game, "__newindex", function(self, index, value)
+		if index == "Health" and self:IsA("Humanoid") then
+			local lp = game:GetService("Players").LocalPlayer
+			if lp and lp.Character and self:IsDescendantOf(lp.Character) then
+				if getgenv().Config and getgenv().Config.Mods and getgenv().Config.Mods.NoFallDamage then
+					if type(value) == "number" and value < self.Health then
+						return
+					end
+				end
+			end
+		end
+		return oldNewindex(self, index, value)
+	end)
+end
+
+local function TriggerNoFallDamageRobust(hrp, humanoid)
+	if getgenv()._noFallDamageTaskActive then
+		return
+	end
+	getgenv()._noFallDamageTaskActive = true
+
+	task.spawn(function()
+		if humanoid then
+			humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+			humanoid:ChangeState(Enum.HumanoidStateType.Running)
+
+			while hrp and humanoid and getgenv().Config.Mods.NoFallDamage do
+				if hrp.Velocity.Y > -2 then
+					task.wait(0.15)
+					if hrp and hrp.Velocity.Y > -2 then
+						break
+					end
+				end
+				task.wait(0.05)
+			end
+
+			if humanoid then
+				humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+			end
+		end
+
+		getgenv()._noFallDamageTaskActive = false
+	end)
+end
+
 local WorldModsManager = {}
 
 function WorldModsManager.Update()
@@ -4575,25 +5823,61 @@ function WorldModsManager.Update()
 		end
 	end
 
-	local visor = getgenv()._cachedVisorUI
-	if not visor or not visor.Parent then
+	local sEffects = getgenv()._cachedScreenEffects
+	if not sEffects or not sEffects.Parent then
 		local pGui = LocalPlayer:FindFirstChild("PlayerGui")
 		local noInset = pGui and pGui:FindFirstChild("NoInsetGui")
 		local mFrame = noInset and noInset:FindFirstChild("MainFrame")
-		local sEffects = mFrame and mFrame:FindFirstChild("ScreenEffects")
-		visor = sEffects and sEffects:FindFirstChild("Visor")
-		getgenv()._cachedVisorUI = visor
+		sEffects = mFrame and mFrame:FindFirstChild("ScreenEffects")
+		getgenv()._cachedScreenEffects = sEffects
 	end
 
-	if visor then
+	if sEffects then
 		if getgenv().Config.Mods.NoVisor then
-			if visor.Visible then
-				visor.Visible = false
-				getgenv()._deltaVisorHidden = true
+			if not getgenv()._deltaVisorsHidden then
+				getgenv()._deltaVisorsHidden = {}
 			end
-		elseif getgenv()._deltaVisorHidden then
-			visor.Visible = true
-			getgenv()._deltaVisorHidden = false
+
+			local visor = sEffects:FindFirstChild("Visor")
+			if visor and visor.Visible then
+				visor.Visible = false
+				getgenv()._deltaVisorsHidden.Visor = true
+			end
+
+			local mask = sEffects:FindFirstChild("Mask")
+			if mask and mask.Visible then
+				mask.Visible = false
+				getgenv()._deltaVisorsHidden.Mask = true
+			end
+
+			local helmetMask = sEffects:FindFirstChild("HelmetMask")
+			if helmetMask and helmetMask.Visible then
+				helmetMask.Visible = false
+				getgenv()._deltaVisorsHidden.HelmetMask = true
+			end
+		elseif getgenv()._deltaVisorsHidden then
+			if getgenv()._deltaVisorsHidden.Visor then
+				local visor = sEffects:FindFirstChild("Visor")
+				if visor then
+					visor.Visible = true
+				end
+			end
+
+			if getgenv()._deltaVisorsHidden.Mask then
+				local mask = sEffects:FindFirstChild("Mask")
+				if mask then
+					mask.Visible = true
+				end
+			end
+
+			if getgenv()._deltaVisorsHidden.HelmetMask then
+				local helmetMask = sEffects:FindFirstChild("HelmetMask")
+				if helmetMask then
+					helmetMask.Visible = true
+				end
+			end
+
+			getgenv()._deltaVisorsHidden = nil
 		end
 	end
 
@@ -4601,6 +5885,40 @@ function WorldModsManager.Update()
 		if not getgenv().DeltaIsZooming then
 			if Camera.FieldOfView ~= getgenv().Config.Mods.FOV then
 				Camera.FieldOfView = getgenv().Config.Mods.FOV
+			end
+		end
+	end
+
+	local char = Workspace:FindFirstChild(LocalPlayer.Name)
+	if char then
+		local humanoid = char:FindFirstChildOfClass("Humanoid")
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if humanoid and hrp then
+			if getgenv().Config.Mods.Speedhack then
+				if humanoid.WalkSpeed ~= getgenv().Config.Mods.WalkspeedValue then
+					humanoid.WalkSpeed = getgenv().Config.Mods.WalkspeedValue
+				end
+			end
+
+			if getgenv().Config.Mods.NoFallDamage then
+				if hrp.Velocity.Y < -30 then
+					TriggerNoFallDamageRobust(hrp, humanoid)
+
+					local params = RaycastParams.new()
+					params.FilterDescendantsInstances = { char }
+					params.FilterType = Enum.RaycastFilterType.Exclude
+					local lookAhead = math.abs(hrp.Velocity.Y) * 0.15
+					if Workspace:Raycast(hrp.Position, Vector3.new(0, -lookAhead, 0), params) then
+						hrp.Velocity = Vector3.new(hrp.Velocity.X, -25, hrp.Velocity.Z)
+					end
+				end
+			else
+				-- Restore states if they were previously disabled by older logic
+				if not humanoid:GetStateEnabled(Enum.HumanoidStateType.Freefall) then
+					humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+					humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+					humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+				end
 			end
 		end
 	end
@@ -4777,6 +6095,7 @@ local InventoryViewer = {
 	LastViewportSize = nil,
 	IsDragging = false,
 	DragOffset = Vector2.new(0, 0),
+	Locked = false,
 	-- Categorize and sort: Gun (1), Mag (2), Bullet (3), Other (4)
 	UserPosition = nil,
 	Width = 240,
@@ -4844,6 +6163,29 @@ local function getClosestInventoryTargetToMouse()
 						Name = name,
 						TargetInstance = corpseInstance,
 						ParentFolder = corpseInstance,
+					}
+				end
+			end
+		end
+	end
+
+	for npcInstance, npcData in pairs(CharacterManager.ActiveNPCs) do
+		local head = npcData.Head
+		if head then
+			local screenPosition, isVisibleOnScreen = Camera:WorldToViewportPoint(head.Position)
+			if isVisibleOnScreen and screenPosition.Z > 0 then
+				local distanceToMouse = (Vector2.new(screenPosition.X, screenPosition.Y) - mouseLocation).Magnitude
+				if distanceToMouse < shortestDistance then
+					local replicatedPlayers = ReplicatedStorage:FindFirstChild("Players")
+					local playerFolder = replicatedPlayers and replicatedPlayers:FindFirstChild(npcData.Name)
+					local parentFolder = playerFolder or npcInstance
+
+					shortestDistance = distanceToMouse
+					closestTarget = {
+						Type = "NPC",
+						Name = npcData.Name,
+						TargetInstance = npcInstance,
+						ParentFolder = parentFolder,
 					}
 				end
 			end
@@ -4999,6 +6341,10 @@ function InventoryViewer.Draw()
 
 		local isValuable = isGun or isMag or isBullet
 
+		if config.InventoryViewerOnlyNecessary and not isValuable then
+			continue
+		end
+
 		local displayName = item.Name
 		if isBullet and amount then
 			if not groupData[item.Name] then
@@ -5044,11 +6390,12 @@ function InventoryViewer.Draw()
 	end
 
 	local viewportSize = Camera.ViewportSize
-	local titleHeight = 40
-	local itemSpacing = 18
+	local textSize = config.InventoryViewerTextSize or 13
+	local titleHeight = math.round(textSize * 3.07)
+	local itemSpacing = math.round(textSize * 1.38)
 	local padding = 12
 	local totalHeight = padding * 2 + titleHeight + (#uniqueOrder * itemSpacing)
-	local width = InventoryViewer.Width
+	local width = math.clamp(math.round((textSize / 13) * InventoryViewer.Width), 180, 600)
 
 	if not InventoryViewer.UserPosition then
 		InventoryViewer.UserPosition = Vector2.new(viewportSize.X - width - 100, (viewportSize.Y - totalHeight) / 2)
@@ -5072,16 +6419,27 @@ function InventoryViewer.Draw()
 	InventoryViewer.Border.Visible = true
 
 	local targetName = targetInfo.Name or (targetInfo.Player and targetInfo.Player.Name) or "Unknown"
+	
+	if targetInfo and targetInfo.Type == "Corpse" then
+		targetName = string.gsub(targetName, "'s Corpse$", "")
+		targetName = string.gsub(targetName, " Corpse$", "")
+		targetName = string.gsub(targetName, " Corpse's$", "")
+	end
+
 	-- Create title
-	InventoryViewer.TitleText.Text = string.format("%s's Inventory", targetName)
+	local titleFormat = (targetInfo and targetInfo.Type == "Corpse") and "%s Corpse's Inventory" or "%s's Inventory"
+	InventoryViewer.TitleText.Text = string.format(titleFormat, targetName)
+	InventoryViewer.TitleText.Size = math.max(14, textSize + 1)
 	InventoryViewer.TitleText.Position = Vector2.new(x + width / 2, y + padding)
 	InventoryViewer.TitleText.Visible = true
 
 	if InventoryViewer.DividerText then
-		InventoryViewer.DividerText.Position = Vector2.new(x + width / 2, y + padding + 15)
+		InventoryViewer.DividerText.Size = textSize
+		InventoryViewer.DividerText.Position = Vector2.new(x + width / 2, y + padding + math.round(textSize * 1.15))
 		InventoryViewer.DividerText.Visible = true
 	end
 
+	InventoryViewer.OrderedItems = uniqueOrder
 	local currentFrameItems = {}
 
 	for index, baseDisplayName in ipairs(uniqueOrder) do
@@ -5102,10 +6460,12 @@ function InventoryViewer.Draw()
 			textDrawing = Drawing.new("Text")
 			textDrawing.Center = false
 			textDrawing.Outline = true
-			textDrawing.Size = 13
+			textDrawing.Size = textSize
 			textDrawing.Font = config.Font or 2
 			InventoryViewer.TextCache[cacheKey] = textDrawing
 		end
+
+		textDrawing.Size = textSize
 
 		if data.isValuable then
 			textDrawing.Color = Color3.fromRGB(255, 215, 0) -- Gold
@@ -5124,6 +6484,51 @@ function InventoryViewer.Draw()
 		if not currentFrameItems[key] then
 			textDrawing:Remove()
 			InventoryViewer.TextCache[key] = nil
+		end
+	end
+end
+
+function InventoryViewer.UpdatePositions()
+	if not InventoryViewer.UserPosition then
+		return
+	end
+	local x = InventoryViewer.UserPosition.X
+	local y = InventoryViewer.UserPosition.Y
+	local config = getgenv().Config.ESP
+	local textSize = config.InventoryViewerTextSize or 13
+	local titleHeight = math.round(textSize * 3.07)
+	local itemSpacing = math.round(textSize * 1.38)
+	local padding = 12
+
+	local viewportSize = workspace.CurrentCamera.ViewportSize
+	local width = InventoryViewer.Background and InventoryViewer.Background.Size.X or 180
+	local totalHeight = InventoryViewer.Background and InventoryViewer.Background.Size.Y or 200
+
+	x = math.clamp(x, 0, math.max(0, viewportSize.X - width))
+	y = math.clamp(y, 0, math.max(0, viewportSize.Y - totalHeight))
+	InventoryViewer.UserPosition = Vector2.new(x, y)
+
+	if InventoryViewer.Background then
+		InventoryViewer.Background.Position = Vector2.new(x, y)
+	end
+	if InventoryViewer.Border then
+		InventoryViewer.Border.Position = Vector2.new(x, y)
+	end
+
+	if InventoryViewer.TitleText then
+		InventoryViewer.TitleText.Position = Vector2.new(x + width / 2, y + padding)
+	end
+	if InventoryViewer.DividerText then
+		InventoryViewer.DividerText.Position = Vector2.new(x + width / 2, y + padding + math.round(textSize * 1.15))
+	end
+
+	if InventoryViewer.OrderedItems then
+		for index, cacheKey in ipairs(InventoryViewer.OrderedItems) do
+			local textDrawing = InventoryViewer.TextCache[cacheKey]
+			if textDrawing then
+				local itemY = y + padding + titleHeight + (index - 1) * itemSpacing
+				textDrawing.Position = Vector2.new(x + 15, itemY)
+			end
 		end
 	end
 end
@@ -5214,7 +6619,8 @@ function InventoryViewer.Initialize()
 					local bgPos = InventoryViewer.Background.Position
 					local bgSize = InventoryViewer.Background.Size
 					if
-						mousePos.X >= bgPos.X
+						not InventoryViewer.Locked
+						and mousePos.X >= bgPos.X
 						and mousePos.X <= bgPos.X + bgSize.X
 						and mousePos.Y >= bgPos.Y
 						and mousePos.Y <= bgPos.Y + bgSize.Y
@@ -5236,7 +6642,11 @@ function InventoryViewer.Initialize()
 				local mousePos = UserInputService:GetMouseLocation()
 				-- Spawn target check loop (4 times per second for high performance)
 				InventoryViewer.UserPosition = mousePos - InventoryViewer.DragOffset
-				InventoryViewer.Draw()
+				if InventoryViewer.UpdatePositions then
+					InventoryViewer.UpdatePositions()
+				else
+					InventoryViewer.Draw()
+				end
 			end
 		end)
 	)
@@ -5324,7 +6734,15 @@ function InventoryViewer.CheckTarget()
 				end)
 			)
 
-			InventoryViewer.TitleText.Text = string.format("%s's Inventory", closestTarget.Name)
+			local targetName = closestTarget.Name or "Unknown"
+			if closestTarget.Type == "Corpse" then
+				targetName = string.gsub(targetName, "'s Corpse$", "")
+				targetName = string.gsub(targetName, " Corpse$", "")
+				targetName = string.gsub(targetName, " Corpse's$", "")
+			end
+
+			local titleFormat = closestTarget.Type == "Corpse" and "%s Corpse's Inventory" or "%s's Inventory"
+			InventoryViewer.TitleText.Text = string.format(titleFormat, targetName)
 			InventoryViewer.Draw()
 		else
 			if InventoryViewer.Background then
@@ -5350,6 +6768,27 @@ end
 InventoryViewer.Initialize()
 
 pcall(HitsoundManager.Initialize)
+
+-- ==========================================
+-- Bullet Hole ESP Manager
+-- ==========================================
+task.spawn(function()
+	local RS = game:GetService("ReplicatedStorage")
+	local FuncLib
+	while not FuncLib do
+		pcall(function()
+			FuncLib = (require :: any)(RS:WaitForChild("Modules", 2):WaitForChild("FunctionLibraryExtension", 2))
+		end)
+		task.wait(1)
+	end
+
+	if not getgenv().OriginalPenetration then
+		getgenv().OriginalPenetration = FuncLib.Penetration
+		FuncLib.Penetration = function(self, instance, startPos, dir, armorPen, ...)
+			return getgenv().OriginalPenetration(self, instance, startPos, dir, armorPen, ...)
+		end
+	end
+end)
 
 -- ==========================================
 -- InstantHit Manager (namecall-based)
@@ -5420,7 +6859,34 @@ function InstantHitManager.Activate()
 				if targetAimPart then
 					local origin = workspace.CurrentCamera.CFrame.Position
 					local serverOrigin = origin
-					if getgenv().Config.Combat.UndergroundDesync and getgenv()._StoredRealCFrame then
+					local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+					local isWallbang = getgenv().Config.Combat.Wallbang
+					-- Wallbang completely overrides Underground Desync logic for instantaneous shooting
+					local isUnderground = not isWallbang
+						and getgenv().Config.Combat.UndergroundDesync
+						and getgenv()._StoredRealCFrame
+
+					local wbOldCFrame = nil
+					if isWallbang and myRoot then
+						wbOldCFrame = myRoot.CFrame
+						if not getgenv()._StoredRealCFrame then
+							getgenv()._StoredRealCFrame = wbOldCFrame
+						end
+						getgenv()._WallbangActive = true
+						local downDist = getgenv().Config.SilentAim and getgenv().Config.SilentAim.UndergroundDistance
+							or 50
+						-- Offset by 1 stud on X and Z to prevent the PerfectDirection from being exactly (0,1,0),
+						-- which flags anti-cheat for impossible camera angles and forces vertical raycasts.
+						local newPos = targetAimPart.Position - Vector3.new(1, downDist, 1)
+						local newCFrame = CFrame.lookAt(newPos, targetAimPart.Position)
+						myRoot.CFrame = newCFrame
+						serverOrigin = newCFrame.Position
+						if getgenv().AddLog then
+							getgenv().AddLog(
+								"[Wallbang Spy] FireProjectile teleported UNDER TARGET: " .. tostring(serverOrigin)
+							)
+						end
+					elseif isUnderground then
 						serverOrigin = (getgenv()._StoredRealCFrame * CFrame.new(0, -3.8, 0)).Position
 					end
 
@@ -5431,11 +6897,15 @@ function InstantHitManager.Activate()
 					local expectedFlightTime
 					local perfectDirection
 
-					local isUnderground = getgenv().Config.Combat.UndergroundDesync and getgenv()._StoredRealCFrame
-					if isUnderground then
+					if isUnderground or isWallbang then
 						-- The server evaluates Instant Hit raycasts without gravity, so we must shoot a mathematically perfect straight line.
 						perfectDirection = (targetAimPart.Position - serverOrigin).Unit
 						expectedFlightTime = distance / v
+						if isWallbang and getgenv().AddLog then
+							getgenv().AddLog("[Wallbang Spy] --- Wallbang FireProjectile Data ---")
+							getgenv().AddLog("[Wallbang Spy] Perfect Direction: " .. tostring(perfectDirection))
+							getgenv().AddLog("[Wallbang Spy] Flight Time: " .. tostring(expectedFlightTime))
+						end
 					else
 						-- Original framework logic
 						perfectDirection = (targetAimPart.Position - serverOrigin).Unit
@@ -5445,7 +6915,6 @@ function InstantHitManager.Activate()
 
 					args[1] = perfectDirection
 
-					local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 					if getgenv().AddLog then
 						getgenv().AddLog(
 							string.format(
@@ -5489,26 +6958,67 @@ function InstantHitManager.Activate()
 
 					-- ZERO DELAY: Send the damage packet in the exact same frame using task.defer
 					task.defer(function()
-						passedBullets[bulletId] = true
-						-- Pass the CURRENT timestamp as the hit time.
-						-- Server calculates FlightTime = Current (Hit) - Spoofed (Fire) = expectedFlightTime
-						if getgenv().AddLog then
-							getgenv().AddLog(
-								string.format(
-									"[Remote Spy] Spoofing ProjectileInflict:FireServer | BulletId: %s",
-									tostring(bulletId)
+						local inflict = getInflictRemote()
+						if inflict then
+							if getgenv().AddLog then
+								getgenv().AddLog(
+									"[Remote Spy] Spoofing ProjectileInflict:FireServer | BulletId: "
+										.. tostring(bulletId)
 								)
-							)
-						end
-						inflict:FireServer(targetAimPart, hitCFrame, bulletId, fireTimestamp)
+							end
 
-						-- Log removed
+							passedBullets[bulletId] = true
+
+							-- ULTIMATE 0-FRAME BLINK BYPASS
+							-- The character physically stays on the surface locally to prevent ANY flickering or rubberbanding.
+							-- But the exact millisecond the bullet hit is sent, we teleport the server character down,
+							-- fire the remote, and instantly teleport back! The server's RPC network packet grabs the
+							-- spoofed coordinate, but the physics engine never ticks, meaning NO anti-cheat can detect the fall!
+							local myRoot = LocalPlayer.Character
+								and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+							local oldCFrame = nil
+							if myRoot then
+								if getgenv().Config.Combat.UndergroundDesync or getgenv()._UndergroundResolverActive or getgenv().Config.Combat.Wallbang then
+									oldCFrame = myRoot.CFrame
+									-- Teleport exactly to the hit location (hitWorldPos) so the distance check is literally 0 studs
+									myRoot.CFrame = CFrame.new(hitWorldPos)
+									if getgenv().Config.Combat.Wallbang and getgenv().AddLog then
+										getgenv().AddLog(
+											"[Wallbang Spy] ProjectileInflict teleported near TARGET: "
+												.. tostring(hitWorldPos)
+										)
+									end
+								end
+							end
+
+							inflict:FireServer(targetAimPart, hitCFrame, bulletId, fireTimestamp)
+
+							if oldCFrame and myRoot then
+								myRoot.CFrame = oldCFrame
+							end
+						end
 					end)
 
-					return false, function() end, args
+					return false,
+						function()
+							if wbOldCFrame and myRoot then
+								myRoot.CFrame = wbOldCFrame
+								getgenv()._WallbangActive = false
+								if
+									not getgenv().Config.Combat.UndergroundDesync
+									and not getgenv().Config.Combat.AntiAim
+								then
+									getgenv()._StoredRealCFrame = nil
+								end
+							end
+						end,
+						args
 				end
 			end
 		elseif method == "FireServer" and remoteName == "ProjectileInflict" then
+			if not getgenv().Config.Combat.InstantHit then
+				return false
+			end
 			local bulletId = args[3]
 			if getgenv().AddLog then
 				getgenv().AddLog(
@@ -5924,6 +7434,7 @@ local renderConnection = RunService.RenderStepped:Connect(function()
 	ESPManager.Update()
 	CombatManager.Update()
 	BulletTracerManager.Update()
+	KeybindHUDManager.Update()
 end)
 table.insert(ConnectionList, renderConnection)
 
@@ -5970,17 +7481,27 @@ RunService:BindToRenderStep("DeltaThirdPersonMod", 10000, function()
 end)
 
 local currentSpiderTween = nil
+local currentSpiderConn = nil
+local currentSpiderValue = nil
 
 table.insert(
 	ConnectionList,
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then
+		if UserInputService:GetFocusedTextBox() then
 			return
 		end
 
 		local combatConfig = getgenv().Config.Combat
+		local silentAimConfig = getgenv().Config.SilentAim
 
-		if combatConfig.FlyKeybind and input.KeyCode.Name == combatConfig.FlyKeybind then
+		if
+			silentAimConfig
+			and silentAimConfig.UndergroundResolverKeybind
+			and input.KeyCode.Name == silentAimConfig.UndergroundResolverKeybind
+		then
+			if getgenv()._UndergroundResolverActive or getgenv()._SkyPeekActive then
+				return
+			end
 			local character = Workspace:FindFirstChild(LocalPlayer.Name)
 			if not character then
 				return
@@ -5990,18 +7511,323 @@ table.insert(
 				return
 			end
 
-			local startCFrame = hrp.CFrame
-			local targetCFrame = startCFrame + Vector3.new(0, 5, 0)
+			local startCFrame = (getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim)
+					and getgenv()._StoredRealCFrame
+				or hrp.CFrame
+
+			local distance = silentAimConfig.UndergroundDistance or 20
+			local targetCFrame = startCFrame - Vector3.new(0, distance, 0)
+			local duration = silentAimConfig.UndergroundDuration or 1.0
+
+			local cfValue = Instance.new("CFrameValue")
+			cfValue.Value = startCFrame
+
+			local tweenDown = _TweenService:Create(
+				cfValue,
+				TweenInfo.new(duration, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+				{ Value = targetCFrame }
+			)
+
+			if getgenv().Config.Mods and getgenv().Config.Mods.NoFallDamage then
+				local humanoid = character:FindFirstChildOfClass("Humanoid")
+				if humanoid then
+					local oldFreefall = humanoid:GetStateEnabled(Enum.HumanoidStateType.Freefall)
+					humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+					task.delay(duration + 0.5, function()
+						humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, oldFreefall)
+					end)
+				end
+			end
+
+			local conn = cfValue.Changed:Connect(function(val)
+				if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
+					getgenv()._StoredRealCFrame = val
+				else
+					hrp.CFrame = val
+				end
+			end)
+
+			getgenv()._UndergroundResolverActive = true
+
+			if getgenv().AddLog then
+				local sp = startCFrame.Position
+				local tp = targetCFrame.Position
+				getgenv().AddLog(string.format(
+					"[UGR START] startCF=%.2f,%.2f,%.2f targetCF=%.2f,%.2f,%.2f dist=%.1f dur=%.2f | Desync=%s",
+					sp.X, sp.Y, sp.Z, tp.X, tp.Y, tp.Z, distance, duration,
+					tostring(getgenv().Config.Combat.UndergroundDesync == true)
+				))
+			end
+
+			tweenDown:Play()
+			tweenDown.Completed:Connect(function()
+				conn:Disconnect()
+				cfValue:Destroy()
+
+				local hrpPosNow = hrp.CFrame.Position
+				local storedNow = getgenv()._StoredRealCFrame and getgenv()._StoredRealCFrame.Position
+				if getgenv().AddLog then
+					getgenv().AddLog(string.format(
+						"[UGR COMPLETE] HRP now=%.2f,%.2f,%.2f | Stored=%.2f,%.2f,%.2f | startCF=%.2f,%.2f,%.2f",
+						hrpPosNow.X, hrpPosNow.Y, hrpPosNow.Z,
+						storedNow and storedNow.X or 0, storedNow and storedNow.Y or 0, storedNow and storedNow.Z or 0,
+						startCFrame.Position.X, startCFrame.Position.Y, startCFrame.Position.Z
+					))
+				end
+
+				-- Raycast downward from startCFrame to find the true terrain surface.
+				-- Cast origin is 4 studs above to handle terrain that rose (slopes, rocks).
+				local safeReturnCFrame = startCFrame
+				local rayParams = RaycastParams.new()
+				rayParams.FilterDescendantsInstances = { character }
+				rayParams.FilterType = Enum.RaycastFilterType.Exclude
+				rayParams.IgnoreWater = true
+				local origin = startCFrame.Position + Vector3.new(0, 4, 0)
+				local rayResult = workspace:Raycast(origin, Vector3.new(0, -15, 0), rayParams)
+
+				local humanoid = character:FindFirstChildOfClass("Humanoid")
+				if rayResult then
+					local surfaceY = rayResult.Position.Y
+					local hipHeight = 2
+					if humanoid and humanoid.RigType == Enum.HumanoidRigType.R15 then
+						hipHeight = humanoid.HipHeight
+					end
+					-- R15 and R6 generally place HRP ~3 studs above feet
+					local rootHeight = hipHeight + (hrp.Size.Y / 2)
+					local safeY    = surfaceY + rootHeight
+					local p        = startCFrame.Position
+					
+					if getgenv().AddLog then
+						getgenv().AddLog(string.format(
+							"[UGR RAY HIT] inst=%s surfY=%.2f safeY=%.2f startY=%.2f",
+							rayResult.Instance and rayResult.Instance.Name or "?",
+							surfaceY, safeY, p.Y
+						))
+					end
+					
+					-- Remove any pitch/roll that might clip corners into the terrain
+					local look = startCFrame.LookVector
+					local flatLook = Vector3.new(look.X, 0, look.Z).Unit
+					if flatLook.Magnitude < 0.1 then flatLook = Vector3.new(0, 0, -1) end
+					safeReturnCFrame = CFrame.lookAt(Vector3.new(p.X, safeY, p.Z), Vector3.new(p.X + flatLook.X, safeY, p.Z + flatLook.Z))
+				else
+					if getgenv().AddLog then
+						getgenv().AddLog(string.format(
+							"[UGR RAY MISS] No terrain found below startCF %.2f,%.2f,%.2f — using startCFrame as-is",
+							startCFrame.Position.X, startCFrame.Position.Y, startCFrame.Position.Z
+						))
+					end
+				end
+
+				local finalPos = safeReturnCFrame.Position
+				if getgenv().AddLog then
+					getgenv().AddLog(string.format(
+						"[UGR SNAP] Snapping HRP to %.2f,%.2f,%.2f | deltaY from startCF=%.3f",
+						finalPos.X, finalPos.Y, finalPos.Z,
+						finalPos.Y - startCFrame.Position.Y
+					))
+				end
+
+				-- Apply snap atomically: hrp.CFrame and _StoredRealCFrame must match
+				-- before the guard releases so Stepped doesn't re-embed into old position.
+				hrp.CFrame = safeReturnCFrame
+				if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
+					getgenv()._StoredRealCFrame = safeReturnCFrame
+				end
+
+				hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+				hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+
+				-- Anchor briefly to kill any built-up collision momentum and reset state
+				hrp.Anchored = true
+				if humanoid then
+					humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+				end
+
+				-- Defer flag release to ensure the server fully replicates the safe surface
+				-- position before Heartbeat resumes applying the deep desync offset.
+				-- 0.4s guarantees the server sees we are cleanly above ground.
+				task.delay(0.4, function()
+					if hrp and hrp.Parent then
+						hrp.Anchored = false
+					end
+					if humanoid then
+						humanoid:ChangeState(Enum.HumanoidStateType.Running)
+					end
+					getgenv()._UndergroundResolverActive = false
+					getgenv()._LastGuardDeactivate = tick()
+					if getgenv().AddLog then
+						getgenv().AddLog("[UGR FLAG] _UndergroundResolverActive released → false")
+					end
+				end)
+			end)
+		end
+
+		if
+			combatConfig
+			and combatConfig.SkyPeekKeybind
+			and input.KeyCode.Name == combatConfig.SkyPeekKeybind
+		then
+			if getgenv()._SkyPeekActive or getgenv()._UndergroundResolverActive then
+				return
+			end
+			local character = Workspace:FindFirstChild(LocalPlayer.Name)
+			if not character then
+				return
+			end
+			local hrp = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
+			if not hrp then
+				return
+			end
+
+			local startCFrame = (getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim)
+					and getgenv()._StoredRealCFrame
+				or hrp.CFrame
+
+			local distance = combatConfig.SkyPeekDistance or 20
+			local targetCFrame = startCFrame + Vector3.new(0, distance, 0)
+			local duration = combatConfig.SkyPeekDuration or 1.0
+
+			local cfValue = Instance.new("CFrameValue")
+			cfValue.Value = startCFrame
 
 			local tweenUp = _TweenService:Create(
-				hrp,
-				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{ CFrame = targetCFrame }
+				cfValue,
+				TweenInfo.new(duration, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+				{ Value = targetCFrame }
 			)
+
+			if getgenv().Config.Mods and getgenv().Config.Mods.NoFallDamage then
+				local humanoid = character:FindFirstChildOfClass("Humanoid")
+				if humanoid then
+					local oldFreefall = humanoid:GetStateEnabled(Enum.HumanoidStateType.Freefall)
+					humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+					task.delay(duration + 0.5, function()
+						humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, oldFreefall)
+					end)
+				end
+			end
+
+			local conn = cfValue.Changed:Connect(function(val)
+				if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
+					getgenv()._StoredRealCFrame = val
+				else
+					hrp.CFrame = val
+				end
+			end)
+
+			getgenv()._SkyPeekActive = true
+
+			if getgenv().AddLog then
+				local sp = startCFrame.Position
+				local tp = targetCFrame.Position
+				getgenv().AddLog(string.format(
+					"[SKYPEEK START] startCF=%.2f,%.2f,%.2f targetCF=%.2f,%.2f,%.2f dist=%.1f dur=%.2f | Desync=%s",
+					sp.X, sp.Y, sp.Z, tp.X, tp.Y, tp.Z, distance, duration,
+					tostring(getgenv().Config.Combat.UndergroundDesync == true)
+				))
+			end
 
 			tweenUp:Play()
 			tweenUp.Completed:Connect(function()
-				hrp.CFrame = startCFrame
+				conn:Disconnect()
+				cfValue:Destroy()
+
+				local hrpPosNow = hrp.CFrame.Position
+				local storedNow = getgenv()._StoredRealCFrame and getgenv()._StoredRealCFrame.Position
+				if getgenv().AddLog then
+					getgenv().AddLog(string.format(
+						"[SKYPEEK COMPLETE] HRP now=%.2f,%.2f,%.2f | Stored=%.2f,%.2f,%.2f | startCF=%.2f,%.2f,%.2f",
+						hrpPosNow.X, hrpPosNow.Y, hrpPosNow.Z,
+						storedNow and storedNow.X or 0, storedNow and storedNow.Y or 0, storedNow and storedNow.Z or 0,
+						startCFrame.Position.X, startCFrame.Position.Y, startCFrame.Position.Z
+					))
+				end
+
+				-- Raycast downward from startCFrame to find the true terrain surface.
+				-- Cast origin is 4 studs above to handle terrain that rose (slopes, rocks).
+				local safeReturnCFrame = startCFrame
+				local rayParams = RaycastParams.new()
+				rayParams.FilterDescendantsInstances = { character }
+				rayParams.FilterType = Enum.RaycastFilterType.Exclude
+				rayParams.IgnoreWater = true
+				local origin = startCFrame.Position + Vector3.new(0, 4, 0)
+				local rayResult = workspace:Raycast(origin, Vector3.new(0, -15, 0), rayParams)
+
+				local humanoid = character:FindFirstChildOfClass("Humanoid")
+				if rayResult then
+					local surfaceY = rayResult.Position.Y
+					local hipHeight = 2
+					if humanoid and humanoid.RigType == Enum.HumanoidRigType.R15 then
+						hipHeight = humanoid.HipHeight
+					end
+					-- R15 and R6 generally place HRP ~3 studs above feet
+					local rootHeight = hipHeight + (hrp.Size.Y / 2)
+					local safeY    = surfaceY + rootHeight
+					local p        = startCFrame.Position
+					
+					if getgenv().AddLog then
+						getgenv().AddLog(string.format(
+							"[SKYPEEK RAY HIT] inst=%s surfY=%.2f safeY=%.2f startY=%.2f | adjusting=true",
+							rayResult.Instance and rayResult.Instance.Name or "?",
+							surfaceY, safeY, p.Y
+						))
+					end
+					
+					-- Remove any pitch/roll that might clip corners into the terrain
+					local look = startCFrame.LookVector
+					local flatLook = Vector3.new(look.X, 0, look.Z).Unit
+					if flatLook.Magnitude < 0.1 then flatLook = Vector3.new(0, 0, -1) end
+					safeReturnCFrame = CFrame.lookAt(Vector3.new(p.X, safeY, p.Z), Vector3.new(p.X + flatLook.X, safeY, p.Z + flatLook.Z))
+				else
+					if getgenv().AddLog then
+						getgenv().AddLog(string.format(
+							"[SKYPEEK RAY MISS] No terrain found below startCF %.2f,%.2f,%.2f — using startCFrame as-is",
+							startCFrame.Position.X, startCFrame.Position.Y, startCFrame.Position.Z
+						))
+					end
+				end
+
+				local finalPos = safeReturnCFrame.Position
+				if getgenv().AddLog then
+					getgenv().AddLog(string.format(
+						"[SKYPEEK SNAP] Snapping HRP to %.2f,%.2f,%.2f | deltaY from startCF=%.3f",
+						finalPos.X, finalPos.Y, finalPos.Z,
+						finalPos.Y - startCFrame.Position.Y
+					))
+				end
+
+				-- Apply snap atomically: hrp.CFrame and _StoredRealCFrame must match
+				-- before the guard releases so Stepped doesn't re-embed into old position.
+				hrp.CFrame = safeReturnCFrame
+				if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
+					getgenv()._StoredRealCFrame = safeReturnCFrame
+				end
+
+				hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+				hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+
+				-- Anchor briefly to kill any built-up collision momentum and reset state
+				hrp.Anchored = true
+				if humanoid then
+					humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+				end
+
+				-- Defer flag release to ensure the server fully replicates the safe surface
+				-- position before Heartbeat resumes applying the deep desync offset.
+				task.delay(0.4, function()
+					if hrp and hrp.Parent then
+						hrp.Anchored = false
+					end
+					if humanoid then
+						humanoid:ChangeState(Enum.HumanoidStateType.Running)
+					end
+					getgenv()._SkyPeekActive = false
+					getgenv()._LastGuardDeactivate = tick()
+					if getgenv().AddLog then
+						getgenv().AddLog("[SKYPEEK FLAG] _SkyPeekActive released → false")
+					end
+				end)
 			end)
 		end
 
@@ -6018,16 +7844,38 @@ table.insert(
 			if currentSpiderTween then
 				currentSpiderTween:Cancel()
 			end
+			if currentSpiderConn then
+				currentSpiderConn:Disconnect()
+			end
+			if currentSpiderValue then
+				currentSpiderValue:Destroy()
+			end
+
+			local startCFrame = (getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim)
+					and getgenv()._StoredRealCFrame
+				or hrp.CFrame
 
 			local distance = 1000
 			local speed = 18 -- 18 studs per second
-			local targetCFrame = hrp.CFrame + Vector3.new(0, distance, 0)
+			local targetCFrame = startCFrame + Vector3.new(0, distance, 0)
+
+			currentSpiderValue = Instance.new("CFrameValue")
+			currentSpiderValue.Value = startCFrame
 
 			currentSpiderTween = _TweenService:Create(
-				hrp,
+				currentSpiderValue,
 				TweenInfo.new(distance / speed, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
-				{ CFrame = targetCFrame }
+				{ Value = targetCFrame }
 			)
+
+			currentSpiderConn = currentSpiderValue.Changed:Connect(function(val)
+				if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
+					getgenv()._StoredRealCFrame = val
+				else
+					hrp.CFrame = val
+				end
+			end)
+
 			currentSpiderTween:Play()
 		end
 	end)
@@ -6036,7 +7884,7 @@ table.insert(
 table.insert(
 	ConnectionList,
 	UserInputService.InputEnded:Connect(function(input, gameProcessed)
-		if gameProcessed then
+		if UserInputService:GetFocusedTextBox() then
 			return
 		end
 		local combatConfig = getgenv().Config.Combat
@@ -6046,9 +7894,125 @@ table.insert(
 				currentSpiderTween:Cancel()
 				currentSpiderTween = nil
 			end
+			if currentSpiderConn then
+				currentSpiderConn:Disconnect()
+				currentSpiderConn = nil
+			end
+			if currentSpiderValue then
+				currentSpiderValue:Destroy()
+				currentSpiderValue = nil
+			end
 		end
 	end)
 )
+
+-- ==========================================
+-- TriggerBot Manager
+-- ==========================================
+local TriggerBotManager = {}
+do
+	local tbConnection = nil
+	local isBotHolding = false
+	local lastPressTime = 0
+
+	function TriggerBotManager.Activate()
+		if tbConnection then
+			return
+		end
+
+		if type(mouse1press) ~= "function" or type(mouse1release) ~= "function" then
+			Library:Notify("[TriggerBot] Executor does not support mouse1press/mouse1release.", 5)
+			return false
+		end
+
+		tbConnection = RunService.RenderStepped:Connect(function()
+			if not getgenv().Config.Combat.TriggerBot then
+				if isBotHolding then
+					mouse1release()
+					isBotHolding = false
+				end
+				return
+			end
+
+			-- Yield to manual player input to prevent interference
+			-- We must ensure we don't yield to OUR OWN simulated click.
+			local userHolding = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+			if userHolding and not isBotHolding then
+				return
+			end
+
+			local config = getgenv().Config.SilentAim
+			local target = TargetManager.CurrentTarget
+			local shouldShoot = false
+
+			if target then
+				local targetPartName = config.TargetPart or "Head"
+				local aimPart = (target.Character and target.Character:FindFirstChild(targetPartName)) or target.Head
+
+				if aimPart then
+					local characterModel = target.Player and target.Player.Character or target.Head.Parent
+					local isVisible = CharacterManager.IsVisible(aimPart, characterModel)
+
+					if isVisible then
+						shouldShoot = true
+					end
+				end
+			end
+
+			if shouldShoot then
+				local now = os.clock()
+				if not isBotHolding then
+					mouse1press()
+					isBotHolding = true
+					lastPressTime = now
+				else
+					-- Pulse the click for semi-autos/shotguns.
+					-- If we've held the mouse down for ~50ms, release it for a single frame.
+					-- On the very next frame, it will immediately press again.
+					-- This maximizes fire rate for single-fire weapons while maintaining spray for autos.
+					if now - lastPressTime > 0.05 then
+						mouse1release()
+						isBotHolding = false
+					end
+				end
+			else
+				if isBotHolding then
+					mouse1release()
+					isBotHolding = false
+				end
+			end
+		end)
+
+		return true
+	end
+
+	function TriggerBotManager.Deactivate()
+		if tbConnection then
+			tbConnection:Disconnect()
+			tbConnection = nil
+		end
+		if isBotHolding and type(mouse1release) == "function" then
+			pcall(mouse1release)
+		end
+		isBotHolding = false
+	end
+
+	getgenv().Toggles.EnableTriggerBot:OnChanged(function(value)
+		getgenv().Config.Combat.TriggerBot = value
+		if value then
+			local ok = TriggerBotManager.Activate()
+			if not ok then
+				task.spawn(function()
+					getgenv().Toggles.EnableTriggerBot:SetValue(false)
+				end)
+			end
+		else
+			TriggerBotManager.Deactivate()
+		end
+	end)
+
+	getgenv()._TriggerBotDeactivate = TriggerBotManager.Deactivate
+end
 
 task.delay(1, function()
 	getgenv()._DeltaScriptSilentToggles = false
