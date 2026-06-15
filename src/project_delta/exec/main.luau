@@ -239,8 +239,8 @@ getgenv().Config = getgenv().Config
 			ShowDistance = true,
 			ShowKDR = true,
 			ChamsEnabled = false,
-			ChamsFillColor = Color3.fromRGB(255, 0, 0),
-			NPCChamsFillColor = Color3.fromRGB(255, 0, 0),
+			ChamsFillColor = Color3.fromHex("#7f4a83"),
+			NPCChamsFillColor = Color3.fromHex("#7f4a83"),
 			ChamsOutlineColor = Color3.fromRGB(255, 255, 255),
 			BoundingBox2DEnabled = false,
 			BoundingBox2DStyle = "Default",
@@ -260,6 +260,9 @@ getgenv().Config = getgenv().Config
 			ExitTextColor = Color3.fromRGB(255, 165, 0),
 			ExitOutlineColor = Color3.fromRGB(0, 0, 0),
 			InventoryViewer = false,
+			LockInventoryViewer = false,
+			InventoryViewerX = nil,
+			InventoryViewerY = nil,
 			InventoryViewerOnlyNecessary = false,
 			InventoryViewerTextSize = 13,
 			ViewmodelBodyChams = false,
@@ -284,8 +287,9 @@ getgenv().Config = getgenv().Config
 			UndergroundDistance = 20,
 			ShowFOV = false,
 			FOVType = "Default",
-			FOVColor = Color3.fromRGB(255, 255, 255),
+			FOVColor = Color3.fromHex("#7f48a3"),
 			ShowSnapline = false,
+			SnaplineColor = Color3.fromHex("#7f48a3"),
 			VisibleCheck = false,
 			VisibleColor = Color3.fromRGB(0, 255, 0),
 			BulletTracers = false,
@@ -297,7 +301,7 @@ getgenv().Config = getgenv().Config
 		Combat = {
 			ShowCrosshair = false,
 			CrosshairType = "Default",
-			CrosshairColor = Color3.fromRGB(255, 255, 255),
+			CrosshairColor = Color3.fromHex("#7f48a3"),
 			CrosshairSize = 13.6,
 			CrosshairDistance = 6.8,
 			TriggerBot = false,
@@ -317,6 +321,7 @@ getgenv().Config = getgenv().Config
 			SkyPeekDistance = 20,
 			SkyPeekDuration = 1.0,
 			SpiderClimbKeybind = "Y",
+			Autopilot = false,
 		},
 		Mods = {
 			ThirdPerson = false,
@@ -335,10 +340,13 @@ getgenv().Config = getgenv().Config
 			HitsoundType = "Rust",
 			HitsoundVolume = 1.0,
 			HitsoundCustomId = "",
+			HitEffects = false,
+			HitEffectsColor = Color3.fromHex("#7f48a3"),
 		},
 		Utilities = {
 			ModDetector = false,
 			ModDetectorVolume = 1.0,
+			LockKeybindHUD = false,
 			KeybindHUDX = nil,
 			KeybindHUDY = nil,
 		},
@@ -371,8 +379,8 @@ local SettingsTab = Window:AddTab("Settings")
 -- ==========================================
 local ESPSection = VisualsTab:AddLeftGroupbox("ESP")
 
-ESPSection:AddToggle("EnableESP", {
-	Text = "Enable ESP",
+ESPSection:AddToggle("ESP", {
+	Text = "ESP",
 	Default = getgenv().Config.ESP.Enabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.Enabled = value
@@ -420,8 +428,8 @@ ESPSection:AddSlider("ESPMaxDistance", {
 	getgenv().Config.ESP.MaxDistance = value
 end)
 
-ESPSection:AddToggle("ShowHealthBar", {
-	Text = "Show Health Bar",
+ESPSection:AddToggle("HealthBar", {
+	Text = "Health Bar",
 	Default = getgenv().Config.ESP.ShowHealthBar,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.ShowHealthBar = value
@@ -468,8 +476,8 @@ end)
 
 ESPSection:AddDivider()
 
-ESPSection:AddToggle("EnableChams", {
-	Text = "Enable Chams",
+ESPSection:AddToggle("Chams", {
+	Text = "Chams",
 	Default = getgenv().Config.ESP.ChamsEnabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.ChamsEnabled = value
@@ -509,8 +517,8 @@ end)
 
 ESPSection:AddDivider()
 
-ESPSection:AddToggle("Enable2DBoundingBox", {
-	Text = "Enable 2D Bounding Box",
+ESPSection:AddToggle("2DBoundingBox", {
+	Text = "2D Bounding Box",
 	Default = getgenv().Config.ESP.BoundingBox2DEnabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.BoundingBox2DEnabled = value
@@ -553,8 +561,8 @@ end)
 
 ESPSection:AddDivider()
 
-ESPSection:AddToggle("EnableNPCESP", {
-	Text = "Enable NPC ESP",
+ESPSection:AddToggle("NPCESP", {
+	Text = "NPC ESP",
 	Default = getgenv().Config.ESP.NPCESPEnabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.NPCESPEnabled = value
@@ -589,8 +597,8 @@ end)
 
 ESPSection:AddDivider()
 
-ESPSection:AddToggle("EnableHelicopterESP", {
-	Text = "Enable Helicopter ESP",
+ESPSection:AddToggle("HelicopterESP", {
+	Text = "Helicopter ESP",
 	Default = getgenv().Config.ESP.HelicopterESPEnabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.HelicopterESPEnabled = value
@@ -625,8 +633,8 @@ end)
 
 ESPSection:AddDivider()
 
-ESPSection:AddToggle("EnableCorpseESP", {
-	Text = "Enable Corpse ESP",
+ESPSection:AddToggle("CorpseESP", {
+	Text = "Corpse ESP",
 	Default = getgenv().Config.ESP.CorpseESPEnabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.CorpseESPEnabled = value
@@ -661,8 +669,8 @@ end)
 
 ESPSection:AddDivider()
 
-ESPSection:AddToggle("EnableExitESP", {
-	Text = "Enable Exit ESP",
+ESPSection:AddToggle("ExitESP", {
+	Text = "Exit ESP",
 	Default = getgenv().Config.ESP.ExitESPEnabled,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.ExitESPEnabled = value
@@ -697,8 +705,8 @@ end)
 
 local BulletTracersSection = VisualsTab:AddRightGroupbox("Bullet Tracers")
 
-BulletTracersSection:AddToggle("EnableBulletTracers", {
-	Text = "Enable Bullet Tracers",
+BulletTracersSection:AddToggle("BulletTracers", {
+	Text = "Bullet Tracers",
 	Default = getgenv().Config.SilentAim.BulletTracers,
 }):OnChanged(function(value)
 	getgenv().Config.SilentAim.BulletTracers = value
@@ -743,8 +751,8 @@ end)
 
 local InventoryViewerSection = VisualsTab:AddRightGroupbox("Inventory Viewer")
 
-InventoryViewerSection:AddToggle("EnableInventoryViewer", {
-	Text = "Enable Inventory Viewer",
+InventoryViewerSection:AddToggle("InventoryViewer", {
+	Text = "Inventory Viewer",
 	Default = getgenv().Config.ESP.InventoryViewer,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.InventoryViewer = value
@@ -752,8 +760,9 @@ end)
 
 InventoryViewerSection:AddToggle("LockInventoryViewer", {
 	Text = "Lock Inventory Viewer",
-	Default = false,
+	Default = getgenv().Config.ESP.LockInventoryViewer,
 }):OnChanged(function(value)
+	getgenv().Config.ESP.LockInventoryViewer = value
 	if getgenv().InventoryViewer then
 		getgenv().InventoryViewer.Locked = value
 	end
@@ -786,8 +795,8 @@ end)
 
 local CharacterSection = VisualsTab:AddRightGroupbox("Character")
 
-CharacterSection:AddToggle("EnableBodyChams", {
-	Text = "Enable Body Chams",
+CharacterSection:AddToggle("BodyChams", {
+	Text = "Body Chams",
 	Default = getgenv().Config.ESP.ViewmodelBodyChams,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.ViewmodelBodyChams = value
@@ -834,8 +843,8 @@ end)
 
 CharacterSection:AddDivider()
 
-CharacterSection:AddToggle("EnableGunChams", {
-	Text = "Enable Gun Chams",
+CharacterSection:AddToggle("GunChams", {
+	Text = "Gun Chams",
 	Default = getgenv().Config.ESP.ViewmodelGunChams,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.ViewmodelGunChams = value
@@ -859,8 +868,8 @@ end)
 
 CharacterSection:AddDivider()
 
-CharacterSection:AddToggle("EnableGunSparkles", {
-	Text = "Enable Gun Sparkles",
+CharacterSection:AddToggle("GunSparkles", {
+	Text = "Gun Sparkles",
 	Default = getgenv().Config.ESP.EnableGunSparkles,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.EnableGunSparkles = value
@@ -888,13 +897,6 @@ CombatSection:AddToggle("InstantHit", {
 	Default = getgenv().Config.Combat.InstantHit,
 }):OnChanged(function(value)
 	getgenv().Config.Combat.InstantHit = value
-end)
-
-CombatSection:AddToggle("Wallbang", {
-	Text = "Wallbang",
-	Default = getgenv().Config.Combat.Wallbang,
-}):OnChanged(function(value)
-	getgenv().Config.Combat.Wallbang = value
 end)
 
 CombatSection:AddToggle("InstantADS", {
@@ -962,7 +964,7 @@ end)
 MovementSection:AddSlider("SkyPeekDuration", {
 	Text = "Sky Peek Duration",
 	Default = getgenv().Config.Combat.SkyPeekDuration,
-	Min = 0.5,
+	Min = 0.1,
 	Max = 2.0,
 	Rounding = 1,
 	Compact = false,
@@ -1024,7 +1026,7 @@ getgenv().Options.UndergroundDesyncKeybind:OnChanged(function()
 end)
 
 AntiAimSection:AddToggle("AntiAim", {
-	Text = "Enabled Anti Aim",
+	Text = "Anti Aim",
 	Default = false,
 }):OnChanged(function(value)
 	getgenv().Config.Combat.AntiAim = value
@@ -1037,10 +1039,148 @@ AntiAimSection:AddToggle("AntiAim", {
 	end
 end)
 
+local AutopilotSection = CombatTab:AddLeftGroupbox("Autopilot")
+
+local function IsVisibleFrameByFrame(targetPart, characterModel)
+	local LocalPlayer = game:GetService("Players").LocalPlayer
+	local Camera = game:GetService("Workspace").CurrentCamera
+	if not LocalPlayer or not LocalPlayer.Character or not Camera then return false end
+
+	local origin = Camera.CFrame.Position
+	local direction = targetPart.Position - origin
+
+	local ignoreList = { LocalPlayer.Character, characterModel }
+	if getgenv().CachedGlobalIgnoreList then
+		for _, v in ipairs(getgenv().CachedGlobalIgnoreList) do
+			table.insert(ignoreList, v)
+		end
+	end
+
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParams.IgnoreWater = false
+	pcall(function() raycastParams.CollisionGroup = "WeaponRay" end)
+	raycastParams.FilterDescendantsInstances = ignoreList
+
+	local result = game:GetService("Workspace"):Raycast(origin, direction, raycastParams)
+	return result == nil
+end
+
+AutopilotSection:AddToggle("Autopilot", {
+	Text = "Autopilot",
+	Default = getgenv().Config.Combat.Autopilot or false,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.Autopilot = value
+	if not getgenv()._DeltaScriptSilentToggles and getgenv().LinoriaLibrary then
+		if value then
+			getgenv().LinoriaLibrary:Notify("Enabled Autopilot", 3)
+		else
+			getgenv().LinoriaLibrary:Notify("Disabled Autopilot", 3)
+		end
+	end
+
+	local isAutoHolding = false
+	local lastAutoPressTime = 0
+
+	if value then
+		if not getgenv()._AutopilotConnection then
+			getgenv()._AutopilotConnection = game:GetService("RunService").RenderStepped:Connect(function()
+				if not (getgenv().Config.Combat.Autopilot and getgenv().Config.SilentAim.Enabled) then
+					if isAutoHolding then
+						if type(mouse1release) == "function" then pcall(mouse1release) end
+						isAutoHolding = false
+					end
+					getgenv()._AutopilotTargetOverride = nil
+					return
+				end
+				
+				local targetPartName = getgenv().Config.SilentAim.TargetPart or "Head"
+
+				
+				local shouldShoot = false
+				local overrideData = nil
+				
+				for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+					if player ~= game:GetService("Players").LocalPlayer then
+						local char = game:GetService("Workspace"):FindFirstChild(player.Name)
+						if char and char:IsA("Model") then
+							local targetPart = char:FindFirstChild(targetPartName) or char:FindFirstChild("Head")
+							if targetPart then
+								local isVis = IsVisibleFrameByFrame(targetPart, char)
+								
+								if isVis then
+									local rootPart = char:FindFirstChild("HumanoidRootPart")
+									local hum = char:FindFirstChildOfClass("Humanoid")
+									local health = (rootPart and rootPart:GetAttribute("Health")) or (hum and hum.Health) or 0
+									
+									if health > 0 then
+										shouldShoot = true
+										overrideData = {
+											Player = player,
+											Character = char,
+											Head = targetPart,
+											RootPart = rootPart,
+											Humanoid = hum,
+											Type = "Player"
+										}
+										break
+									end
+								end
+							end
+						end
+					end
+				end
+				
+				if shouldShoot and overrideData then
+					getgenv()._AutopilotTargetOverride = overrideData
+					local now = os.clock()
+					if not isAutoHolding then
+						if type(mouse1press) == "function" then
+							pcall(mouse1press)
+							isAutoHolding = true
+							lastAutoPressTime = now
+						end
+					else
+						-- Pulse the click every ~50ms to maximize fire rate and align with engine events
+						if now - lastAutoPressTime > 0.05 then
+							if type(mouse1release) == "function" then pcall(mouse1release) end
+							isAutoHolding = false
+						end
+					end
+				else
+					getgenv()._AutopilotTargetOverride = nil
+					if isAutoHolding then
+						if type(mouse1release) == "function" then pcall(mouse1release) end
+						isAutoHolding = false
+					end
+				end
+			end)
+			table.insert(ConnectionList, getgenv()._AutopilotConnection)
+		end
+	else
+		if getgenv()._AutopilotConnection then
+			getgenv()._AutopilotConnection:Disconnect()
+			for i, conn in ipairs(ConnectionList) do
+				if conn == getgenv()._AutopilotConnection then
+					table.remove(ConnectionList, i)
+					break
+				end
+			end
+			getgenv()._AutopilotConnection = nil
+		end
+		
+		getgenv()._AutopilotTargetOverride = nil
+		if isAutoHolding then
+			if type(mouse1release) == "function" then pcall(mouse1release) end
+			isAutoHolding = false
+		end
+	end
+end)
+
 local SilentAimSection = CombatTab:AddRightGroupbox("Aiming")
 
-SilentAimSection:AddToggle("ShowCrosshair", {
-	Text = "Show Crosshair",
+SilentAimSection:AddToggle("Crosshair", {
+	Text = "Crosshair",
 	Default = getgenv().Config.Combat.ShowCrosshair,
 }):OnChanged(function(value)
 	getgenv().Config.Combat.ShowCrosshair = value
@@ -1057,7 +1197,7 @@ getgenv().Options.CrosshairType:OnChanged(function(value)
 end)
 
 SilentAimSection:AddLabel("Crosshair Color"):AddColorPicker("CrosshairColor", {
-	Default = getgenv().Config.Combat.CrosshairColor or Color3.fromRGB(255, 255, 255),
+	Default = getgenv().Config.Combat.CrosshairColor or Color3.fromHex("#7f48a3"),
 	Title = "Crosshair Color",
 })
 getgenv().Options.CrosshairColor:OnChanged(function()
@@ -1090,15 +1230,15 @@ end)
 
 SilentAimSection:AddDivider()
 
-SilentAimSection:AddToggle("EnableTriggerBot", {
-	Text = "Enable Trigger Bot",
+SilentAimSection:AddToggle("TriggerBot", {
+	Text = "Trigger Bot",
 	Default = getgenv().Config.Combat.TriggerBot,
 }):OnChanged(function(value)
 	getgenv().Config.Combat.TriggerBot = value
 end)
 
-SilentAimSection:AddToggle("EnableSilentAim", {
-	Text = "Enable Silent Aim",
+SilentAimSection:AddToggle("SilentAim", {
+	Text = "Silent Aim",
 	Default = getgenv().Config.SilentAim.Enabled,
 }):OnChanged(function(value)
 	getgenv().Config.SilentAim.Enabled = value
@@ -1208,7 +1348,7 @@ end)
 ResolverSection:AddSlider("UndergroundDuration", {
 	Text = "Underground Duration",
 	Default = getgenv().Config.SilentAim.UndergroundDuration or 1.0,
-	Min = 0.5,
+	Min = 0.1,
 	Max = 2.0,
 	Rounding = 1,
 	Compact = false,
@@ -1219,8 +1359,8 @@ end)
 
 SilentAimSection:AddDivider()
 
-SilentAimSection:AddToggle("ShowFOVCircle", {
-	Text = "Show FOV Circle",
+SilentAimSection:AddToggle("FOVCircle", {
+	Text = "FOV Circle",
 	Default = getgenv().Config.SilentAim.ShowFOV,
 }):OnChanged(function(value)
 	getgenv().Config.SilentAim.ShowFOV = value
@@ -1258,8 +1398,8 @@ end)
 
 SilentAimSection:AddDivider()
 
-SilentAimSection:AddToggle("ShowSnapline", {
-	Text = "Show Snapline",
+SilentAimSection:AddToggle("Snapline", {
+	Text = "Snapline",
 	Default = getgenv().Config.SilentAim.ShowSnapline,
 }):OnChanged(function(value)
 	getgenv().Config.SilentAim.ShowSnapline = value
@@ -1273,10 +1413,18 @@ SilentAimSection:AddToggle("VisibleCheckSnapline", {
 end)
 
 SilentAimSection:AddLabel("Snapline Color"):AddColorPicker("SnaplineColor", {
-	Default = getgenv().Config.SilentAim.VisibleColor,
+	Default = getgenv().Config.SilentAim.SnaplineColor,
 	Title = "Snapline Color",
 })
 getgenv().Options.SnaplineColor:OnChanged(function(value)
+	getgenv().Config.SilentAim.SnaplineColor = value
+end)
+
+SilentAimSection:AddLabel("Visible Snapline Color"):AddColorPicker("VisibleSnaplineColor", {
+	Default = getgenv().Config.SilentAim.VisibleColor,
+	Title = "Visible Snapline Color",
+})
+getgenv().Options.VisibleSnaplineColor:OnChanged(function(value)
 	getgenv().Config.SilentAim.VisibleColor = value
 end)
 
@@ -1518,8 +1666,8 @@ end
 
 local HitsoundSection = ModsTab:AddLeftGroupbox("Hitsound")
 
-HitsoundSection:AddToggle("EnableHitsound", {
-	Text = "Enable Hitsound",
+HitsoundSection:AddToggle("Hitsound", {
+	Text = "Hitsound",
 	Default = getgenv().Config.Mods.Hitsound,
 }):OnChanged(function(value)
 	getgenv().Config.Mods.Hitsound = value
@@ -1562,16 +1710,33 @@ getgenv().Options.HitsoundVolume:OnChanged(function(value)
 	getgenv().Config.Mods.HitsoundVolume = value
 end)
 
+HitsoundSection:AddDivider()
+
+HitsoundSection:AddToggle("HitEffects", {
+	Text = "Hit Effects",
+	Default = getgenv().Config.Mods.HitEffects,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.HitEffects = value
+end)
+
+HitsoundSection:AddLabel("Hit Effects Color"):AddColorPicker("HitEffectsColor", {
+	Default = getgenv().Config.Mods.HitEffectsColor,
+	Title = "Hit Effects Color",
+})
+getgenv().Options.HitEffectsColor:OnChanged(function(value)
+	getgenv().Config.Mods.HitEffectsColor = value
+end)
+
 local WorldModsSection = ModsTab:AddRightGroupbox("World")
 
 WorldModsSection:AddToggle("ThirdPerson", {
-	Text = "Enable 3rd Person",
+	Text = "3rd Person",
 	Default = getgenv().Config.Mods.ThirdPerson,
 }):AddKeyPicker("ThirdPersonKeybind", {
 	Default = getgenv().Config.Mods.ThirdPersonKeybind or "J",
 	SyncToggleState = true,
 	Mode = "Toggle",
-	Text = "Enable 3rd Person",
+	Text = "3rd Person",
 	NoUI = false,
 })
 getgenv().Toggles.ThirdPerson:OnChanged(function(value)
@@ -1850,7 +2015,7 @@ end
 local ModDetectorConnection = nil
 
 ModDetectorSection:AddToggle("ModDetector", {
-	Text = "Enable Mod Detector",
+	Text = "Mod Detector",
 	Default = getgenv().Config.Utilities.ModDetector,
 }):OnChanged(function(value)
 	getgenv().Config.Utilities.ModDetector = value
@@ -1983,7 +2148,7 @@ end)
 -- [Stepped] Fires before physics simulation/network replication.
 -- Spoofs RootJoint with a WORLD-SPACE horizontal-only offset so it replicates to enemies.
 -- World-space Y=0 means no fly hack regardless of HRP pitch/tilt.
-local _steppedDbgTick = 0
+-- World-space Y=0 means no fly hack regardless of HRP pitch/tilt.
 local steppedRestoreConnection = RunService.Stepped:Connect(function()
 	local isDesync = getgenv().Config.Combat.UndergroundDesync
 	local isAntiAim = getgenv().Config.Combat.AntiAim
@@ -1995,29 +2160,39 @@ local steppedRestoreConnection = RunService.Stepped:Connect(function()
 		local prevPos = HRP.CFrame.Position
 		-- If the server rubberbands the player drastically (e.g., > 15 studs),
 		-- accept the server's position to prevent an infinite fight and a Noclip kick.
+		-- EXCEPTION: never accept a server correction that lands below Y=0 while the
+		-- stored position is above ground. After UGR+desync the server still thinks the
+		-- player is at the underground target position and sends a rubber-band correction
+		-- once our 1.5s guard window expires. Accepting that would lock _StoredRealCFrame
+		-- underground and trigger a void-fall loop.
 		local guardBlocked = getgenv()._UndergroundResolverActive or getgenv()._SkyPeekActive
-		if not guardBlocked and (tick() - (getgenv()._LastGuardDeactivate or 0) > 1.5) and (prevPos - getgenv()._StoredRealCFrame.Position).Magnitude > 15 then
-			getgenv()._StoredRealCFrame = HRP.CFrame
-		end
-		HRP.CFrame = getgenv()._StoredRealCFrame
-		-- Debug: log every 30 Stepped ticks when UGR or SkyPeek just deactivated
-		_steppedDbgTick = _steppedDbgTick + 1
-		if _steppedDbgTick >= 30 then
-			_steppedDbgTick = 0
-			if getgenv().AddLog then
-				local stored = getgenv()._StoredRealCFrame.Position
-				getgenv().AddLog(string.format(
-					"[Stepped] HRP %.2f,%.2f,%.2f → Stored %.2f,%.2f,%.2f | UGR=%s SPeek=%s",
-					prevPos.X, prevPos.Y, prevPos.Z,
-					stored.X, stored.Y, stored.Z,
-					tostring(getgenv()._UndergroundResolverActive == true),
-					tostring(getgenv()._SkyPeekActive == true)
-				))
+		if
+			not guardBlocked
+			and (tick() - (getgenv()._LastGuardDeactivate or 0) > 1.5)
+			and (prevPos - getgenv()._StoredRealCFrame.Position).Magnitude > 15
+		then
+			local serverPos = HRP.CFrame.Position
+			local storedPos = getgenv()._StoredRealCFrame.Position
+			if serverPos.Y < 0 and storedPos.Y > 0 then
+				-- Server wants us underground while we are above ground: this is the
+				-- desync rubber-band. Reject it and push HRP back to surface.
+				HRP.CFrame = getgenv()._StoredRealCFrame
+				HRP.AssemblyLinearVelocity = Vector3.zero
+				HRP.AssemblyAngularVelocity = Vector3.zero
+				if getgenv().AddLog then
+					getgenv().AddLog(string.format(
+						"[Stepped REJECT] Server RB underground blocked: serverY=%.1f storedY=%.1f",
+						serverPos.Y, storedPos.Y
+					))
+				end
+			else
+				-- Legitimate large correction (respawn, game teleport): accept.
+				getgenv()._StoredRealCFrame = HRP.CFrame
 			end
 		end
+		HRP.CFrame = getgenv()._StoredRealCFrame
+
 	end
-
-
 
 	-- Layer 1: Spoof RootJoint for physics replication
 	if isAntiAim and Character and HRP then
@@ -2052,8 +2227,7 @@ local steppedRestoreConnection = RunService.Stepped:Connect(function()
 			-- Downward raycast: ensure there is ground below the offset position
 			-- Without this, body parts appear to float over ledges → fly hack detected
 			local offsetPos = origin + worldOffset
-			local groundHit =
-				workspace:Raycast(offsetPos + Vector3.new(0, 3, 0), Vector3.new(0, -20, 0), raycastParams)
+			local groundHit = workspace:Raycast(offsetPos + Vector3.new(0, 3, 0), Vector3.new(0, -20, 0), raycastParams)
 			if not groundHit then
 				-- No ground at offset position — collapse offset to zero to avoid fly detection
 				worldOffset = Vector3.zero
@@ -2084,34 +2258,33 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 	if isDesync or isUGR or isAntiAim then
 		local guardBlocked = getgenv()._UndergroundResolverActive or getgenv()._SkyPeekActive
 		if not guardBlocked then
-			-- Capture real position — log when something looks wrong (Y too low = inside terrain)
+			-- Capture real position.
+			-- Guard against server rubber-band corrections that happen inside the physics
+			-- step (between Stepped and Heartbeat). If the server teleported HRP more than
+			-- 10 studs into underground territory (Y < 0) while the stored position is
+			-- above ground, this is NOT legitimate player movement — it is the server
+			-- trying to correct us to the old UGR desync position. Reject and snap back.
 			local captured = HRP.CFrame
-			if getgenv().AddLog and getgenv()._StoredRealCFrame then
+			local jumpRejected = false
+			if getgenv()._StoredRealCFrame then
 				local prev = getgenv()._StoredRealCFrame.Position
-				local cur  = captured.Position
-				local dy   = cur.Y - prev.Y
-				-- Flag sudden downward jumps > 1 stud between frames (sign of geometry push-through)
-				if dy < -1 then
-					getgenv().AddLog(string.format(
-						"[HB WARN] _StoredRealCFrame dropped %.2f studs! prev=%.2f cur=%.2f | HRP actual Y=%.2f",
-						dy, prev.Y, cur.Y, HRP.CFrame.Position.Y
-					))
-				end
+				local cur = captured.Position
+				local _dy = cur.Y - prev.Y
+				local jumpMag = (cur - prev).Magnitude
+				if jumpMag > 10 and cur.Y < 0 and prev.Y > 0 then
+					-- Server rubber-band to underground detected: reject this frame's capture
+					-- and immediately counter-snap HRP back to the last known surface position.
+					jumpRejected = true
+					HRP.CFrame = getgenv()._StoredRealCFrame
+					HRP.AssemblyLinearVelocity = Vector3.zero
+					HRP.AssemblyAngularVelocity = Vector3.zero
+					end
 			end
-			getgenv()._StoredRealCFrame = captured
+			if not jumpRejected then
+				getgenv()._StoredRealCFrame = captured
+			end
 		else
-			-- Guard is active: log every 60 ticks to confirm we're not leaking
-			desyncTick = desyncTick + 1
-			if desyncTick >= 60 and getgenv().AddLog then
-				desyncTick = 0
-				local stored = getgenv()._StoredRealCFrame
-				getgenv().AddLog(string.format(
-					"[HB GUARD] UGR=%s SPeek=%s | Stored=%.2f,%.2f,%.2f | HRP=%.2f,%.2f,%.2f",
-					tostring(isUGR), tostring(getgenv()._SkyPeekActive == true),
-					stored and stored.Position.X or 0, stored and stored.Position.Y or 0, stored and stored.Position.Z or 0,
-					HRP.CFrame.Position.X, HRP.CFrame.Position.Y, HRP.CFrame.Position.Z
-				))
-			end
+			-- Guard is active
 		end
 		getgenv()._realVelocity = HRP.AssemblyLinearVelocity
 		getgenv()._realRotVelocity = HRP.AssemblyAngularVelocity
@@ -2240,9 +2413,8 @@ if not getgenv().DesyncHooked then
 				local isDesync = getgenv().Config.Combat.UndergroundDesync
 				local isAntiAim = getgenv().Config.Combat.AntiAim
 				local isUGR = getgenv()._UndergroundResolverActive
-				local isWB = getgenv()._WallbangActive
 
-				if (isDesync or isUGR or isAntiAim or isWB) and getgenv()._StoredRealCFrame then
+				if (isDesync or isUGR or isAntiAim) and getgenv()._StoredRealCFrame then
 					if key == "CFrame" or key == "Position" then
 						local char = getTargetCharacter()
 						if
@@ -2304,9 +2476,8 @@ if not getgenv().DesyncHooked then
 					local isDesync = getgenv().Config.Combat.UndergroundDesync
 					local isAntiAim = getgenv().Config.Combat.AntiAim
 					local isUGR = getgenv()._UndergroundResolverActive
-					local isWB = getgenv()._WallbangActive
 
-					if (isDesync or isUGR or isAntiAim or isWB) and getgenv()._StoredRealCFrame then
+					if (isDesync or isUGR or isAntiAim) and getgenv()._StoredRealCFrame then
 						local char = getTargetCharacter()
 						if char and typeof(self) == "Instance" then
 							local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -2346,43 +2517,7 @@ if not getgenv().DesyncHooked then
 						return oldNamecall(self, table.unpack(args))
 					end
 
-					-- Always log the bullet creation and damage remotes so we can reverse engineer the structure
-					-- Also log ALL remotes if Absolute Anti-Aim is active
-					if
-						remoteName ~= "UpdateTilt"
-						and ((remoteName == "ProjectileInflict" or remoteName == "FireProjectile" or remoteName == "DamageIndicator") or getgenv().Config.Combat.AntiAim)
-						and getgenv().AddLog
-					then
-						local args = { ... }
-						local function dumpVar(v)
-							if type(v) == "table" then
-								local s = "{"
-								for k2, v2 in pairs(v) do
-									s = s
-										.. tostring(k2)
-										.. "="
-										.. (type(v2) == "table" and "{...}" or tostring(v2))
-										.. ", "
-								end
-								return s .. "}"
-							elseif typeof(v) == "Instance" then
-								return "Instance(" .. v.ClassName .. ":" .. v.Name .. ")"
-							else
-								return tostring(v)
-							end
-						end
-						local argParts = {}
-						for i, v in ipairs(args) do
-							argParts[i] = string.format("[%d] (%s) %s", i, typeof(v), dumpVar(v))
-						end
-						local logMsg = "Remote Spy ["
-							.. method
-							.. "] "
-							.. remoteName
-							.. ":\n  "
-							.. table.concat(argParts, "\n  ")
-						getgenv().AddLog(logMsg)
-					end
+
 
 					if getgenv()._IH_Interceptor then
 						local shouldDrop, postAction, modArgs = getgenv()._IH_Interceptor(method, remoteName, { ... })
@@ -2413,9 +2548,11 @@ UISection:AddButton("Unload", function() end)
 
 UISection:AddToggle("LockKeybindHUD", {
 	Text = "Lock Keybinds HUD",
-	Default = false,
+	Default = getgenv().Config.Utilities.LockKeybindHUD,
 })
-getgenv().Toggles.LockKeybindHUD:OnChanged(function(val) end)
+getgenv().Toggles.LockKeybindHUD:OnChanged(function(val)
+	getgenv().Config.Utilities.LockKeybindHUD = val
+end)
 
 UISection:AddLabel("Menu Keybind"):AddKeyPicker("MenuKeybind", {
 	Default = "RightControl",
@@ -2582,9 +2719,9 @@ local function applyLoadedConfig(data)
 	end
 
 	if data.ESP then
-		safeSetToggle("EnableESP", data.ESP.Enabled)
+		safeSetToggle("ESP", data.ESP.Enabled)
 		safeSetOption("ESPMaxDistance", data.ESP.MaxDistance)
-		safeSetToggle("ShowHealthBar", data.ESP.ShowHealthBar)
+		safeSetToggle("HealthBar", data.ESP.ShowHealthBar)
 		safeSetColorPicker("TextColor", parseColor(data.ESP.TextColor))
 		safeSetColorPicker("OutlineColor", parseColor(data.ESP.OutlineColor))
 		safeSetOption("TextSize", data.ESP.TextSize)
@@ -2594,13 +2731,13 @@ local function applyLoadedConfig(data)
 			safeSetOption("ESPFont", fontMapReverse[data.ESP.Font] or "Plex")
 		end
 
-		safeSetToggle("EnableChams", data.ESP.ChamsEnabled)
+		safeSetToggle("Chams", data.ESP.ChamsEnabled)
 		safeSetColorPicker("ChamsFillColor", parseColor(data.ESP.ChamsFillColor))
 		safeSetColorPicker("NPCChamsFillColor", parseColor(data.ESP.NPCChamsFillColor))
 		safeSetColorPicker("ChamsOutlineColor", parseColor(data.ESP.ChamsOutlineColor))
 
 		if data.ESP.BoundingBox2DEnabled ~= nil then
-			safeSetToggle("Enable2DBoundingBox", data.ESP.BoundingBox2DEnabled)
+			safeSetToggle("2DBoundingBox", data.ESP.BoundingBox2DEnabled)
 		end
 		if data.ESP.BoundingBox2DStyle ~= nil then
 			safeSetOption("BoundingBox2DStyle", data.ESP.BoundingBox2DStyle)
@@ -2612,49 +2749,53 @@ local function applyLoadedConfig(data)
 		safeSetToggle("VisibleCheck", data.ESP.VisibleCheck)
 		safeSetColorPicker("VisibleColor", parseColor(data.ESP.VisibleColor))
 
-		safeSetToggle("EnableBodyChams", data.ESP.ViewmodelBodyChams)
+		safeSetToggle("BodyChams", data.ESP.ViewmodelBodyChams)
 		safeSetColorPicker("BodyChamsFillColor", parseColor(data.ESP.ViewmodelBodyFillColor))
 		safeSetColorPicker("BodyChamsOutlineColor", parseColor(data.ESP.ViewmodelBodyOutlineColor))
 
-		safeSetToggle("EnableGunChams", data.ESP.ViewmodelGunChams)
+		safeSetToggle("GunChams", data.ESP.ViewmodelGunChams)
 		safeSetColorPicker("GunChamsFillColor", parseColor(data.ESP.ViewmodelGunFillColor))
 		safeSetColorPicker("GunChamsOutlineColor", parseColor(data.ESP.ViewmodelGunOutlineColor))
 
-		safeSetToggle("EnableGunSparkles", data.ESP.EnableGunSparkles)
+		safeSetToggle("GunSparkles", data.ESP.EnableGunSparkles)
 		safeSetOption("GunGlowIntensity", data.ESP.GunGlowIntensity)
 
 		safeSetOption("ViewmodelChamsTransparency", data.ESP.ViewmodelChamsTransparency)
 
-		safeSetToggle("EnableNPCESP", data.ESP.NPCESPEnabled)
+		safeSetToggle("NPCESP", data.ESP.NPCESPEnabled)
 		safeSetColorPicker("NPCTextColor", parseColor(data.ESP.NPCTextColor))
 		safeSetColorPicker("NPCOutlineColor", parseColor(data.ESP.NPCOutlineColor))
 
-		safeSetToggle("EnableHelicopterESP", data.ESP.HelicopterESPEnabled)
+		safeSetToggle("HelicopterESP", data.ESP.HelicopterESPEnabled)
 		safeSetColorPicker("HelicopterTextColor", parseColor(data.ESP.HelicopterTextColor))
 		safeSetColorPicker("HelicopterOutlineColor", parseColor(data.ESP.HelicopterOutlineColor))
 
-		safeSetToggle("EnableCorpseESP", data.ESP.CorpseESPEnabled)
+		safeSetToggle("CorpseESP", data.ESP.CorpseESPEnabled)
 		safeSetColorPicker("CorpseTextColor", parseColor(data.ESP.CorpseTextColor))
 		safeSetColorPicker("CorpseOutlineColor", parseColor(data.ESP.CorpseOutlineColor))
 
-		safeSetToggle("EnableExitESP", data.ESP.ExitESPEnabled)
+		safeSetToggle("ExitESP", data.ESP.ExitESPEnabled)
 		safeSetColorPicker("ExitTextColor", parseColor(data.ESP.ExitTextColor))
 		safeSetColorPicker("ExitOutlineColor", parseColor(data.ESP.ExitOutlineColor))
 
-		safeSetToggle("EnableInventoryViewer", data.ESP.InventoryViewer)
+		safeSetToggle("InventoryViewer", data.ESP.InventoryViewer)
 		safeSetToggle("InventoryViewerOnlyNecessary", data.ESP.InventoryViewerOnlyNecessary)
 		safeSetOption("InventoryViewerTextSize", data.ESP.InventoryViewerTextSize)
-		safeSetToggle("LockInventoryViewer", false)
+		safeSetToggle("LockInventoryViewer", data.ESP.LockInventoryViewer)
+		if data.ESP.InventoryViewerX and data.ESP.InventoryViewerY then
+			getgenv().Config.ESP.InventoryViewerX = data.ESP.InventoryViewerX
+			getgenv().Config.ESP.InventoryViewerY = data.ESP.InventoryViewerY
+		end
 	end
 
 	if data.SilentAim then
-		safeSetToggle("EnableBulletTracers", data.SilentAim.BulletTracers)
+		safeSetToggle("BulletTracers", data.SilentAim.BulletTracers)
 		safeSetToggle("TracerGlowEffect", data.SilentAim.TracerGlowEffect)
 		safeSetOption("TracerType", data.SilentAim.TracerType)
 		safeSetColorPicker("TracerColor", parseColor(data.SilentAim.TracerColor))
 		safeSetOption("TracerTransparency", data.SilentAim.TracerTransparency)
 
-		safeSetToggle("EnableSilentAim", data.SilentAim.Enabled)
+		safeSetToggle("SilentAim", data.SilentAim.Enabled)
 		safeSetOption("SilentAimTargetType", data.SilentAim.TargetType)
 		safeSetOption("SilentAimTargetPart", data.SilentAim.TargetPart)
 		if data.SilentAim.WhitelistPlayers then
@@ -2667,17 +2808,18 @@ local function applyLoadedConfig(data)
 		if data.SilentAim.UndergroundDistance then
 			safeSetOption("UndergroundDistance", data.SilentAim.UndergroundDistance)
 		end
-		safeSetToggle("ShowFOVCircle", data.SilentAim.ShowFOV)
+		safeSetToggle("FOVCircle", data.SilentAim.ShowFOV)
 		safeSetOption("FOVType", data.SilentAim.FOVType)
 		safeSetColorPicker("FOVColor", parseColor(data.SilentAim.FOVColor))
 		safeSetOption("FOVRadius", data.SilentAim.FOVRadius)
-		safeSetToggle("ShowSnapline", data.SilentAim.ShowSnapline)
+		safeSetToggle("Snapline", data.SilentAim.ShowSnapline)
 		safeSetToggle("VisibleCheckSnapline", data.SilentAim.VisibleCheck)
-		safeSetColorPicker("SnaplineColor", parseColor(data.SilentAim.VisibleColor))
+		safeSetColorPicker("SnaplineColor", parseColor(data.SilentAim.SnaplineColor))
+		safeSetColorPicker("VisibleSnaplineColor", parseColor(data.SilentAim.VisibleColor))
 	end
 
 	if data.Combat then
-		safeSetToggle("ShowCrosshair", data.Combat.ShowCrosshair)
+		safeSetToggle("Crosshair", data.Combat.ShowCrosshair)
 		if data.Combat.CrosshairType then
 			safeSetOption("CrosshairType", data.Combat.CrosshairType)
 		end
@@ -2690,7 +2832,7 @@ local function applyLoadedConfig(data)
 		if data.Combat.CrosshairDistance then
 			safeSetOption("CrosshairDistance", data.Combat.CrosshairDistance)
 		end
-		safeSetToggle("EnableTriggerBot", data.Combat.TriggerBot)
+		safeSetToggle("TriggerBot", data.Combat.TriggerBot)
 		safeSetToggle("InstantHit", data.Combat.InstantHit)
 		safeSetToggle("UndergroundDesync", false)
 		safeSetKeyPicker("UndergroundDesyncKeybind", data.Combat.UndergroundDesyncKeybind, "Toggle")
@@ -2715,10 +2857,14 @@ local function applyLoadedConfig(data)
 	end
 
 	if data.Mods then
-		safeSetToggle("EnableHitsound", data.Mods.Hitsound)
+		safeSetToggle("Hitsound", data.Mods.Hitsound)
 		safeSetOption("HitsoundType", data.Mods.HitsoundType)
 		safeSetOption("CustomSoundAssetIDorLocalFile", data.Mods.HitsoundCustomId)
 		safeSetOption("HitsoundVolume", data.Mods.HitsoundVolume)
+		safeSetToggle("HitEffects", data.Mods.HitEffects)
+		if data.Mods.HitEffectsColor then
+			safeSetColorPicker("HitEffectsColor", parseColor(data.Mods.HitEffectsColor))
+		end
 
 		-- Always default ThirdPerson to false upon loading; only load its keybind
 		safeSetToggle("ThirdPerson", false)
@@ -2738,7 +2884,7 @@ local function applyLoadedConfig(data)
 	if data.Utilities then
 		safeSetToggle("ModDetector", data.Utilities.ModDetector)
 		safeSetOption("ModDetectorVolume", data.Utilities.ModDetectorVolume)
-		safeSetToggle("LockKeybindHUD", false)
+		safeSetToggle("LockKeybindHUD", data.Utilities.LockKeybindHUD)
 		if data.Utilities.KeybindHUDX and data.Utilities.KeybindHUDY then
 			getgenv().Config.Utilities.KeybindHUDX = data.Utilities.KeybindHUDX
 			getgenv().Config.Utilities.KeybindHUDY = data.Utilities.KeybindHUDY
@@ -3178,6 +3324,10 @@ local TargetManager = {
 }
 
 function TargetManager.GetClosestTargetToMouse()
+	if getgenv()._AutopilotTargetOverride then
+		return getgenv()._AutopilotTargetOverride
+	end
+
 	local config = getgenv().Config.SilentAim
 	local targetType = config.TargetType or "Players"
 
@@ -3390,7 +3540,7 @@ function CombatManager.Update()
 				)
 			CombatManager.Snapline.From = mouseLocation
 			CombatManager.Snapline.To = Vector2.new(screenPosition.X, screenPosition.Y)
-			CombatManager.Snapline.Color = isVisible3D and config.VisibleColor or Color3.fromRGB(255, 0, 0)
+			CombatManager.Snapline.Color = isVisible3D and config.VisibleColor or config.SnaplineColor
 			CombatManager.Snapline.Visible = true
 		else
 			CombatManager.Snapline.Visible = false
@@ -3405,7 +3555,7 @@ function CombatManager.Update()
 		if camera then
 			local center = camera.ViewportSize / 2
 			local cType = getgenv().Config.Combat.CrosshairType
-			local cColor = getgenv().Config.Combat.CrosshairColor or Color3.fromRGB(255, 255, 255)
+			local cColor = getgenv().Config.Combat.CrosshairColor or Color3.fromHex("#7f48a3")
 			local time = os.clock()
 
 			if cType == "Default" then
@@ -3653,9 +3803,9 @@ function KeybindHUDManager.Update()
 			end,
 		},
 		{
-			Name = "Wallbang",
+			Name = "Autopilot",
 			GetState = function()
-				return getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.Wallbang
+				return getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.Autopilot
 			end,
 			GetMode = function()
 				return "(Toggle)"
@@ -3997,75 +4147,7 @@ end
 local espOffsetRoot = Vector3.new(0, 3, 0)
 local espOffsetHead = Vector3.new(0, 1.5, 0)
 
-function ESPManager.Update()
-	local config = getgenv().Config.ESP
-	local anyActive = config.Enabled
-		or config.ChamsEnabled
-		or config.CorpseESPEnabled
-		or config.ExitESPEnabled
-		or config.NPCESPEnabled
-
-	if not anyActive then
-		for _, cacheData in pairs(ESPManager.Cache) do
-			if type(cacheData) == "table" then
-				cacheData.Text:Remove()
-				if cacheData.DistanceText then
-					cacheData.DistanceText:Remove()
-				end
-				if cacheData.Bg then
-					cacheData.Bg:Remove()
-				end
-				if cacheData.Bar then
-					cacheData.Bar:Remove()
-				end
-			else
-				cacheData:Remove()
-			end
-		end
-		table.clear(ESPManager.Cache)
-		for _, highlight in pairs(getgenv().DeltaChamsCache) do
-			highlight:Destroy()
-		end
-		table.clear(getgenv().DeltaChamsCache)
-		return
-	end
-
-	local activeCharacters = CharacterManager.GetActiveCharacters() or {}
-	local activeNPCs = CharacterManager.GetNPCs() or {}
-	local activeCorpses = config.CorpseESPEnabled and CharacterManager.GetCorpses() or {}
-	local activeExits = config.ExitESPEnabled and CharacterManager.GetExits() or {}
-	local activeHelicopterESP = CharacterManager.GetHelicopterESP() or {}
-
-	-- Text ESP Cleanup
-	for cachedCharacter, cacheData in pairs(ESPManager.Cache) do
-		if
-			not activeCharacters[cachedCharacter]
-			and not activeNPCs[cachedCharacter]
-			and not activeCorpses[cachedCharacter]
-			and not activeExits[cachedCharacter]
-			and not activeHelicopterESP[cachedCharacter]
-		then
-			ESPManager.RemoveDrawing(cachedCharacter)
-		end
-	end
-
-	-- Chams ESP Cleanup
-	for cachedCharacter, highlight in pairs(getgenv().DeltaChamsCache) do
-		local isStale = not activeCharacters[cachedCharacter]
-			and not activeNPCs[cachedCharacter]
-			and not activeHelicopterESP[cachedCharacter]
-		local shouldRemove = isStale or not config.ChamsEnabled
-
-		if shouldRemove then
-			highlight:Destroy()
-			getgenv().DeltaChamsCache[cachedCharacter] = nil
-		end
-	end
-
-	local camPos = Camera.CFrame.Position
-	local worldToViewportPoint = Camera.WorldToViewportPoint
-
-	local function DrawEntity(character, data)
+local function DrawEntity(character, data, config, config_sa, camPos, worldToViewportPoint)
 		local distStuds = (camPos - data.Head.Position).Magnitude
 		local distMeters = math.floor(distStuds * 0.28)
 		if distMeters > (config.MaxDistance or 1500) then
@@ -4085,7 +4167,7 @@ function ESPManager.Update()
 			and not data.IsExit
 			and (config.Enabled or config.ChamsEnabled or config.NPCESPEnabled or config.HelicopterESPEnabled)
 		then
-			local targetPartName = getgenv().Config.SilentAim.TargetPart or "Head"
+			local targetPartName = config_sa.TargetPart or "Head"
 			local aimPart = (character and character:FindFirstChild(targetPartName)) or data.Head
 			isVisible3D = CharacterManager.IsVisible(aimPart, character)
 		end
@@ -4447,21 +4529,90 @@ function ESPManager.Update()
 			end
 		end
 	end
+function ESPManager.Update()
+	local config_sa = getgenv().Config.SilentAim
+	local config = getgenv().Config.ESP
+	local anyActive = config.Enabled
+		or config.ChamsEnabled
+		or config.CorpseESPEnabled
+		or config.ExitESPEnabled
+		or config.NPCESPEnabled
+
+	if not anyActive then
+		for _, cacheData in pairs(ESPManager.Cache) do
+			if type(cacheData) == "table" then
+				cacheData.Text:Remove()
+				if cacheData.DistanceText then
+					cacheData.DistanceText:Remove()
+				end
+				if cacheData.Bg then
+					cacheData.Bg:Remove()
+				end
+				if cacheData.Bar then
+					cacheData.Bar:Remove()
+				end
+			else
+				cacheData:Remove()
+			end
+		end
+		table.clear(ESPManager.Cache)
+		for _, highlight in pairs(getgenv().DeltaChamsCache) do
+			highlight:Destroy()
+		end
+		table.clear(getgenv().DeltaChamsCache)
+		return
+	end
+
+	local activeCharacters = CharacterManager.GetActiveCharacters() or {}
+	local activeNPCs = CharacterManager.GetNPCs() or {}
+	local activeCorpses = config.CorpseESPEnabled and CharacterManager.GetCorpses() or {}
+	local activeExits = config.ExitESPEnabled and CharacterManager.GetExits() or {}
+	local activeHelicopterESP = CharacterManager.GetHelicopterESP() or {}
+
+	-- Text ESP Cleanup
+	for cachedCharacter, cacheData in pairs(ESPManager.Cache) do
+		if
+			not activeCharacters[cachedCharacter]
+			and not activeNPCs[cachedCharacter]
+			and not activeCorpses[cachedCharacter]
+			and not activeExits[cachedCharacter]
+			and not activeHelicopterESP[cachedCharacter]
+		then
+			ESPManager.RemoveDrawing(cachedCharacter)
+		end
+	end
+
+	-- Chams ESP Cleanup
+	for cachedCharacter, highlight in pairs(getgenv().DeltaChamsCache) do
+		local isStale = not activeCharacters[cachedCharacter]
+			and not activeNPCs[cachedCharacter]
+			and not activeHelicopterESP[cachedCharacter]
+		local shouldRemove = isStale or not config.ChamsEnabled
+
+		if shouldRemove then
+			highlight:Destroy()
+			getgenv().DeltaChamsCache[cachedCharacter] = nil
+		end
+	end
+
+	local camPos = Camera.CFrame.Position
+	local worldToViewportPoint = Camera.WorldToViewportPoint
+
 
 	for character, data in pairs(activeCharacters) do
-		DrawEntity(character, data)
+		DrawEntity(character, data, config, config_sa, camPos, worldToViewportPoint)
 	end
 	for character, data in pairs(activeNPCs) do
-		DrawEntity(character, data)
+		DrawEntity(character, data, config, config_sa, camPos, worldToViewportPoint)
 	end
 	for character, data in pairs(activeCorpses) do
-		DrawEntity(character, data)
+		DrawEntity(character, data, config, config_sa, camPos, worldToViewportPoint)
 	end
 	for character, data in pairs(activeExits) do
-		DrawEntity(character, data)
+		DrawEntity(character, data, config, config_sa, camPos, worldToViewportPoint)
 	end
 	for character, data in pairs(activeHelicopterESP) do
-		DrawEntity(character, data)
+		DrawEntity(character, data, config, config_sa, camPos, worldToViewportPoint)
 	end
 end
 
@@ -4814,7 +4965,7 @@ if BulletMod then
 					local targetPartName = getgenv().Config.SilentAim.TargetPart or "Head"
 					local targetAimPart = (target.Character and target.Character:FindFirstChild(targetPartName))
 						or target.Head
-					local targetRoot = target.RootPart
+					local targetRoot = target.RootPart or (target.Character and target.Character:FindFirstChild("HumanoidRootPart")) or targetAimPart
 
 					local ammoName = type(args[7]) == "string" and args[7] or ""
 					getgenv().LastFiredAmmoName = ammoName
@@ -5306,44 +5457,121 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 
 	if method == "FireServer" then
 		local selfName = typeof(self) == "Instance" and self.Name or ""
+
+
 		if selfName == "ProjectileInflict" or selfName == "MeleeInflict" or selfName == "MeleeInfIict" then
 			getgenv().LastDamageInflictedTime = tick()
 
-			if getgenv().Config and getgenv().Config.Mods and getgenv().Config.Mods.Hitsound then
+			if
+				getgenv().Config
+				and getgenv().Config.Mods
+				and (getgenv().Config.Mods.Hitsound or getgenv().Config.Mods.HitEffects)
+			then
 				local targetPart = args[1]
 				if targetPart and typeof(targetPart) == "Instance" then
 					local character = targetPart:FindFirstAncestorOfClass("Model")
 					if character then
 						local root = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart") or character
 						local function getHealth()
-							return root:GetAttribute("Health")
-								or (character:FindFirstChildOfClass("Humanoid") and character:FindFirstChildOfClass(
-									"Humanoid"
-								).Health)
-								or 100
-						end
-
-						local initialHealth = getHealth()
-						task.spawn(function()
-							local startTime = tick()
-							while tick() - startTime < 1 do
-								task.wait(0.05)
-								local currentHealth = getHealth()
-								if currentHealth < initialHealth then
-									local now = tick()
-									if
-										not getgenv().LastCustomHitsound
-										or (now - getgenv().LastCustomHitsound) > 0.05
-									then
-										getgenv().LastCustomHitsound = now
-										if getgenv().HitsoundManager and getgenv().HitsoundManager.Play then
-											getgenv().HitsoundManager.Play()
-										end
-									end
-									break
+							if not character or not character.Parent then
+								return 0
+							end
+							if root then
+								local h = root:GetAttribute("Health")
+								if h then
+									return h
 								end
 							end
-						end)
+							local hum = character:FindFirstChildOfClass("Humanoid")
+							if hum then
+								return hum.Health
+							end
+							return 100
+						end
+
+						local hitPos = targetPart:IsA("BasePart") and targetPart.Position or Vector3.new()
+
+						getgenv().RecentHits = getgenv().RecentHits or {}
+						getgenv().MonitoredCharacters = getgenv().MonitoredCharacters or {}
+
+						local recentHits = getgenv().RecentHits
+						local monitoredChars = getgenv().MonitoredCharacters
+						local genv = getgenv()
+
+						recentHits[character] = { time = os.clock(), part = targetPart, pos = hitPos }
+
+						if not monitoredChars[character] then
+							monitoredChars[character] = true
+							task.spawn(function()
+								local lastHealth = getHealth()
+								while character and character.Parent and lastHealth > 0 do
+									task.wait(0.05)
+									local currentHealth = getHealth()
+
+									if currentHealth < lastHealth then
+										local damageDealt = math.floor(lastHealth - currentHealth)
+										lastHealth = currentHealth
+
+										local hitData = recentHits[character]
+										if hitData and (os.clock() - hitData.time) < 1.0 then
+											local isKill = (currentHealth <= 0)
+											local now = os.clock()
+
+											if
+												not genv.LastCustomHitsound
+												or (now - genv.LastCustomHitsound) > 0.05
+											then
+												genv.LastCustomHitsound = now
+												if genv.HitsoundManager and genv.HitsoundManager.Play then
+													genv.HitsoundManager.Play()
+												end
+												if genv.HitEffectManager and genv.HitEffectManager.Play then
+													genv.HitEffectManager.Play(
+														hitData.part,
+														hitData.pos,
+														damageDealt,
+														isKill
+													)
+												end
+											elseif isKill then
+												if genv.HitEffectManager and genv.HitEffectManager.Play then
+													genv.HitEffectManager.Play(
+														hitData.part,
+														hitData.pos,
+														damageDealt,
+														true
+													)
+												end
+											end
+
+											if isKill then
+												recentHits[character] = nil
+												break
+											end
+										end
+									elseif currentHealth > lastHealth then
+										lastHealth = currentHealth
+									end
+								end
+
+								local hitData = recentHits[character]
+								if hitData and (os.clock() - hitData.time) < 1.0 then
+									local now = os.clock()
+									if not genv.LastCustomHitsound or (now - genv.LastCustomHitsound) > 0.05 then
+										genv.LastCustomHitsound = now
+										if genv.HitsoundManager and genv.HitsoundManager.Play then
+											genv.HitsoundManager.Play()
+										end
+									end
+									if genv.HitEffectManager and genv.HitEffectManager.Play then
+										genv.HitEffectManager.Play(hitData.part, hitData.pos, 100, true)
+									end
+								end
+
+								monitoredChars[character] = nil
+								recentHits[character] = nil
+							end)
+						end
 					end
 				end
 			end
@@ -5792,7 +6020,7 @@ local function TriggerNoFallDamageRobust(hrp, humanoid)
 				end
 			end
 		end)
-		
+
 		if not success and getgenv().AddLog then
 			getgenv().AddLog("[ERROR] TriggerNoFallDamageRobust: " .. tostring(err))
 		end
@@ -6010,6 +6238,406 @@ function HitsoundManager.Initialize()
 	end
 
 	HitsoundManager.Initialized = true
+end
+
+local cloneref = cloneref or function(...)
+	return ...
+end
+local TS = cloneref(game:GetService("TweenService"))
+local RS = cloneref(game:GetService("RunService"))
+
+local HitEffectManager = {}
+getgenv().HitEffectManager = HitEffectManager
+
+local AVAILABLE_EFFECTS = { "Arcade Pop", "CRT Glitch", "JRPG Cascade", "8-Bit Drift", "Cyber Strike", "Voxel Smash" }
+local HIT_WORDS = { "YES!", "OK!", "HIT!", "SMASH!", "PERFECT!" }
+
+local function getHitEffectGui()
+	if getgenv().RetroHitEffectsGui and getgenv().RetroHitEffectsGui.Parent then
+		getgenv().RetroHitEffectsGui.DisplayOrder = 999999
+		getgenv().RetroHitEffectsGui.Enabled = true
+		return getgenv().RetroHitEffectsGui
+	end
+
+	if not LocalPlayer then
+		return nil
+	end
+
+	local playerGui = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 5)
+	if not playerGui then
+		return nil
+	end
+
+	local sg = playerGui:FindFirstChild("RetroHitEffectsGui")
+	if not sg then
+		sg = Instance.new("ScreenGui")
+		sg.Name = "RetroHitEffectsGui"
+		sg.IgnoreGuiInset = true
+		sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		sg.ResetOnSpawn = false
+		sg.Parent = playerGui
+	end
+
+	sg.DisplayOrder = 999999
+	sg.Enabled = true
+	getgenv().RetroHitEffectsGui = sg
+
+	return sg
+end
+
+getgenv().CascadeHitTracker = getgenv().CascadeHitTracker or 0
+
+function HitEffectManager.Play(targetPart, hitPos, damageDealt, isKill)
+	if not getgenv().Config.Mods.HitEffects then
+		return
+	end
+
+	local effectType = AVAILABLE_EFFECTS[math.random(1, #AVAILABLE_EFFECTS)]
+
+	local effectColor = Color3.fromHex("#7f48a3")
+	if getgenv().Options and getgenv().Options.HitEffectsColor then
+		local c = getgenv().Options.HitEffectsColor.Value
+		if typeof(c) == "Color3" then
+			effectColor = c
+		end
+	elseif getgenv().Config and getgenv().Config.Mods and getgenv().Config.Mods.HitEffectsColor then
+		local c = getgenv().Config.Mods.HitEffectsColor
+		if typeof(c) == "Color3" then
+			effectColor = c
+		end
+	end
+
+	task.spawn(function()
+		pcall(function()
+			if isKill then
+				task.spawn(function()
+					local playerGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+					if playerGui then
+						local flashGui = Instance.new("ScreenGui")
+						flashGui.Name = "HotlineKillFlash"
+						flashGui.IgnoreGuiInset = true
+						flashGui.DisplayOrder = 1000
+						flashGui.Parent = playerGui
+
+						local duration = 2.0
+						local thickness = 200
+
+						local frames = {}
+						local function createEdge(size, pos, anchor, rot)
+							local frame = Instance.new("Frame")
+							frame.BackgroundColor3 = effectColor
+							frame.BorderSizePixel = 0
+							frame.Size = size
+							frame.Position = pos
+							frame.AnchorPoint = anchor
+							frame.BackgroundTransparency = 0.2
+							frame.Parent = flashGui
+
+							local gradient = Instance.new("UIGradient")
+							gradient.Rotation = rot
+							gradient.Transparency = NumberSequence.new({
+								NumberSequenceKeypoint.new(0, 0),
+								NumberSequenceKeypoint.new(1, 1),
+							})
+							gradient.Parent = frame
+							table.insert(frames, frame)
+						end
+
+						createEdge(UDim2.new(1, 0, 0, thickness), UDim2.new(0, 0, 0, 0), Vector2.new(0, 0), 90) -- Top
+						createEdge(UDim2.new(1, 0, 0, thickness), UDim2.new(0, 0, 1, 0), Vector2.new(0, 1), 270) -- Bottom
+						createEdge(UDim2.new(0, thickness, 1, 0), UDim2.new(0, 0, 0, 0), Vector2.new(0, 0), 0) -- Left
+						createEdge(UDim2.new(0, thickness, 1, 0), UDim2.new(1, 0, 0, 0), Vector2.new(1, 0), 180) -- Right
+
+						local viewport = workspace.CurrentCamera.ViewportSize
+						local numDrops = math.random(60, 100)
+
+						for i = 1, numDrops do
+							local drop = Instance.new("Frame")
+							drop.BackgroundColor3 = effectColor
+							drop.BorderSizePixel = 0
+							drop.BackgroundTransparency = 0.3
+
+							local corner = Instance.new("UICorner")
+							corner.CornerRadius = UDim.new(1, 0)
+							corner.Parent = drop
+
+							local width = math.random(4, 16)
+							local height = width + math.random(0, width)
+							drop.Size = UDim2.fromOffset(width, height)
+
+							local margin = 180
+							local x, y = 0, 0
+
+							local region = math.random(1, 4)
+							if region == 1 then
+								x = math.random(0, viewport.X)
+								y = math.random(0, margin)
+							elseif region == 2 then
+								x = math.random(0, viewport.X)
+								y = math.random(viewport.Y - margin, viewport.Y)
+							elseif region == 3 then
+								x = math.random(0, margin)
+								y = math.random(0, viewport.Y)
+							else
+								x = math.random(viewport.X - margin, viewport.X)
+								y = math.random(0, viewport.Y)
+							end
+
+							drop.Position = UDim2.fromOffset(x, y)
+							drop.Parent = flashGui
+							table.insert(frames, drop)
+
+							local fallDist = math.random(80, 400)
+							local fallDuration = duration * (math.random(8, 12) / 10)
+							TS
+								:Create(
+									drop,
+									TweenInfo.new(fallDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+									{
+										Position = UDim2.fromOffset(x, y + fallDist),
+										Size = UDim2.fromOffset(width * 0.5, height * 1.5),
+									}
+								)
+								:Play()
+						end
+
+						task.delay(duration, function()
+							local tInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+							for _, f in ipairs(frames) do
+								TS:Create(f, tInfo, { BackgroundTransparency = 1 }):Play()
+							end
+						end)
+
+						task.delay(duration + 0.6, function()
+							flashGui:Destroy()
+						end)
+					end
+				end)
+			end
+
+			local sg = getHitEffectGui()
+			if not sg then
+				return
+			end
+
+			local camera = workspace.CurrentCamera
+			local screenPos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y * 0.7)
+
+			if hitPos then
+				local vec, isVis = camera:WorldToViewportPoint(hitPos)
+				if isVis then
+					screenPos = Vector2.new(vec.X, vec.Y)
+				end
+			end
+
+			local textStr
+			local textScale = 1
+			if isKill then
+				textStr = "KILLED!!!"
+				textScale = 1.5
+			else
+				textStr = HIT_WORDS[math.random(1, #HIT_WORDS)]
+			end
+
+			local label = Instance.new("TextLabel")
+			label.BackgroundTransparency = 1
+			label.Text = textStr
+			label.TextColor3 = effectColor
+			pcall(function()
+				label.Font = Enum.Font.Arcade
+			end)
+			if label.Font ~= Enum.Font.Arcade then
+				label.Font = Enum.Font.GothamBold
+			end
+			label.TextSize = math.floor(24 * textScale)
+			label.TextStrokeTransparency = 0
+			label.TextStrokeColor3 = Color3.new(0, 0, 0)
+			label.Size = UDim2.fromOffset(200, 60)
+			label.AnchorPoint = Vector2.new(0.5, 0.5)
+			label.Position = UDim2.fromOffset(screenPos.X, screenPos.Y)
+			label.ZIndex = 100
+			label.Parent = sg
+
+			if effectType == "Arcade Pop" then
+				local rot = math.random(-15, 15)
+				label.TextSize = 0
+				label.Rotation = rot
+
+				TS:Create(
+					label,
+					TweenInfo.new(0.2, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
+					{ TextSize = math.floor(36 * textScale) }
+				):Play()
+
+				task.delay(0.2, function()
+					TS:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+						Position = UDim2.fromOffset(screenPos.X, screenPos.Y - 80),
+						TextTransparency = 1,
+						TextStrokeTransparency = 1,
+						TextSize = 0,
+						Rotation = rot * 2,
+					}):Play()
+				end)
+				task.delay(0.6, function()
+					label:Destroy()
+				end)
+			elseif effectType == "CRT Glitch" then
+				label.TextSize = math.floor(32 * textScale)
+				local targetPos = UDim2.fromOffset(screenPos.X + math.random(-15, 15), screenPos.Y - 100)
+
+				TS:Create(
+					label,
+					TweenInfo.new(0.6, Enum.EasingStyle.Sine),
+					{ Position = targetPos, TextTransparency = 1, TextStrokeTransparency = 1 }
+				):Play()
+
+				task.spawn(function()
+					for i = 1, 6 do
+						if label.Parent then
+							label.Position = UDim2.fromOffset(
+								targetPos.X.Offset + math.random(-8, 8),
+								targetPos.Y.Offset + math.random(-4, 4)
+							)
+							label.TextTransparency = math.random(0, 3) / 10
+						end
+						task.wait(0.05)
+					end
+				end)
+				task.delay(0.6, function()
+					label:Destroy()
+				end)
+			elseif effectType == "JRPG Cascade" then
+				getgenv().CascadeHitTracker = (getgenv().CascadeHitTracker + 1) % 10
+				local offsetIdx = getgenv().CascadeHitTracker
+
+				label.Position = UDim2.fromOffset(screenPos.X + (offsetIdx * 20) - 80, screenPos.Y - (offsetIdx * 8))
+				label.TextSize = math.floor(44 * textScale)
+				label.Rotation = -15
+				label.TextTransparency = 1
+
+				TS:Create(label, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TextSize = math.floor(28 * textScale),
+					Rotation = 0,
+					TextTransparency = 0,
+				}):Play()
+
+				task.delay(0.2, function()
+					TS:Create(label, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+						Position = label.Position + UDim2.fromOffset(0, 60),
+						TextTransparency = 1,
+						TextStrokeTransparency = 1,
+					}):Play()
+				end)
+				task.delay(0.7, function()
+					label:Destroy()
+				end)
+			elseif effectType == "8-Bit Drift" then
+				label.TextSize = math.floor(24 * textScale)
+
+				local duration = 1.0
+				local baseY = screenPos.Y
+				local targetY = baseY - 120
+				local baseX = screenPos.X
+				local elapsed = 0
+
+				local conn
+				conn = RS.RenderStepped:Connect(function(dt)
+					if not label.Parent then
+						conn:Disconnect()
+						return
+					end
+
+					elapsed = elapsed + dt
+					if elapsed > duration then
+						conn:Disconnect()
+						label:Destroy()
+						return
+					end
+
+					local progress = elapsed / duration
+					local currentY = baseY - ((baseY - targetY) * progress)
+					local waveX = math.sin(elapsed * 12) * 40
+
+					label.Position = UDim2.fromOffset(baseX + waveX, currentY)
+					label.Rotation = math.sin(elapsed * 12) * 20
+					label.TextColor3 = effectColor
+
+					if progress > 0.6 then
+						local alpha = (progress - 0.6) / 0.4
+						label.TextTransparency = alpha
+						label.TextStrokeTransparency = alpha
+					end
+				end)
+			elseif effectType == "Cyber Strike" then
+				label.TextSize = math.floor(32 * textScale)
+				label.TextColor3 = effectColor
+
+				label.TextStrokeTransparency = 1
+				local uiStroke = Instance.new("UIStroke")
+				uiStroke.Color = effectColor
+				uiStroke.Thickness = 2.5
+				uiStroke.Transparency = 0
+				uiStroke.Parent = label
+
+				local uiScale = Instance.new("UIScale")
+				uiScale.Scale = 2.5
+				uiScale.Parent = label
+
+				TS:Create(uiScale, TweenInfo.new(0.2, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), { Scale = 1 })
+					:Play()
+
+				local targetPos = UDim2.fromOffset(screenPos.X + math.random(-40, 40), screenPos.Y - 90)
+
+				task.delay(0.15, function()
+					TS:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.In), {
+						Position = targetPos,
+						TextTransparency = 1,
+						Rotation = math.random(-10, 10),
+					}):Play()
+					TS:Create(
+						uiStroke,
+						TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.In),
+						{ Transparency = 1 }
+					):Play()
+				end)
+				task.delay(0.55, function()
+					label:Destroy()
+				end)
+			elseif effectType == "Voxel Smash" then
+				label.TextSize = math.floor(28 * textScale)
+				label.TextColor3 = effectColor
+
+				local duration = 0.7
+				local targetY = screenPos.Y - 90
+				local elapsed = 0
+
+				local conn
+				conn = RS.RenderStepped:Connect(function(dt)
+					if not label.Parent then
+						conn:Disconnect()
+						return
+					end
+
+					elapsed = elapsed + dt
+					if elapsed > duration then
+						conn:Disconnect()
+						label:Destroy()
+						return
+					end
+
+					local step = math.floor(elapsed * 15) / 15
+					local currentY = screenPos.Y - ((screenPos.Y - targetY) * (step / duration))
+
+					label.Position = UDim2.fromOffset(screenPos.X, currentY)
+
+					if step > 0.5 then
+						label.TextTransparency = (math.floor(elapsed * 30) % 2 == 0) and 0 or 1
+						label.TextStrokeTransparency = label.TextTransparency
+					end
+				end)
+			end
+		end)
+	end)
 end
 
 local verifiedGuns = {
@@ -6416,7 +7044,13 @@ function InventoryViewer.Draw()
 	local width = math.clamp(math.round((textSize / 13) * InventoryViewer.Width), 180, 600)
 
 	if not InventoryViewer.UserPosition then
-		InventoryViewer.UserPosition = Vector2.new(viewportSize.X - width - 100, (viewportSize.Y - totalHeight) / 2)
+		local confX = getgenv().Config.ESP.InventoryViewerX
+		local confY = getgenv().Config.ESP.InventoryViewerY
+		if confX and confY then
+			InventoryViewer.UserPosition = Vector2.new(confX, confY)
+		else
+			InventoryViewer.UserPosition = Vector2.new(viewportSize.X - width - 100, (viewportSize.Y - totalHeight) / 2)
+		end
 	end
 
 	local x = InventoryViewer.UserPosition.X
@@ -6659,7 +7293,10 @@ function InventoryViewer.Initialize()
 			if input.UserInputType == Enum.UserInputType.MouseMovement and InventoryViewer.IsDragging then
 				local mousePos = UserInputService:GetMouseLocation()
 				-- Spawn target check loop (4 times per second for high performance)
-				InventoryViewer.UserPosition = mousePos - InventoryViewer.DragOffset
+				local newPos = mousePos - InventoryViewer.DragOffset
+				InventoryViewer.UserPosition = newPos
+				getgenv().Config.ESP.InventoryViewerX = newPos.X
+				getgenv().Config.ESP.InventoryViewerY = newPos.Y
 				if InventoryViewer.UpdatePositions then
 					InventoryViewer.UpdatePositions()
 				else
@@ -6825,10 +7462,9 @@ local function getInflictRemote()
 		return getgenv()._IH_InflictRemote
 	end
 	local rs = game:GetService("ReplicatedStorage")
-	local remote = rs:FindFirstChild("ProjectileInflict", true)
+	local remote = workspace:FindFirstChild("ProjectileInflict", true) or rs:FindFirstChild("ProjectileInflict", true)
 	if remote then
 		getgenv()._IH_InflictRemote = remote
-		-- Log removed
 	end
 	return remote
 end
@@ -6837,7 +7473,7 @@ function InstantHitManager.Activate()
 	local inflict = getInflictRemote()
 	if not inflict then
 		Library:Notify("[InstantHit] ProjectileInflict remote not found.", 5)
-		-- Log removed
+
 		return false
 	end
 
@@ -6845,7 +7481,7 @@ function InstantHitManager.Activate()
 	local forgedBullets = {}
 
 	getgenv()._IH_Interceptor = function(method, remoteName, args)
-		if not getgenv().Config.Combat.InstantHit and not getgenv().Config.SilentAim.Enabled then
+		if not getgenv().Config.Combat.InstantHit and not getgenv().Config.SilentAim.Enabled and not getgenv()._AutopilotTargetOverride then
 			return false
 		end
 
@@ -6854,22 +7490,13 @@ function InstantHitManager.Activate()
 				if getgenv().LastServerAimDirection then
 					args[1] = getgenv().LastServerAimDirection
 				end
-				return false, nil, args
+				return false, function() end, args
 			end
 			local bulletId = args[2]
 			local fireTimestamp = args[3]
-			if getgenv().AddLog then
-				getgenv().AddLog(
-					string.format(
-						"[Remote Spy] InvokeServer FireProjectile | BulletId: %s | TS: %s",
-						tostring(bulletId),
-						tostring(fireTimestamp)
-					)
-				)
-			end
 
-			if TargetManager and TargetManager.CurrentTarget then
-				local target = TargetManager.CurrentTarget
+			local target = getgenv()._AutopilotTargetOverride or (TargetManager and TargetManager.CurrentTarget)
+			if target then
 				local targetPartName = getgenv().Config.SilentAim and getgenv().Config.SilentAim.TargetPart or "Head"
 				local targetAimPart = (target.Character and target.Character:FindFirstChild(targetPartName))
 					or target.Head
@@ -6877,34 +7504,11 @@ function InstantHitManager.Activate()
 				if targetAimPart then
 					local origin = workspace.CurrentCamera.CFrame.Position
 					local serverOrigin = origin
-					local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-					local isWallbang = getgenv().Config.Combat.Wallbang
-					-- Wallbang completely overrides Underground Desync logic for instantaneous shooting
-					local isUnderground = not isWallbang
-						and getgenv().Config.Combat.UndergroundDesync
+
+					local isUnderground = getgenv().Config.Combat.UndergroundDesync
 						and getgenv()._StoredRealCFrame
 
-					local wbOldCFrame = nil
-					if isWallbang and myRoot then
-						wbOldCFrame = myRoot.CFrame
-						if not getgenv()._StoredRealCFrame then
-							getgenv()._StoredRealCFrame = wbOldCFrame
-						end
-						getgenv()._WallbangActive = true
-						local downDist = getgenv().Config.SilentAim and getgenv().Config.SilentAim.UndergroundDistance
-							or 50
-						-- Offset by 1 stud on X and Z to prevent the PerfectDirection from being exactly (0,1,0),
-						-- which flags anti-cheat for impossible camera angles and forces vertical raycasts.
-						local newPos = targetAimPart.Position - Vector3.new(1, downDist, 1)
-						local newCFrame = CFrame.lookAt(newPos, targetAimPart.Position)
-						myRoot.CFrame = newCFrame
-						serverOrigin = newCFrame.Position
-						if getgenv().AddLog then
-							getgenv().AddLog(
-								"[Wallbang Spy] FireProjectile teleported UNDER TARGET: " .. tostring(serverOrigin)
-							)
-						end
-					elseif isUnderground then
+					if isUnderground then
 						serverOrigin = (getgenv()._StoredRealCFrame * CFrame.new(0, -3.8, 0)).Position
 					end
 
@@ -6915,15 +7519,10 @@ function InstantHitManager.Activate()
 					local expectedFlightTime
 					local perfectDirection
 
-					if isUnderground or isWallbang then
+					if isUnderground then
 						-- The server evaluates Instant Hit raycasts without gravity, so we must shoot a mathematically perfect straight line.
 						perfectDirection = (targetAimPart.Position - serverOrigin).Unit
 						expectedFlightTime = distance / v
-						if isWallbang and getgenv().AddLog then
-							getgenv().AddLog("[Wallbang Spy] --- Wallbang FireProjectile Data ---")
-							getgenv().AddLog("[Wallbang Spy] Perfect Direction: " .. tostring(perfectDirection))
-							getgenv().AddLog("[Wallbang Spy] Flight Time: " .. tostring(expectedFlightTime))
-						end
 					else
 						-- Original framework logic
 						perfectDirection = (targetAimPart.Position - serverOrigin).Unit
@@ -6931,34 +7530,9 @@ function InstantHitManager.Activate()
 						expectedFlightTime = distance / safeVelocity
 					end
 
+
 					args[1] = perfectDirection
 
-					if getgenv().AddLog then
-						getgenv().AddLog(
-							string.format(
-								"[IH Logic] Target Part: %s | Pos: %s",
-								targetAimPart.Name,
-								tostring(targetAimPart.Position)
-							)
-						)
-						getgenv().AddLog(
-							string.format(
-								"[IH Logic] Server Origin: %s | Distance to Target: %s",
-								tostring(serverOrigin),
-								tostring(distance)
-							)
-						)
-						if myRoot then
-							local rootToTargetDist = (targetAimPart.Position - myRoot.Position).Magnitude
-							getgenv().AddLog(
-								string.format(
-									"[IH Logic] RootPart Pos: %s | Root-to-Target Distance: %s",
-									tostring(myRoot.Position),
-									tostring(rootToTargetDist)
-								)
-							)
-						end
-					end
 
 					-- 2. Timestamp Backdating:
 					-- We make the server believe the bullet was fired in the past.
@@ -6978,13 +7552,6 @@ function InstantHitManager.Activate()
 					task.defer(function()
 						local inflict = getInflictRemote()
 						if inflict then
-							if getgenv().AddLog then
-								getgenv().AddLog(
-									"[Remote Spy] Spoofing ProjectileInflict:FireServer | BulletId: "
-										.. tostring(bulletId)
-								)
-							end
-
 							passedBullets[bulletId] = true
 
 							-- ULTIMATE 0-FRAME BLINK BYPASS
@@ -6999,17 +7566,10 @@ function InstantHitManager.Activate()
 								if
 									getgenv().Config.Combat.UndergroundDesync
 									or getgenv()._UndergroundResolverActive
-									or getgenv().Config.Combat.Wallbang
 								then
 									oldCFrame = myRoot.CFrame
 									-- Teleport exactly to the hit location (hitWorldPos) so the distance check is literally 0 studs
 									myRoot.CFrame = CFrame.new(hitWorldPos)
-									if getgenv().Config.Combat.Wallbang and getgenv().AddLog then
-										getgenv().AddLog(
-											"[Wallbang Spy] ProjectileInflict teleported near TARGET: "
-												.. tostring(hitWorldPos)
-										)
-									end
 								end
 							end
 
@@ -7021,99 +7581,45 @@ function InstantHitManager.Activate()
 						end
 					end)
 
-					return false,
-						function()
-							if wbOldCFrame and myRoot then
-								myRoot.CFrame = wbOldCFrame
-								getgenv()._WallbangActive = false
-								if
-									not getgenv().Config.Combat.UndergroundDesync
-									and not getgenv().Config.Combat.AntiAim
-								then
-									getgenv()._StoredRealCFrame = nil
-								end
-							end
-						end,
-						args
+					return false, function() end, args
 				end
 			end
+			return false
 		elseif method == "FireServer" and remoteName == "ProjectileInflict" then
 			if not getgenv().Config.Combat.InstantHit then
 				return false
 			end
 			local bulletId = args[3]
-			if getgenv().AddLog then
-				getgenv().AddLog(
-					string.format(
-						"[Remote Spy] Intercepted natural ProjectileInflict | BulletId: %s",
-						tostring(bulletId)
-					)
-				)
-			end
 
 			if passedBullets[bulletId] then
-				if getgenv().AddLog then
-					getgenv().AddLog(
-						string.format(
-							"[Remote Spy] Allowed SPOOFED ProjectileInflict | BulletId: %s",
-							tostring(bulletId)
-						)
-					)
-				end
 				passedBullets[bulletId] = nil
 				return false -- Let our zero-delay packet through
 			end
 
 			if forgedBullets[bulletId] then
-				if getgenv().AddLog then
-					getgenv().AddLog(
-						string.format(
-							"[Remote Spy] Dropped NATURAL ProjectileInflict | BulletId: %s",
-							tostring(bulletId)
-						)
-					)
-				end
 				return true -- DROP the natural physics packet to prevent anti-cheat kick
 			end
 
-			if getgenv().AddLog then
-				getgenv().AddLog(
-					string.format(
-						"[Remote Spy] Allowed un-spoofed natural ProjectileInflict | BulletId: %s",
-						tostring(bulletId)
-					)
-				)
-			end
-		end
-
+			return false
+		end -- elseif FireServer ProjectileInflict
+		
 		return false
-	end
-
-	-- Log removed
-
+	end -- _IH_Interceptor
 	return true
-end
+end -- InstantHitManager.Activate
 
 function InstantHitManager.Deactivate()
 	getgenv()._IH_Interceptor = nil
-	-- Log removed
 end
 
 -- Wire up the toggle
 getgenv().Toggles.InstantHit:OnChanged(function(value)
 	getgenv().Config.Combat.InstantHit = value
-
-	if value then
-		local success = InstantHitManager.Activate()
-		if not success then
-			task.spawn(function()
-				getgenv().Toggles.InstantHit:SetValue(false)
-			end)
-		end
-	else
-		InstantHitManager.Deactivate()
-	end
 end)
+
+-- Initialize the interceptor permanently so Autopilot can always use it
+-- The interceptor itself has internal checks to remain dormant if features are disabled
+InstantHitManager.Activate()
 
 table.insert(
 	ThreadList,
@@ -7546,7 +8052,12 @@ table.insert(
 
 			local tweenDown = _TweenService:Create(
 				cfValue,
-				TweenInfo.new(duration, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+				-- Sine.Out distributes movement evenly across the full duration.
+				-- Exponential.Out front-loads all motion into the first ~30% of the tween,
+				-- leaving a near-zero velocity tail that only happens to be safe at max
+				-- duration (2s). Sine.Out keeps the exit velocity consistent regardless
+				-- of duration, preventing residual collision impulse at tween completion.
+				TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
 				{ Value = targetCFrame }
 			)
 
@@ -7614,10 +8125,11 @@ table.insert(
 				-- interpolated value on 'conn' after we've already stopped caring about it.
 				cfValue:Destroy()
 				conn:Disconnect()
-				if velocityConn then
-					velocityConn:Disconnect()
-					velocityConn = nil
-				end
+				-- NOTE: velocityConn is intentionally NOT disconnected here.
+				-- It must keep zeroing velocity through the snap and anchor so there is
+				-- no window between tween completion and hrp.Anchored = true where
+				-- physics can rebuild downward momentum and cause a void fall.
+				-- It is disconnected immediately after anchoring below.
 
 				local hrpPosNow = hrp.CFrame.Position
 				local storedNow = getgenv()._StoredRealCFrame and getgenv()._StoredRealCFrame.Position
@@ -7658,28 +8170,41 @@ table.insert(
 					end
 					-- R15 and R6 generally place HRP ~3 studs above feet
 					local rootHeight = hipHeight + (hrp.Size.Y / 2)
-					local safeY    = surfaceY + rootHeight
-					local p        = startCFrame.Position
-					
+					local safeY = surfaceY + rootHeight
+					local p = startCFrame.Position
+
 					if getgenv().AddLog then
-						getgenv().AddLog(string.format(
-							"[UGR RAY HIT] inst=%s surfY=%.2f safeY=%.2f startY=%.2f",
-							rayResult.Instance and rayResult.Instance.Name or "?",
-							surfaceY, safeY, p.Y
-						))
+						getgenv().AddLog(
+							string.format(
+								"[UGR RAY HIT] inst=%s surfY=%.2f safeY=%.2f startY=%.2f",
+								rayResult.Instance and rayResult.Instance.Name or "?",
+								surfaceY,
+								safeY,
+								p.Y
+							)
+						)
 					end
-					
+
 					-- Remove any pitch/roll that might clip corners into the terrain
 					local look = startCFrame.LookVector
 					local flatLook = Vector3.new(look.X, 0, look.Z).Unit
-					if flatLook.Magnitude < 0.1 then flatLook = Vector3.new(0, 0, -1) end
-					safeReturnCFrame = CFrame.lookAt(Vector3.new(p.X, safeY, p.Z), Vector3.new(p.X + flatLook.X, safeY, p.Z + flatLook.Z))
+					if flatLook.Magnitude < 0.1 then
+						flatLook = Vector3.new(0, 0, -1)
+					end
+					safeReturnCFrame = CFrame.lookAt(
+						Vector3.new(p.X, safeY, p.Z),
+						Vector3.new(p.X + flatLook.X, safeY, p.Z + flatLook.Z)
+					)
 				else
 					if getgenv().AddLog then
-						getgenv().AddLog(string.format(
-							"[UGR RAY MISS] No terrain found below startCF %.2f,%.2f,%.2f — using startCFrame as-is",
-							startCFrame.Position.X, startCFrame.Position.Y, startCFrame.Position.Z
-						))
+						getgenv().AddLog(
+							string.format(
+								"[UGR RAY MISS] No terrain found below startCF %.2f,%.2f,%.2f — using startCFrame as-is",
+								startCFrame.Position.X,
+								startCFrame.Position.Y,
+								startCFrame.Position.Z
+							)
+						)
 					end
 				end
 
@@ -7716,9 +8241,14 @@ table.insert(
 					getgenv().AddLog("[UGR] Desync offset suppressed for landing window")
 				end
 
-				-- Anchor briefly to kill any built-up collision momentum and reset state
-				-- NOTE: It's ALREADY anchored from the start of the tween, but we ensure it here.
+				-- Anchor briefly to kill any built-up collision momentum and reset state.
+				-- Disconnect velocityConn HERE, only after anchoring — this guarantees
+				-- velocity is zero at every frame from tween completion through anchor.
 				hrp.Anchored = true
+				if velocityConn then
+					velocityConn:Disconnect()
+					velocityConn = nil
+				end
 				if humanoid then
 					humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
 				end
