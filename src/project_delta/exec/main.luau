@@ -282,6 +282,7 @@ getgenv().Config = getgenv().Config
 			FOVRadius = 150,
 			TargetPart = "Head",
 			WhitelistPlayers = {},
+			HitlistPlayers = {},
 			UndergroundResolverKeybind = "C",
 			UndergroundDuration = 1.0,
 			UndergroundDistance = 20,
@@ -1079,16 +1080,30 @@ AutopilotSection:AddToggle("Autopilot", {
 		end
 	end
 
-	local isAutoHolding = false
-	local lastAutoPressTime = 0
-
+	if getgenv()._DeltaIsAutoHolding == nil then getgenv()._DeltaIsAutoHolding = false end
+	if getgenv()._DeltaLastAutoPressTime == nil then getgenv()._DeltaLastAutoPressTime = 0 end
+	
 	if value then
+		if not getgenv()._LinoriaToggleListener then
+			getgenv()._LinoriaIsToggled = true
+			getgenv()._LinoriaToggleListener = game:GetService("UserInputService").InputBegan:Connect(function(input, gpe)
+				if getgenv().Options and getgenv().Options.MenuKeybind then
+					local bind = getgenv().Options.MenuKeybind.Value
+					if type(bind) == "string" and input.KeyCode.Name == bind then
+						getgenv()._LinoriaIsToggled = not getgenv()._LinoriaIsToggled
+					elseif typeof(bind) == "EnumItem" and input.KeyCode == bind then
+						getgenv()._LinoriaIsToggled = not getgenv()._LinoriaIsToggled
+					end
+				end
+			end)
+		end
+
 		if not getgenv()._AutopilotConnection then
 			getgenv()._AutopilotConnection = game:GetService("RunService").RenderStepped:Connect(function()
 				if not (getgenv().Config.Combat.Autopilot and getgenv().Config.SilentAim.Enabled) then
-					if isAutoHolding then
+					if getgenv()._DeltaIsAutoHolding then
 						if type(mouse1release) == "function" then pcall(mouse1release) end
-						isAutoHolding = false
+						getgenv()._DeltaIsAutoHolding = false
 					end
 					getgenv()._AutopilotTargetOverride = nil
 					return
@@ -1100,9 +1115,24 @@ AutopilotSection:AddToggle("Autopilot", {
 				local shouldShoot = false
 				local overrideData = nil
 				
-				for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
-					if player ~= game:GetService("Players").LocalPlayer then
-						local char = game:GetService("Workspace"):FindFirstChild(player.Name)
+				local hitlistPlayers = getgenv().Config.SilentAim.HitlistPlayers or {}
+				local whitelistPlayers = getgenv().Config.SilentAim.WhitelistPlayers or {}
+				local hasHitlist = next(hitlistPlayers) ~= nil
+				local playersList = Players:GetPlayers()
+				local localPlayer = Players.LocalPlayer
+				
+				for _, player in ipairs(playersList) do
+					if player ~= localPlayer then
+						local playerName = player.Name
+						if whitelistPlayers[playerName] then
+							continue
+						end
+						
+						if hasHitlist and not hitlistPlayers[playerName] then
+							continue
+						end
+						
+						local char = player.Character or Workspace:FindFirstChild(playerName)
 						if char and char:IsA("Model") then
 							local targetPart = char:FindFirstChild(targetPartName) or char:FindFirstChild("Head")
 							if targetPart then
@@ -1133,25 +1163,52 @@ AutopilotSection:AddToggle("Autopilot", {
 				
 				if shouldShoot and overrideData then
 					getgenv()._AutopilotTargetOverride = overrideData
+					local uis = game:GetService("UserInputService")
 					local now = os.clock()
-					if not isAutoHolding then
-						if type(mouse1press) == "function" then
-							pcall(mouse1press)
-							isAutoHolding = true
-							lastAutoPressTime = now
+					
+					local isUIOpen = uis.MouseIconEnabled or getgenv()._LinoriaIsToggled
+					local activeWeapon = getgenv()._DeltaActiveWeaponTable
+					if type(activeWeapon) == "table" and activeWeapon.CancelTables then
+						for _, uiTable in ipairs(activeWeapon.CancelTables) do
+							if type(uiTable) == "table" and uiTable.Visible == true then
+								isUIOpen = true
+								break
+							end
+						end
+					end
+					
+					if getgenv()._DebugLastUIState ~= isUIOpen then
+						getgenv()._DebugLastUIState = isUIOpen
+						if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
+						table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: UI Open state is now %s", os.date("%X"), tostring(isUIOpen)))
+					end
+					
+					if uis.MouseBehavior == Enum.MouseBehavior.LockCenter and not isUIOpen then
+						if not getgenv()._DeltaIsAutoHolding then
+							if type(mouse1press) == "function" then
+								pcall(mouse1press)
+								getgenv()._DeltaIsAutoHolding = true
+								getgenv()._DeltaLastAutoPressTime = now
+							end
+						else
+							-- Pulse the click every ~50ms to maximize fire rate and align with engine events
+							if now - getgenv()._DeltaLastAutoPressTime > 0.05 then
+								if type(mouse1release) == "function" then pcall(mouse1release) end
+								getgenv()._DeltaIsAutoHolding = false
+							end
 						end
 					else
-						-- Pulse the click every ~50ms to maximize fire rate and align with engine events
-						if now - lastAutoPressTime > 0.05 then
+						-- Release if mouse isn't locked (e.g. inventory open)
+						if getgenv()._DeltaIsAutoHolding then
 							if type(mouse1release) == "function" then pcall(mouse1release) end
-							isAutoHolding = false
+							getgenv()._DeltaIsAutoHolding = false
 						end
 					end
 				else
 					getgenv()._AutopilotTargetOverride = nil
-					if isAutoHolding then
+					if getgenv()._DeltaIsAutoHolding then
 						if type(mouse1release) == "function" then pcall(mouse1release) end
-						isAutoHolding = false
+						getgenv()._DeltaIsAutoHolding = false
 					end
 				end
 			end)
@@ -1170,12 +1227,103 @@ AutopilotSection:AddToggle("Autopilot", {
 		end
 		
 		getgenv()._AutopilotTargetOverride = nil
-		if isAutoHolding then
+		if getgenv()._DeltaIsAutoHolding then
 			if type(mouse1release) == "function" then pcall(mouse1release) end
-			isAutoHolding = false
+			getgenv()._DeltaIsAutoHolding = false
+		end
+		if getgenv()._LinoriaToggleListener then
+			getgenv()._LinoriaToggleListener:Disconnect()
+			getgenv()._LinoriaToggleListener = nil
 		end
 	end
 end)
+
+local WhitelistSection = CombatTab:AddLeftGroupbox("Whitelist/Hitlist")
+
+local function GetCurrentPlayerNames()
+	local names = {}
+	if game and game:GetService("Players") then
+		for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+			if player ~= game:GetService("Players").LocalPlayer then
+				table.insert(names, player.Name)
+			end
+		end
+	end
+	return names
+end
+
+WhitelistSection:AddDropdown("PlayerToWhitelist", {
+	Values = GetCurrentPlayerNames(),
+	Default = 1,
+	Multi = false,
+	Text = "Select Player",
+})
+
+WhitelistSection:AddButton({
+	Text = "Refresh Player List",
+	Func = function()
+		getgenv().Options.PlayerToWhitelist:SetValues(GetCurrentPlayerNames())
+		if getgenv().LinoriaLibrary then
+			getgenv().LinoriaLibrary:Notify("Refreshed player list", 3)
+		end
+	end,
+})
+
+local function UpdateList(listName, isAdding)
+	local player = getgenv().Options.PlayerToWhitelist.Value
+	if type(player) == "string" and player ~= "" then
+		if isAdding then
+			getgenv().Config.SilentAim[listName][player] = true
+		else
+			getgenv().Config.SilentAim[listName][player] = nil
+		end
+		
+		if getgenv().LinoriaLibrary then
+			local action = isAdding and "Added " or "Removed "
+			local preposition = isAdding and " to " or " from "
+			local listStr = listName == "WhitelistPlayers" and "whitelist" or "hitlist"
+			getgenv().LinoriaLibrary:Notify(action .. player .. preposition .. listStr, 3)
+		end
+	else
+		if getgenv().LinoriaLibrary then
+			local action = isAdding and "add to " or "remove from "
+			local listStr = listName == "WhitelistPlayers" and "whitelist" or "hitlist"
+			getgenv().LinoriaLibrary:Notify("No player selected to " .. action .. listStr, 3)
+		end
+	end
+end
+
+WhitelistSection:AddButton({
+	Text = "Add To Whitelist",
+	Func = function() UpdateList("WhitelistPlayers", true) end,
+})
+
+WhitelistSection:AddButton({
+	Text = "Remove From Whitelist",
+	Func = function() UpdateList("WhitelistPlayers", false) end,
+})
+
+WhitelistSection:AddDivider()
+
+WhitelistSection:AddButton({
+	Text = "Add To Hitlist",
+	Func = function() UpdateList("HitlistPlayers", true) end,
+})
+
+WhitelistSection:AddButton({
+	Text = "Remove From Hitlist",
+	Func = function() UpdateList("HitlistPlayers", false) end,
+})
+
+WhitelistSection:AddButton({
+	Text = "Clear Hitlist",
+	Func = function()
+		table.clear(getgenv().Config.SilentAim.HitlistPlayers)
+		if getgenv().LinoriaLibrary then
+			getgenv().LinoriaLibrary:Notify("Hitlist cleared", 3)
+		end
+	end,
+})
 
 local SilentAimSection = CombatTab:AddRightGroupbox("Aiming")
 
@@ -1264,59 +1412,6 @@ getgenv().Options.SilentAimTargetPart:OnChanged(function(value)
 	getgenv().Config.SilentAim.TargetPart = value
 end)
 
-SilentAimSection:AddDivider()
-
-local function GetCurrentPlayerNames()
-	local names = {}
-	if game and game:GetService("Players") then
-		for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
-			if player ~= game:GetService("Players").LocalPlayer then
-				table.insert(names, player.Name)
-			end
-		end
-	end
-	return names
-end
-
-SilentAimSection:AddDropdown("PlayerToWhitelist", {
-	Values = GetCurrentPlayerNames(),
-	Default = 1,
-	Multi = false,
-	Text = "Select Player",
-})
-
-SilentAimSection:AddButton({
-	Text = "Add To Whitelist",
-	Func = function()
-		local player = getgenv().Options.PlayerToWhitelist.Value
-		if player and player ~= "" then
-			getgenv().Config.SilentAim.WhitelistPlayers[player] = true
-			if getgenv().LinoriaLibrary then
-				getgenv().LinoriaLibrary:Notify("Added " .. player .. " to whitelist")
-			end
-		end
-	end,
-})
-
-SilentAimSection:AddButton({
-	Text = "Remove From Whitelist",
-	Func = function()
-		local player = getgenv().Options.PlayerToWhitelist.Value
-		if player and player ~= "" then
-			getgenv().Config.SilentAim.WhitelistPlayers[player] = nil
-			if getgenv().LinoriaLibrary then
-				getgenv().LinoriaLibrary:Notify("Removed " .. player .. " from whitelist")
-			end
-		end
-	end,
-})
-
-SilentAimSection:AddButton({
-	Text = "Refresh Player List",
-	Func = function()
-		getgenv().Options.PlayerToWhitelist:SetValues(GetCurrentPlayerNames())
-	end,
-})
 
 local ResolverSection = CombatTab:AddRightGroupbox("Resolver")
 
@@ -1741,13 +1836,6 @@ WorldModsSection:AddToggle("ThirdPerson", {
 })
 getgenv().Toggles.ThirdPerson:OnChanged(function(value)
 	getgenv().Config.Mods.ThirdPerson = value
-	if not getgenv()._DeltaScriptSilentToggles and getgenv().LinoriaLibrary then
-		if value then
-			getgenv().LinoriaLibrary:Notify("Enabled 3rd Person", 3)
-		else
-			getgenv().LinoriaLibrary:Notify("Disabled 3rd Person", 3)
-		end
-	end
 end)
 
 getgenv().Options.ThirdPersonKeybind:OnChanged(function()
@@ -2642,6 +2730,7 @@ end)
 local function encodeConfig(config)
 	local encoded = {}
 	for k, v in pairs(config) do
+		if k == "HitlistPlayers" then continue end
 		if type(v) == "table" then
 			encoded[k] = encodeConfig(v)
 		elseif typeof(v) == "Color3" then
@@ -7470,13 +7559,6 @@ local function getInflictRemote()
 end
 
 function InstantHitManager.Activate()
-	local inflict = getInflictRemote()
-	if not inflict then
-		Library:Notify("[InstantHit] ProjectileInflict remote not found.", 5)
-
-		return false
-	end
-
 	local passedBullets = {}
 	local forgedBullets = {}
 
@@ -8672,19 +8754,21 @@ do
 		isBotHolding = false
 	end
 
-	getgenv().Toggles.EnableTriggerBot:OnChanged(function(value)
-		getgenv().Config.Combat.TriggerBot = value
-		if value then
-			local ok = TriggerBotManager.Activate()
-			if not ok then
-				task.spawn(function()
-					getgenv().Toggles.EnableTriggerBot:SetValue(false)
-				end)
+	if getgenv().Toggles.TriggerBot then
+		getgenv().Toggles.TriggerBot:OnChanged(function(value)
+			getgenv().Config.Combat.TriggerBot = value
+			if value then
+				local ok = TriggerBotManager.Activate()
+				if not ok then
+					task.spawn(function()
+						getgenv().Toggles.TriggerBot:SetValue(false)
+					end)
+				end
+			else
+				TriggerBotManager.Deactivate()
 			end
-		else
-			TriggerBotManager.Deactivate()
-		end
-	end)
+		end)
+	end
 
 	getgenv()._TriggerBotDeactivate = TriggerBotManager.Deactivate
 end
