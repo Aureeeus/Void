@@ -1043,14 +1043,16 @@ end)
 local AutopilotSection = CombatTab:AddLeftGroupbox("Autopilot")
 
 local function IsVisibleFrameByFrame(targetPart, characterModel)
-	local LocalPlayer = game:GetService("Players").LocalPlayer
-	local Camera = game:GetService("Workspace").CurrentCamera
-	if not LocalPlayer or not LocalPlayer.Character or not Camera then return false end
+	local localPlayer = Players.LocalPlayer
+	local camera = Workspace.CurrentCamera
+	if not localPlayer or not localPlayer.Character or not camera then
+		return false
+	end
 
-	local origin = Camera.CFrame.Position
+	local origin = camera.CFrame.Position
 	local direction = targetPart.Position - origin
 
-	local ignoreList = { LocalPlayer.Character, characterModel }
+	local ignoreList = { localPlayer.Character, characterModel }
 	if getgenv().CachedGlobalIgnoreList then
 		for _, v in ipairs(getgenv().CachedGlobalIgnoreList) do
 			table.insert(ignoreList, v)
@@ -1060,10 +1062,12 @@ local function IsVisibleFrameByFrame(targetPart, characterModel)
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 	raycastParams.IgnoreWater = false
-	pcall(function() raycastParams.CollisionGroup = "WeaponRay" end)
+	pcall(function()
+		raycastParams.CollisionGroup = "WeaponRay"
+	end)
 	raycastParams.FilterDescendantsInstances = ignoreList
 
-	local result = game:GetService("Workspace"):Raycast(origin, direction, raycastParams)
+	local result = Workspace:Raycast(origin, direction, raycastParams)
 	return result == nil
 end
 
@@ -1080,69 +1084,77 @@ AutopilotSection:AddToggle("Autopilot", {
 		end
 	end
 
-	if getgenv()._DeltaIsAutoHolding == nil then getgenv()._DeltaIsAutoHolding = false end
-	if getgenv()._DeltaLastAutoPressTime == nil then getgenv()._DeltaLastAutoPressTime = 0 end
-	
+	if getgenv()._DeltaIsAutoHolding == nil then
+		getgenv()._DeltaIsAutoHolding = false
+	end
+	if getgenv()._DeltaLastAutoPressTime == nil then
+		getgenv()._DeltaLastAutoPressTime = 0
+	end
+
 	if value then
 		if not getgenv()._LinoriaToggleListener then
 			getgenv()._LinoriaIsToggled = true
-			getgenv()._LinoriaToggleListener = game:GetService("UserInputService").InputBegan:Connect(function(input, gpe)
-				if getgenv().Options and getgenv().Options.MenuKeybind then
-					local bind = getgenv().Options.MenuKeybind.Value
-					if type(bind) == "string" and input.KeyCode.Name == bind then
-						getgenv()._LinoriaIsToggled = not getgenv()._LinoriaIsToggled
-					elseif typeof(bind) == "EnumItem" and input.KeyCode == bind then
-						getgenv()._LinoriaIsToggled = not getgenv()._LinoriaIsToggled
+			getgenv()._LinoriaToggleListener = game:GetService("UserInputService").InputBegan
+				:Connect(function(input, gpe)
+					if getgenv().Options and getgenv().Options.MenuKeybind then
+						local bind = getgenv().Options.MenuKeybind.Value
+						if type(bind) == "string" and input.KeyCode.Name == bind then
+							getgenv()._LinoriaIsToggled = not getgenv()._LinoriaIsToggled
+						elseif typeof(bind) == "EnumItem" and input.KeyCode == bind then
+							getgenv()._LinoriaIsToggled = not getgenv()._LinoriaIsToggled
+						end
 					end
-				end
-			end)
+				end)
 		end
 
 		if not getgenv()._AutopilotConnection then
 			getgenv()._AutopilotConnection = game:GetService("RunService").RenderStepped:Connect(function()
 				if not (getgenv().Config.Combat.Autopilot and getgenv().Config.SilentAim.Enabled) then
 					if getgenv()._DeltaIsAutoHolding then
-						if type(mouse1release) == "function" then pcall(mouse1release) end
+						if type(mouse1release) == "function" then
+							pcall(mouse1release)
+						end
 						getgenv()._DeltaIsAutoHolding = false
 					end
 					getgenv()._AutopilotTargetOverride = nil
 					return
 				end
-				
+
 				local targetPartName = getgenv().Config.SilentAim.TargetPart or "Head"
 
-				
 				local shouldShoot = false
 				local overrideData = nil
-				
+
 				local hitlistPlayers = getgenv().Config.SilentAim.HitlistPlayers or {}
 				local whitelistPlayers = getgenv().Config.SilentAim.WhitelistPlayers or {}
 				local hasHitlist = next(hitlistPlayers) ~= nil
 				local playersList = Players:GetPlayers()
 				local localPlayer = Players.LocalPlayer
-				
+
 				for _, player in ipairs(playersList) do
 					if player ~= localPlayer then
 						local playerName = player.Name
 						if whitelistPlayers[playerName] then
 							continue
 						end
-						
+
 						if hasHitlist and not hitlistPlayers[playerName] then
 							continue
 						end
-						
+
 						local char = player.Character or Workspace:FindFirstChild(playerName)
 						if char and char:IsA("Model") then
 							local targetPart = char:FindFirstChild(targetPartName) or char:FindFirstChild("Head")
 							if targetPart then
 								local isVis = IsVisibleFrameByFrame(targetPart, char)
-								
+
 								if isVis then
 									local rootPart = char:FindFirstChild("HumanoidRootPart")
 									local hum = char:FindFirstChildOfClass("Humanoid")
-									local health = (rootPart and rootPart:GetAttribute("Health")) or (hum and hum.Health) or 0
-									
+									local health = (rootPart and rootPart:GetAttribute("Health"))
+										or (hum and hum.Health)
+										or 0
+
 									if health > 0 then
 										shouldShoot = true
 										overrideData = {
@@ -1151,7 +1163,7 @@ AutopilotSection:AddToggle("Autopilot", {
 											Head = targetPart,
 											RootPart = rootPart,
 											Humanoid = hum,
-											Type = "Player"
+											Type = "Player",
 										}
 										break
 									end
@@ -1160,12 +1172,12 @@ AutopilotSection:AddToggle("Autopilot", {
 						end
 					end
 				end
-				
+
 				if shouldShoot and overrideData then
 					getgenv()._AutopilotTargetOverride = overrideData
 					local uis = game:GetService("UserInputService")
 					local now = os.clock()
-					
+
 					local isUIOpen = uis.MouseIconEnabled or getgenv()._LinoriaIsToggled
 					local activeWeapon = getgenv()._DeltaActiveWeaponTable
 					if type(activeWeapon) == "table" and activeWeapon.CancelTables then
@@ -1176,13 +1188,22 @@ AutopilotSection:AddToggle("Autopilot", {
 							end
 						end
 					end
-					
+
 					if getgenv()._DebugLastUIState ~= isUIOpen then
 						getgenv()._DebugLastUIState = isUIOpen
-						if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-						table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: UI Open state is now %s", os.date("%X"), tostring(isUIOpen)))
+						if not getgenv().DebugLogs then
+							getgenv().DebugLogs = {}
+						end
+						table.insert(
+							getgenv().DebugLogs,
+							string.format(
+								"[%s] Autopilot Debug: UI Open state is now %s",
+								os.date("%X"),
+								tostring(isUIOpen)
+							)
+						)
 					end
-					
+
 					if uis.MouseBehavior == Enum.MouseBehavior.LockCenter and not isUIOpen then
 						if not getgenv()._DeltaIsAutoHolding then
 							if type(mouse1press) == "function" then
@@ -1193,21 +1214,27 @@ AutopilotSection:AddToggle("Autopilot", {
 						else
 							-- Pulse the click every ~50ms to maximize fire rate and align with engine events
 							if now - getgenv()._DeltaLastAutoPressTime > 0.05 then
-								if type(mouse1release) == "function" then pcall(mouse1release) end
+								if type(mouse1release) == "function" then
+									pcall(mouse1release)
+								end
 								getgenv()._DeltaIsAutoHolding = false
 							end
 						end
 					else
 						-- Release if mouse isn't locked (e.g. inventory open)
 						if getgenv()._DeltaIsAutoHolding then
-							if type(mouse1release) == "function" then pcall(mouse1release) end
+							if type(mouse1release) == "function" then
+								pcall(mouse1release)
+							end
 							getgenv()._DeltaIsAutoHolding = false
 						end
 					end
 				else
 					getgenv()._AutopilotTargetOverride = nil
 					if getgenv()._DeltaIsAutoHolding then
-						if type(mouse1release) == "function" then pcall(mouse1release) end
+						if type(mouse1release) == "function" then
+							pcall(mouse1release)
+						end
 						getgenv()._DeltaIsAutoHolding = false
 					end
 				end
@@ -1225,10 +1252,12 @@ AutopilotSection:AddToggle("Autopilot", {
 			end
 			getgenv()._AutopilotConnection = nil
 		end
-		
+
 		getgenv()._AutopilotTargetOverride = nil
 		if getgenv()._DeltaIsAutoHolding then
-			if type(mouse1release) == "function" then pcall(mouse1release) end
+			if type(mouse1release) == "function" then
+				pcall(mouse1release)
+			end
 			getgenv()._DeltaIsAutoHolding = false
 		end
 		if getgenv()._LinoriaToggleListener then
@@ -1277,7 +1306,7 @@ local function UpdateList(listName, isAdding)
 		else
 			getgenv().Config.SilentAim[listName][player] = nil
 		end
-		
+
 		if getgenv().LinoriaLibrary then
 			local action = isAdding and "Added " or "Removed "
 			local preposition = isAdding and " to " or " from "
@@ -1295,24 +1324,32 @@ end
 
 WhitelistSection:AddButton({
 	Text = "Add To Whitelist",
-	Func = function() UpdateList("WhitelistPlayers", true) end,
+	Func = function()
+		UpdateList("WhitelistPlayers", true)
+	end,
 })
 
 WhitelistSection:AddButton({
 	Text = "Remove From Whitelist",
-	Func = function() UpdateList("WhitelistPlayers", false) end,
+	Func = function()
+		UpdateList("WhitelistPlayers", false)
+	end,
 })
 
 WhitelistSection:AddDivider()
 
 WhitelistSection:AddButton({
 	Text = "Add To Hitlist",
-	Func = function() UpdateList("HitlistPlayers", true) end,
+	Func = function()
+		UpdateList("HitlistPlayers", true)
+	end,
 })
 
 WhitelistSection:AddButton({
 	Text = "Remove From Hitlist",
-	Func = function() UpdateList("HitlistPlayers", false) end,
+	Func = function()
+		UpdateList("HitlistPlayers", false)
+	end,
 })
 
 WhitelistSection:AddButton({
@@ -1411,7 +1448,6 @@ SilentAimSection:AddDropdown("SilentAimTargetPart", {
 getgenv().Options.SilentAimTargetPart:OnChanged(function(value)
 	getgenv().Config.SilentAim.TargetPart = value
 end)
-
 
 local ResolverSection = CombatTab:AddRightGroupbox("Resolver")
 
@@ -2236,7 +2272,7 @@ end)
 -- [Stepped] Fires before physics simulation/network replication.
 -- Spoofs RootJoint with a WORLD-SPACE horizontal-only offset so it replicates to enemies.
 -- World-space Y=0 means no fly hack regardless of HRP pitch/tilt.
--- World-space Y=0 means no fly hack regardless of HRP pitch/tilt.
+local _steppedDbgTick = 0
 local steppedRestoreConnection = RunService.Stepped:Connect(function()
 	local isDesync = getgenv().Config.Combat.UndergroundDesync
 	local isAntiAim = getgenv().Config.Combat.AntiAim
@@ -2248,39 +2284,29 @@ local steppedRestoreConnection = RunService.Stepped:Connect(function()
 		local prevPos = HRP.CFrame.Position
 		-- If the server rubberbands the player drastically (e.g., > 15 studs),
 		-- accept the server's position to prevent an infinite fight and a Noclip kick.
-		-- EXCEPTION: never accept a server correction that lands below Y=0 while the
-		-- stored position is above ground. After UGR+desync the server still thinks the
-		-- player is at the underground target position and sends a rubber-band correction
-		-- once our 1.5s guard window expires. Accepting that would lock _StoredRealCFrame
-		-- underground and trigger a void-fall loop.
 		local guardBlocked = getgenv()._UndergroundResolverActive or getgenv()._SkyPeekActive
-		if
-			not guardBlocked
-			and (tick() - (getgenv()._LastGuardDeactivate or 0) > 1.5)
-			and (prevPos - getgenv()._StoredRealCFrame.Position).Magnitude > 15
-		then
-			local serverPos = HRP.CFrame.Position
-			local storedPos = getgenv()._StoredRealCFrame.Position
-			if serverPos.Y < 0 and storedPos.Y > 0 then
-				-- Server wants us underground while we are above ground: this is the
-				-- desync rubber-band. Reject it and push HRP back to surface.
-				HRP.CFrame = getgenv()._StoredRealCFrame
-				HRP.AssemblyLinearVelocity = Vector3.zero
-				HRP.AssemblyAngularVelocity = Vector3.zero
-				if getgenv().AddLog then
-					getgenv().AddLog(string.format(
-						"[Stepped REJECT] Server RB underground blocked: serverY=%.1f storedY=%.1f",
-						serverPos.Y, storedPos.Y
-					))
-				end
-			else
-				-- Legitimate large correction (respawn, game teleport): accept.
-				getgenv()._StoredRealCFrame = HRP.CFrame
-			end
+		if not guardBlocked and (tick() - (getgenv()._LastGuardDeactivate or 0) > 1.5) and (prevPos - getgenv()._StoredRealCFrame.Position).Magnitude > 15 then
+			getgenv()._StoredRealCFrame = HRP.CFrame
 		end
 		HRP.CFrame = getgenv()._StoredRealCFrame
-
+		-- Debug: log every 30 Stepped ticks when UGR or SkyPeek just deactivated
+		_steppedDbgTick = _steppedDbgTick + 1
+		if _steppedDbgTick >= 30 then
+			_steppedDbgTick = 0
+			if getgenv().AddLog then
+				local stored = getgenv()._StoredRealCFrame.Position
+				getgenv().AddLog(string.format(
+					"[Stepped] HRP %.2f,%.2f,%.2f ΓåÆ Stored %.2f,%.2f,%.2f | UGR=%s SPeek=%s",
+					prevPos.X, prevPos.Y, prevPos.Z,
+					stored.X, stored.Y, stored.Z,
+					tostring(getgenv()._UndergroundResolverActive == true),
+					tostring(getgenv()._SkyPeekActive == true)
+				))
+			end
+		end
 	end
+
+
 
 	-- Layer 1: Spoof RootJoint for physics replication
 	if isAntiAim and Character and HRP then
@@ -2313,19 +2339,20 @@ local steppedRestoreConnection = RunService.Stepped:Connect(function()
 			end
 
 			-- Downward raycast: ensure there is ground below the offset position
-			-- Without this, body parts appear to float over ledges → fly hack detected
+			-- Without this, body parts appear to float over ledges ΓåÆ fly hack detected
 			local offsetPos = origin + worldOffset
-			local groundHit = workspace:Raycast(offsetPos + Vector3.new(0, 3, 0), Vector3.new(0, -20, 0), raycastParams)
+			local groundHit =
+				workspace:Raycast(offsetPos + Vector3.new(0, 3, 0), Vector3.new(0, -20, 0), raycastParams)
 			if not groundHit then
-				-- No ground at offset position — collapse offset to zero to avoid fly detection
+				-- No ground at offset position ΓÇö collapse offset to zero to avoid fly detection
 				worldOffset = Vector3.zero
 			end
 
 			-- Convert the final world-space offset to HRP local space for C0 application
 			local localOffset = HRP.CFrame:VectorToObjectSpace(worldOffset)
 
-			-- Apply ONLY a positional offset — NO CFrame.Angles rotation on the joint.
-			-- Random joint rotation changes the head's Y position → fly hack detected.
+			-- Apply ONLY a positional offset ΓÇö NO CFrame.Angles rotation on the joint.
+			-- Random joint rotation changes the head's Y position ΓåÆ fly hack detected.
 			rootJoint.C0 = getgenv()._OrigRootJointC0 * CFrame.new(localOffset)
 		end
 	end
@@ -2346,33 +2373,34 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 	if isDesync or isUGR or isAntiAim then
 		local guardBlocked = getgenv()._UndergroundResolverActive or getgenv()._SkyPeekActive
 		if not guardBlocked then
-			-- Capture real position.
-			-- Guard against server rubber-band corrections that happen inside the physics
-			-- step (between Stepped and Heartbeat). If the server teleported HRP more than
-			-- 10 studs into underground territory (Y < 0) while the stored position is
-			-- above ground, this is NOT legitimate player movement — it is the server
-			-- trying to correct us to the old UGR desync position. Reject and snap back.
+			-- Capture real position ΓÇö log when something looks wrong (Y too low = inside terrain)
 			local captured = HRP.CFrame
-			local jumpRejected = false
-			if getgenv()._StoredRealCFrame then
+			if getgenv().AddLog and getgenv()._StoredRealCFrame then
 				local prev = getgenv()._StoredRealCFrame.Position
-				local cur = captured.Position
-				local _dy = cur.Y - prev.Y
-				local jumpMag = (cur - prev).Magnitude
-				if jumpMag > 10 and cur.Y < 0 and prev.Y > 0 then
-					-- Server rubber-band to underground detected: reject this frame's capture
-					-- and immediately counter-snap HRP back to the last known surface position.
-					jumpRejected = true
-					HRP.CFrame = getgenv()._StoredRealCFrame
-					HRP.AssemblyLinearVelocity = Vector3.zero
-					HRP.AssemblyAngularVelocity = Vector3.zero
-					end
+				local cur  = captured.Position
+				local dy   = cur.Y - prev.Y
+				-- Flag sudden downward jumps > 1 stud between frames (sign of geometry push-through)
+				if dy < -1 then
+					getgenv().AddLog(string.format(
+						"[HB WARN] _StoredRealCFrame dropped %.2f studs! prev=%.2f cur=%.2f | HRP actual Y=%.2f",
+						dy, prev.Y, cur.Y, HRP.CFrame.Position.Y
+					))
+				end
 			end
-			if not jumpRejected then
-				getgenv()._StoredRealCFrame = captured
-			end
+			getgenv()._StoredRealCFrame = captured
 		else
-			-- Guard is active
+			-- Guard is active: log every 60 ticks to confirm we're not leaking
+			desyncTick = desyncTick + 1
+			if desyncTick >= 60 and getgenv().AddLog then
+				desyncTick = 0
+				local stored = getgenv()._StoredRealCFrame
+				getgenv().AddLog(string.format(
+					"[HB GUARD] UGR=%s SPeek=%s | Stored=%.2f,%.2f,%.2f | HRP=%.2f,%.2f,%.2f",
+					tostring(isUGR), tostring(getgenv()._SkyPeekActive == true),
+					stored and stored.Position.X or 0, stored and stored.Position.Y or 0, stored and stored.Position.Z or 0,
+					HRP.CFrame.Position.X, HRP.CFrame.Position.Y, HRP.CFrame.Position.Z
+				))
+			end
 		end
 		getgenv()._realVelocity = HRP.AssemblyLinearVelocity
 		getgenv()._realRotVelocity = HRP.AssemblyAngularVelocity
@@ -2382,7 +2410,7 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 			-- Let the character cleanly return to the surface first so the server doesn't flag noclip.
 			-- _DesyncOffsetSuppressed is set by the UGR snap-back handler for a brief landing window:
 			-- without it, the offset pushes the HRP underground immediately after snap, which causes
-			-- physics to freefall and feed back into _StoredRealCFrame → void-fall loop.
+			-- physics to freefall and feed back into _StoredRealCFrame ΓåÆ void-fall loop.
 			if not guardBlocked then
 				if getgenv()._DesyncOffsetSuppressed then
 					HRP.CFrame = getgenv()._StoredRealCFrame
@@ -2410,7 +2438,7 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 
 		-- CRITICAL: Restore RootJoint HERE in Heartbeat (after physics, before render).
 		-- Physics commits Motor6D positions during its step. Setting C0 in Heartbeat
-		-- immediately repositions parts before the frame draws — fixing local camera jitter.
+		-- immediately repositions parts before the frame draws ΓÇö fixing local camera jitter.
 		-- RenderStepped alone is too late because physics already committed the positions.
 		if getgenv()._OrigRootJointC0 then
 			local rootJoint = getRootJoint(Character)
@@ -2605,8 +2633,6 @@ if not getgenv().DesyncHooked then
 						return oldNamecall(self, table.unpack(args))
 					end
 
-
-
 					if getgenv()._IH_Interceptor then
 						local shouldDrop, postAction, modArgs = getgenv()._IH_Interceptor(method, remoteName, { ... })
 						if shouldDrop then
@@ -2730,7 +2756,9 @@ end)
 local function encodeConfig(config)
 	local encoded = {}
 	for k, v in pairs(config) do
-		if k == "HitlistPlayers" then continue end
+		if k == "HitlistPlayers" then
+			continue
+		end
 		if type(v) == "table" then
 			encoded[k] = encodeConfig(v)
 		elseif typeof(v) == "Color3" then
@@ -4237,387 +4265,387 @@ local espOffsetRoot = Vector3.new(0, 3, 0)
 local espOffsetHead = Vector3.new(0, 1.5, 0)
 
 local function DrawEntity(character, data, config, config_sa, camPos, worldToViewportPoint)
-		local distStuds = (camPos - data.Head.Position).Magnitude
-		local distMeters = math.floor(distStuds * 0.28)
-		if distMeters > (config.MaxDistance or 1500) then
-			ESPManager.RemoveDrawing(character)
-			local highlight = getgenv().DeltaChamsCache and getgenv().DeltaChamsCache[character]
-			if highlight then
-				highlight:Destroy()
-				getgenv().DeltaChamsCache[character] = nil
-			end
-			return
+	local distStuds = (camPos - data.Head.Position).Magnitude
+	local distMeters = math.floor(distStuds * 0.28)
+	if distMeters > (config.MaxDistance or 1500) then
+		ESPManager.RemoveDrawing(character)
+		local highlight = getgenv().DeltaChamsCache and getgenv().DeltaChamsCache[character]
+		if highlight then
+			highlight:Destroy()
+			getgenv().DeltaChamsCache[character] = nil
 		end
+		return
+	end
 
-		local isVisible3D = false
-		if
-			config.VisibleCheck
-			and not data.IsCorpse
-			and not data.IsExit
-			and (config.Enabled or config.ChamsEnabled or config.NPCESPEnabled or config.HelicopterESPEnabled)
-		then
-			local targetPartName = config_sa.TargetPart or "Head"
-			local aimPart = (character and character:FindFirstChild(targetPartName)) or data.Head
-			isVisible3D = CharacterManager.IsVisible(aimPart, character)
-		end
+	local isVisible3D = false
+	if
+		config.VisibleCheck
+		and not data.IsCorpse
+		and not data.IsExit
+		and (config.Enabled or config.ChamsEnabled or config.NPCESPEnabled or config.HelicopterESPEnabled)
+	then
+		local targetPartName = config_sa.TargetPart or "Head"
+		local aimPart = (character and character:FindFirstChild(targetPartName)) or data.Head
+		isVisible3D = CharacterManager.IsVisible(aimPart, character)
+	end
 
-		-- Handle Text ESP
-		if
-			(config.Enabled and not data.IsCorpse and not data.IsExit and not data.IsNPC and not data.IsHelicopterESP)
-			or (config.NPCESPEnabled and data.IsNPC)
-			or (config.CorpseESPEnabled and data.IsCorpse)
-			or (config.ExitESPEnabled and data.IsExit)
-			or (config.HelicopterESPEnabled and data.IsHelicopterESP)
-		then
-			local cacheData = ESPManager.Cache[character]
-			if not cacheData then
-				cacheData = {
-					Text = ESPManager.CreateTextDrawing(),
-					DistanceText = ESPManager.CreateTextDrawing(),
-					Bg = Drawing.new("Square"),
-					Bar = Drawing.new("Square"),
-					Box2DOutline = Drawing.new("Square"),
-					Box2D = Drawing.new("Square"),
-				}
-				cacheData.Bg.Filled = true
-				cacheData.Bg.Color = Color3.fromRGB(0, 0, 0)
-				cacheData.Bg.Thickness = 1
-				cacheData.Bar.Filled = true
-				cacheData.Bar.Color = Color3.fromRGB(0, 255, 0)
-				cacheData.Bar.Thickness = 1
-				cacheData.Box2DOutline.Filled = false
-				cacheData.Box2DOutline.Thickness = 3
-				cacheData.Box2D.Filled = false
-				cacheData.Box2D.Thickness = 1
-				cacheData.CornerLines = {}
-				cacheData.CornerLinesOutline = {}
-				for i = 1, 8 do
-					local outline = Drawing.new("Line")
-					outline.Thickness = 3
-					outline.Color = Color3.fromRGB(0, 0, 0)
-					outline.Visible = false
-					cacheData.CornerLinesOutline[i] = outline
-					local line = Drawing.new("Line")
-					line.Thickness = 1
-					line.Visible = false
-					cacheData.CornerLines[i] = line
-				end
-				ESPManager.Cache[character] = cacheData
+	-- Handle Text ESP
+	if
+		(config.Enabled and not data.IsCorpse and not data.IsExit and not data.IsNPC and not data.IsHelicopterESP)
+		or (config.NPCESPEnabled and data.IsNPC)
+		or (config.CorpseESPEnabled and data.IsCorpse)
+		or (config.ExitESPEnabled and data.IsExit)
+		or (config.HelicopterESPEnabled and data.IsHelicopterESP)
+	then
+		local cacheData = ESPManager.Cache[character]
+		if not cacheData then
+			cacheData = {
+				Text = ESPManager.CreateTextDrawing(),
+				DistanceText = ESPManager.CreateTextDrawing(),
+				Bg = Drawing.new("Square"),
+				Bar = Drawing.new("Square"),
+				Box2DOutline = Drawing.new("Square"),
+				Box2D = Drawing.new("Square"),
+			}
+			cacheData.Bg.Filled = true
+			cacheData.Bg.Color = Color3.fromRGB(0, 0, 0)
+			cacheData.Bg.Thickness = 1
+			cacheData.Bar.Filled = true
+			cacheData.Bar.Color = Color3.fromRGB(0, 255, 0)
+			cacheData.Bar.Thickness = 1
+			cacheData.Box2DOutline.Filled = false
+			cacheData.Box2DOutline.Thickness = 3
+			cacheData.Box2D.Filled = false
+			cacheData.Box2D.Thickness = 1
+			cacheData.CornerLines = {}
+			cacheData.CornerLinesOutline = {}
+			for i = 1, 8 do
+				local outline = Drawing.new("Line")
+				outline.Thickness = 3
+				outline.Color = Color3.fromRGB(0, 0, 0)
+				outline.Visible = false
+				cacheData.CornerLinesOutline[i] = outline
+				local line = Drawing.new("Line")
+				line.Thickness = 1
+				line.Visible = false
+				cacheData.CornerLines[i] = line
 			end
-			local textDrawing = type(cacheData) == "table" and cacheData.Text or cacheData
+			ESPManager.Cache[character] = cacheData
+		end
+		local textDrawing = type(cacheData) == "table" and cacheData.Text or cacheData
 
-			local screenPosition, isVisibleOnScreen = worldToViewportPoint(Camera, data.Head.Position + espOffsetHead)
-			local boxTopScreenPos = worldToViewportPoint(Camera, data.Head.Position + Vector3.new(0, 0.5, 0))
+		local screenPosition, isVisibleOnScreen = worldToViewportPoint(Camera, data.Head.Position + espOffsetHead)
+		local boxTopScreenPos = worldToViewportPoint(Camera, data.Head.Position + Vector3.new(0, 0.5, 0))
 
-			if isVisibleOnScreen and screenPosition.Z > 0 then
-				local textStr = ESPManager.FormatPlayerText(data)
-				if config.ShowDistance and (data.IsCorpse or data.IsExit) then
-					textStr = textStr .. "\n(" .. tostring(distMeters) .. " m)"
-				end
+		if isVisibleOnScreen and screenPosition.Z > 0 then
+			local textStr = ESPManager.FormatPlayerText(data)
+			if config.ShowDistance and (data.IsCorpse or data.IsExit) then
+				textStr = textStr .. "\n(" .. tostring(distMeters) .. " m)"
+			end
 
-				if textDrawing.Text ~= textStr then
-					textDrawing.Text = textStr
-				end
+			if textDrawing.Text ~= textStr then
+				textDrawing.Text = textStr
+			end
 
-				textDrawing.Position = Vector2.new(screenPosition.X, screenPosition.Y - 15)
+			textDrawing.Position = Vector2.new(screenPosition.X, screenPosition.Y - 15)
 
-				local color, outlineColor
-				if data.IsCorpse then
-					color = config.CorpseTextColor
-					outlineColor = config.CorpseOutlineColor
-				elseif data.IsExit then
-					color = config.ExitTextColor
-					outlineColor = config.ExitOutlineColor
-				elseif data.IsNPC then
-					color = isVisible3D and config.VisibleColor or config.NPCTextColor
-					outlineColor = config.NPCOutlineColor
-				elseif data.IsHelicopterESP then
-					color = isVisible3D and config.VisibleColor or config.HelicopterTextColor
-					outlineColor = config.HelicopterOutlineColor
-				else
-					color = isVisible3D and config.VisibleColor or config.TextColor
-					outlineColor = config.OutlineColor
-				end
-
-				if textDrawing.Color ~= color then
-					textDrawing.Color = color
-				end
-				if textDrawing.OutlineColor ~= outlineColor then
-					textDrawing.OutlineColor = outlineColor
-				end
-				if textDrawing.Size ~= config.TextSize then
-					textDrawing.Size = config.TextSize
-				end
-				if textDrawing.Font ~= config.Font then
-					textDrawing.Font = config.Font
-				end
-				if not textDrawing.Visible then
-					textDrawing.Visible = true
-				end
-
-				local screenLegs
-				if data.RootPart then
-					screenLegs = worldToViewportPoint(Camera, data.RootPart.Position - espOffsetRoot)
-				else
-					screenLegs = Vector3.new(screenPosition.X, screenPosition.Y + 30, 0)
-				end
-
-				if type(cacheData) == "table" and cacheData.DistanceText then
-					if config.ShowDistance and not (data.IsCorpse or data.IsExit) then
-						local dStr = "(" .. tostring(distMeters) .. " m)"
-						if cacheData.DistanceText.Text ~= dStr then
-							cacheData.DistanceText.Text = dStr
-						end
-						cacheData.DistanceText.Position = Vector2.new(screenLegs.X, screenLegs.Y + 5)
-						if cacheData.DistanceText.Color ~= color then
-							cacheData.DistanceText.Color = color
-						end
-						if cacheData.DistanceText.OutlineColor ~= outlineColor then
-							cacheData.DistanceText.OutlineColor = outlineColor
-						end
-						if cacheData.DistanceText.Size ~= config.TextSize then
-							cacheData.DistanceText.Size = config.TextSize
-						end
-						if cacheData.DistanceText.Font ~= config.Font then
-							cacheData.DistanceText.Font = config.Font
-						end
-						if not cacheData.DistanceText.Visible then
-							cacheData.DistanceText.Visible = true
-						end
-					else
-						if cacheData.DistanceText.Visible then
-							cacheData.DistanceText.Visible = false
-						end
-					end
-				end
-
-				local showBar = config.ShowHealthBar
-					and ((config.Enabled and not data.IsCorpse and not data.IsExit and not data.IsNPC and not data.IsHelicopterESP) or (config.NPCESPEnabled and data.IsNPC) or (config.HelicopterESPEnabled and data.IsHelicopterESP))
-					and data.Health
-					and data.MaxHealth
-				if showBar and data.RootPart and type(cacheData) == "table" then
-					local height = math.clamp(screenLegs.Y - boxTopScreenPos.Y, 5, 1000)
-					local barWidth = 3
-					local offsetX = (height / 3.5) + 5
-					local bgPosX = boxTopScreenPos.X + offsetX
-					local bgPosY = boxTopScreenPos.Y
-
-					cacheData.Bg.Size = Vector2.new(barWidth + 2, height + 2)
-					cacheData.Bg.Position = Vector2.new(bgPosX - 1, bgPosY - 1)
-					if not cacheData.Bg.Visible then
-						cacheData.Bg.Visible = true
-					end
-
-					local healthPercent = math.clamp(data.Health / data.MaxHealth, 0, 1)
-					local barHeight = height * healthPercent
-					cacheData.Bar.Size = Vector2.new(barWidth, barHeight)
-					cacheData.Bar.Position = Vector2.new(bgPosX, bgPosY + (height - barHeight))
-					if not cacheData.Bar.Visible then
-						cacheData.Bar.Visible = true
-					end
-				elseif type(cacheData) == "table" then
-					if cacheData.Bg.Visible then
-						cacheData.Bg.Visible = false
-					end
-					if cacheData.Bar.Visible then
-						cacheData.Bar.Visible = false
-					end
-				end
-
-				if config.BoundingBox2DEnabled then
-					if type(cacheData) == "table" then
-						local height = math.clamp(screenLegs.Y - boxTopScreenPos.Y, 5, 1000)
-						local width = height / 2
-						local boxPosX = boxTopScreenPos.X - (width / 2)
-						local boxPosY = boxTopScreenPos.Y
-
-						if config.BoundingBox2DStyle == "Corner" then
-							if cacheData.Box2DOutline.Visible then
-								cacheData.Box2DOutline.Visible = false
-							end
-							if cacheData.Box2D.Visible then
-								cacheData.Box2D.Visible = false
-							end
-
-							local len = width / 3
-
-							local o1 = cacheData.CornerLinesOutline[1]
-							o1.From = Vector2.new(boxPosX, boxPosY)
-							o1.To = Vector2.new(boxPosX + len, boxPosY)
-							if not o1.Visible then
-								o1.Visible = true
-							end
-
-							local o2 = cacheData.CornerLinesOutline[2]
-							o2.From = o1.From
-							o2.To = Vector2.new(boxPosX, boxPosY + len)
-							if not o2.Visible then
-								o2.Visible = true
-							end
-
-							local o3 = cacheData.CornerLinesOutline[3]
-							o3.From = Vector2.new(boxPosX + width, boxPosY)
-							o3.To = Vector2.new(boxPosX + width - len, boxPosY)
-							if not o3.Visible then
-								o3.Visible = true
-							end
-
-							local o4 = cacheData.CornerLinesOutline[4]
-							o4.From = o3.From
-							o4.To = Vector2.new(boxPosX + width, boxPosY + len)
-							if not o4.Visible then
-								o4.Visible = true
-							end
-
-							local o5 = cacheData.CornerLinesOutline[5]
-							o5.From = Vector2.new(boxPosX, boxPosY + height)
-							o5.To = Vector2.new(boxPosX + len, boxPosY + height)
-							if not o5.Visible then
-								o5.Visible = true
-							end
-
-							local o6 = cacheData.CornerLinesOutline[6]
-							o6.From = o5.From
-							o6.To = Vector2.new(boxPosX, boxPosY + height - len)
-							if not o6.Visible then
-								o6.Visible = true
-							end
-
-							local o7 = cacheData.CornerLinesOutline[7]
-							o7.From = Vector2.new(boxPosX + width, boxPosY + height)
-							o7.To = Vector2.new(boxPosX + width - len, boxPosY + height)
-							if not o7.Visible then
-								o7.Visible = true
-							end
-
-							local o8 = cacheData.CornerLinesOutline[8]
-							o8.From = o7.From
-							o8.To = Vector2.new(boxPosX + width, boxPosY + height - len)
-							if not o8.Visible then
-								o8.Visible = true
-							end
-
-							local boxColor = config.BoundingBox2DColor
-							for i = 1, 8 do
-								local line = cacheData.CornerLines[i]
-								local outline = cacheData.CornerLinesOutline[i]
-								line.From = outline.From
-								line.To = outline.To
-								line.Color = boxColor
-								if not line.Visible then
-									line.Visible = true
-								end
-							end
-						else
-							if cacheData.CornerLines then
-								for i = 1, 8 do
-									if cacheData.CornerLinesOutline[i].Visible then
-										cacheData.CornerLinesOutline[i].Visible = false
-									end
-									if cacheData.CornerLines[i].Visible then
-										cacheData.CornerLines[i].Visible = false
-									end
-								end
-							end
-
-							cacheData.Box2DOutline.Size = Vector2.new(width, height)
-							cacheData.Box2DOutline.Position = Vector2.new(boxPosX, boxPosY)
-							cacheData.Box2DOutline.Color = Color3.fromRGB(0, 0, 0)
-							if not cacheData.Box2DOutline.Visible then
-								cacheData.Box2DOutline.Visible = true
-							end
-
-							cacheData.Box2D.Size = Vector2.new(width, height)
-							cacheData.Box2D.Position = Vector2.new(boxPosX, boxPosY)
-							cacheData.Box2D.Color = config.BoundingBox2DColor
-							if not cacheData.Box2D.Visible then
-								cacheData.Box2D.Visible = true
-							end
-						end
-					end
-				elseif type(cacheData) == "table" then
-					if cacheData.Box2DOutline and cacheData.Box2DOutline.Visible then
-						cacheData.Box2DOutline.Visible = false
-					end
-					if cacheData.Box2D and cacheData.Box2D.Visible then
-						cacheData.Box2D.Visible = false
-					end
-					if cacheData.CornerLines then
-						for i = 1, 8 do
-							if cacheData.CornerLinesOutline[i].Visible then
-								cacheData.CornerLinesOutline[i].Visible = false
-							end
-							if cacheData.CornerLines[i].Visible then
-								cacheData.CornerLines[i].Visible = false
-							end
-						end
-					end
-				end
+			local color, outlineColor
+			if data.IsCorpse then
+				color = config.CorpseTextColor
+				outlineColor = config.CorpseOutlineColor
+			elseif data.IsExit then
+				color = config.ExitTextColor
+				outlineColor = config.ExitOutlineColor
+			elseif data.IsNPC then
+				color = isVisible3D and config.VisibleColor or config.NPCTextColor
+				outlineColor = config.NPCOutlineColor
+			elseif data.IsHelicopterESP then
+				color = isVisible3D and config.VisibleColor or config.HelicopterTextColor
+				outlineColor = config.HelicopterOutlineColor
 			else
-				if textDrawing.Visible then
-					textDrawing.Visible = false
-				end
-				if type(cacheData) == "table" then
-					if cacheData.DistanceText then
+				color = isVisible3D and config.VisibleColor or config.TextColor
+				outlineColor = config.OutlineColor
+			end
+
+			if textDrawing.Color ~= color then
+				textDrawing.Color = color
+			end
+			if textDrawing.OutlineColor ~= outlineColor then
+				textDrawing.OutlineColor = outlineColor
+			end
+			if textDrawing.Size ~= config.TextSize then
+				textDrawing.Size = config.TextSize
+			end
+			if textDrawing.Font ~= config.Font then
+				textDrawing.Font = config.Font
+			end
+			if not textDrawing.Visible then
+				textDrawing.Visible = true
+			end
+
+			local screenLegs
+			if data.RootPart then
+				screenLegs = worldToViewportPoint(Camera, data.RootPart.Position - espOffsetRoot)
+			else
+				screenLegs = Vector3.new(screenPosition.X, screenPosition.Y + 30, 0)
+			end
+
+			if type(cacheData) == "table" and cacheData.DistanceText then
+				if config.ShowDistance and not (data.IsCorpse or data.IsExit) then
+					local dStr = "(" .. tostring(distMeters) .. " m)"
+					if cacheData.DistanceText.Text ~= dStr then
+						cacheData.DistanceText.Text = dStr
+					end
+					cacheData.DistanceText.Position = Vector2.new(screenLegs.X, screenLegs.Y + 5)
+					if cacheData.DistanceText.Color ~= color then
+						cacheData.DistanceText.Color = color
+					end
+					if cacheData.DistanceText.OutlineColor ~= outlineColor then
+						cacheData.DistanceText.OutlineColor = outlineColor
+					end
+					if cacheData.DistanceText.Size ~= config.TextSize then
+						cacheData.DistanceText.Size = config.TextSize
+					end
+					if cacheData.DistanceText.Font ~= config.Font then
+						cacheData.DistanceText.Font = config.Font
+					end
+					if not cacheData.DistanceText.Visible then
+						cacheData.DistanceText.Visible = true
+					end
+				else
+					if cacheData.DistanceText.Visible then
 						cacheData.DistanceText.Visible = false
 					end
+				end
+			end
+
+			local showBar = config.ShowHealthBar
+				and ((config.Enabled and not data.IsCorpse and not data.IsExit and not data.IsNPC and not data.IsHelicopterESP) or (config.NPCESPEnabled and data.IsNPC) or (config.HelicopterESPEnabled and data.IsHelicopterESP))
+				and data.Health
+				and data.MaxHealth
+			if showBar and data.RootPart and type(cacheData) == "table" then
+				local height = math.clamp(screenLegs.Y - boxTopScreenPos.Y, 5, 1000)
+				local barWidth = 3
+				local offsetX = (height / 3.5) + 5
+				local bgPosX = boxTopScreenPos.X + offsetX
+				local bgPosY = boxTopScreenPos.Y
+
+				cacheData.Bg.Size = Vector2.new(barWidth + 2, height + 2)
+				cacheData.Bg.Position = Vector2.new(bgPosX - 1, bgPosY - 1)
+				if not cacheData.Bg.Visible then
+					cacheData.Bg.Visible = true
+				end
+
+				local healthPercent = math.clamp(data.Health / data.MaxHealth, 0, 1)
+				local barHeight = height * healthPercent
+				cacheData.Bar.Size = Vector2.new(barWidth, barHeight)
+				cacheData.Bar.Position = Vector2.new(bgPosX, bgPosY + (height - barHeight))
+				if not cacheData.Bar.Visible then
+					cacheData.Bar.Visible = true
+				end
+			elseif type(cacheData) == "table" then
+				if cacheData.Bg.Visible then
 					cacheData.Bg.Visible = false
+				end
+				if cacheData.Bar.Visible then
 					cacheData.Bar.Visible = false
-					if cacheData.Box2DOutline then
-						cacheData.Box2DOutline.Visible = false
-					end
-					if cacheData.Box2D then
-						cacheData.Box2D.Visible = false
-					end
-					if cacheData.CornerLines then
+				end
+			end
+
+			if config.BoundingBox2DEnabled then
+				if type(cacheData) == "table" then
+					local height = math.clamp(screenLegs.Y - boxTopScreenPos.Y, 5, 1000)
+					local width = height / 2
+					local boxPosX = boxTopScreenPos.X - (width / 2)
+					local boxPosY = boxTopScreenPos.Y
+
+					if config.BoundingBox2DStyle == "Corner" then
+						if cacheData.Box2DOutline.Visible then
+							cacheData.Box2DOutline.Visible = false
+						end
+						if cacheData.Box2D.Visible then
+							cacheData.Box2D.Visible = false
+						end
+
+						local len = width / 3
+
+						local o1 = cacheData.CornerLinesOutline[1]
+						o1.From = Vector2.new(boxPosX, boxPosY)
+						o1.To = Vector2.new(boxPosX + len, boxPosY)
+						if not o1.Visible then
+							o1.Visible = true
+						end
+
+						local o2 = cacheData.CornerLinesOutline[2]
+						o2.From = o1.From
+						o2.To = Vector2.new(boxPosX, boxPosY + len)
+						if not o2.Visible then
+							o2.Visible = true
+						end
+
+						local o3 = cacheData.CornerLinesOutline[3]
+						o3.From = Vector2.new(boxPosX + width, boxPosY)
+						o3.To = Vector2.new(boxPosX + width - len, boxPosY)
+						if not o3.Visible then
+							o3.Visible = true
+						end
+
+						local o4 = cacheData.CornerLinesOutline[4]
+						o4.From = o3.From
+						o4.To = Vector2.new(boxPosX + width, boxPosY + len)
+						if not o4.Visible then
+							o4.Visible = true
+						end
+
+						local o5 = cacheData.CornerLinesOutline[5]
+						o5.From = Vector2.new(boxPosX, boxPosY + height)
+						o5.To = Vector2.new(boxPosX + len, boxPosY + height)
+						if not o5.Visible then
+							o5.Visible = true
+						end
+
+						local o6 = cacheData.CornerLinesOutline[6]
+						o6.From = o5.From
+						o6.To = Vector2.new(boxPosX, boxPosY + height - len)
+						if not o6.Visible then
+							o6.Visible = true
+						end
+
+						local o7 = cacheData.CornerLinesOutline[7]
+						o7.From = Vector2.new(boxPosX + width, boxPosY + height)
+						o7.To = Vector2.new(boxPosX + width - len, boxPosY + height)
+						if not o7.Visible then
+							o7.Visible = true
+						end
+
+						local o8 = cacheData.CornerLinesOutline[8]
+						o8.From = o7.From
+						o8.To = Vector2.new(boxPosX + width, boxPosY + height - len)
+						if not o8.Visible then
+							o8.Visible = true
+						end
+
+						local boxColor = config.BoundingBox2DColor
 						for i = 1, 8 do
-							if cacheData.CornerLinesOutline[i].Visible then
-								cacheData.CornerLinesOutline[i].Visible = false
+							local line = cacheData.CornerLines[i]
+							local outline = cacheData.CornerLinesOutline[i]
+							line.From = outline.From
+							line.To = outline.To
+							line.Color = boxColor
+							if not line.Visible then
+								line.Visible = true
 							end
-							if cacheData.CornerLines[i].Visible then
-								cacheData.CornerLines[i].Visible = false
+						end
+					else
+						if cacheData.CornerLines then
+							for i = 1, 8 do
+								if cacheData.CornerLinesOutline[i].Visible then
+									cacheData.CornerLinesOutline[i].Visible = false
+								end
+								if cacheData.CornerLines[i].Visible then
+									cacheData.CornerLines[i].Visible = false
+								end
 							end
+						end
+
+						cacheData.Box2DOutline.Size = Vector2.new(width, height)
+						cacheData.Box2DOutline.Position = Vector2.new(boxPosX, boxPosY)
+						cacheData.Box2DOutline.Color = Color3.fromRGB(0, 0, 0)
+						if not cacheData.Box2DOutline.Visible then
+							cacheData.Box2DOutline.Visible = true
+						end
+
+						cacheData.Box2D.Size = Vector2.new(width, height)
+						cacheData.Box2D.Position = Vector2.new(boxPosX, boxPosY)
+						cacheData.Box2D.Color = config.BoundingBox2DColor
+						if not cacheData.Box2D.Visible then
+							cacheData.Box2D.Visible = true
+						end
+					end
+				end
+			elseif type(cacheData) == "table" then
+				if cacheData.Box2DOutline and cacheData.Box2DOutline.Visible then
+					cacheData.Box2DOutline.Visible = false
+				end
+				if cacheData.Box2D and cacheData.Box2D.Visible then
+					cacheData.Box2D.Visible = false
+				end
+				if cacheData.CornerLines then
+					for i = 1, 8 do
+						if cacheData.CornerLinesOutline[i].Visible then
+							cacheData.CornerLinesOutline[i].Visible = false
+						end
+						if cacheData.CornerLines[i].Visible then
+							cacheData.CornerLines[i].Visible = false
 						end
 					end
 				end
 			end
 		else
-			-- Garbage collect unused ESP memory when its toggle is off
-			ESPManager.RemoveDrawing(character)
-		end
-
-		-- Handle Chams (Highlight)
-		local shouldDrawChams = false
-		if config.ChamsEnabled and not data.IsCorpse and not data.IsExit then
-			local isPlayer = not data.IsNPC and not data.IsHelicopterESP
-			if isPlayer then
-				shouldDrawChams = config.Enabled -- Players require Enable ESP to be ON
-			else
-				shouldDrawChams = true -- NPCs and Helicopters bypass the Enable ESP check
+			if textDrawing.Visible then
+				textDrawing.Visible = false
+			end
+			if type(cacheData) == "table" then
+				if cacheData.DistanceText then
+					cacheData.DistanceText.Visible = false
+				end
+				cacheData.Bg.Visible = false
+				cacheData.Bar.Visible = false
+				if cacheData.Box2DOutline then
+					cacheData.Box2DOutline.Visible = false
+				end
+				if cacheData.Box2D then
+					cacheData.Box2D.Visible = false
+				end
+				if cacheData.CornerLines then
+					for i = 1, 8 do
+						if cacheData.CornerLinesOutline[i].Visible then
+							cacheData.CornerLinesOutline[i].Visible = false
+						end
+						if cacheData.CornerLines[i].Visible then
+							cacheData.CornerLines[i].Visible = false
+						end
+					end
+				end
 			end
 		end
+	else
+		-- Garbage collect unused ESP memory when its toggle is off
+		ESPManager.RemoveDrawing(character)
+	end
 
-		if shouldDrawChams then
-			local highlight = getgenv().DeltaChamsCache[character]
-			if not highlight then
-				highlight = Instance.new("Highlight")
-				highlight.Parent = CoreGui
-				highlight.Adornee = character
-				highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-				getgenv().DeltaChamsCache[character] = highlight
-			end
-
-			local fillCol = data.IsNPC and config.NPCChamsFillColor or config.ChamsFillColor
-			highlight.FillColor = isVisible3D and config.VisibleColor or fillCol
-			highlight.OutlineColor = config.ChamsOutlineColor
+	-- Handle Chams (Highlight)
+	local shouldDrawChams = false
+	if config.ChamsEnabled and not data.IsCorpse and not data.IsExit then
+		local isPlayer = not data.IsNPC and not data.IsHelicopterESP
+		if isPlayer then
+			shouldDrawChams = config.Enabled -- Players require Enable ESP to be ON
 		else
-			local highlight = getgenv().DeltaChamsCache and getgenv().DeltaChamsCache[character]
-			if highlight then
-				highlight:Destroy()
-				getgenv().DeltaChamsCache[character] = nil
-			end
+			shouldDrawChams = true -- NPCs and Helicopters bypass the Enable ESP check
 		end
 	end
+
+	if shouldDrawChams then
+		local highlight = getgenv().DeltaChamsCache[character]
+		if not highlight then
+			highlight = Instance.new("Highlight")
+			highlight.Parent = CoreGui
+			highlight.Adornee = character
+			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			getgenv().DeltaChamsCache[character] = highlight
+		end
+
+		local fillCol = data.IsNPC and config.NPCChamsFillColor or config.ChamsFillColor
+		highlight.FillColor = isVisible3D and config.VisibleColor or fillCol
+		highlight.OutlineColor = config.ChamsOutlineColor
+	else
+		local highlight = getgenv().DeltaChamsCache and getgenv().DeltaChamsCache[character]
+		if highlight then
+			highlight:Destroy()
+			getgenv().DeltaChamsCache[character] = nil
+		end
+	end
+end
 function ESPManager.Update()
 	local config_sa = getgenv().Config.SilentAim
 	local config = getgenv().Config.ESP
@@ -4686,7 +4714,6 @@ function ESPManager.Update()
 
 	local camPos = Camera.CFrame.Position
 	local worldToViewportPoint = Camera.WorldToViewportPoint
-
 
 	for character, data in pairs(activeCharacters) do
 		DrawEntity(character, data, config, config_sa, camPos, worldToViewportPoint)
@@ -5054,7 +5081,9 @@ if BulletMod then
 					local targetPartName = getgenv().Config.SilentAim.TargetPart or "Head"
 					local targetAimPart = (target.Character and target.Character:FindFirstChild(targetPartName))
 						or target.Head
-					local targetRoot = target.RootPart or (target.Character and target.Character:FindFirstChild("HumanoidRootPart")) or targetAimPart
+					local targetRoot = target.RootPart
+						or (target.Character and target.Character:FindFirstChild("HumanoidRootPart"))
+						or targetAimPart
 
 					local ammoName = type(args[7]) == "string" and args[7] or ""
 					getgenv().LastFiredAmmoName = ammoName
@@ -5546,7 +5575,6 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 
 	if method == "FireServer" then
 		local selfName = typeof(self) == "Instance" and self.Name or ""
-
 
 		if selfName == "ProjectileInflict" or selfName == "MeleeInflict" or selfName == "MeleeInfIict" then
 			getgenv().LastDamageInflictedTime = tick()
@@ -7563,7 +7591,11 @@ function InstantHitManager.Activate()
 	local forgedBullets = {}
 
 	getgenv()._IH_Interceptor = function(method, remoteName, args)
-		if not getgenv().Config.Combat.InstantHit and not getgenv().Config.SilentAim.Enabled and not getgenv()._AutopilotTargetOverride then
+		if
+			not getgenv().Config.Combat.InstantHit
+			and not getgenv().Config.SilentAim.Enabled
+			and not getgenv()._AutopilotTargetOverride
+		then
 			return false
 		end
 
@@ -7587,8 +7619,7 @@ function InstantHitManager.Activate()
 					local origin = workspace.CurrentCamera.CFrame.Position
 					local serverOrigin = origin
 
-					local isUnderground = getgenv().Config.Combat.UndergroundDesync
-						and getgenv()._StoredRealCFrame
+					local isUnderground = getgenv().Config.Combat.UndergroundDesync and getgenv()._StoredRealCFrame
 
 					if isUnderground then
 						serverOrigin = (getgenv()._StoredRealCFrame * CFrame.new(0, -3.8, 0)).Position
@@ -7612,9 +7643,7 @@ function InstantHitManager.Activate()
 						expectedFlightTime = distance / safeVelocity
 					end
 
-
 					args[1] = perfectDirection
-
 
 					-- 2. Timestamp Backdating:
 					-- We make the server believe the bullet was fired in the past.
@@ -7684,7 +7713,7 @@ function InstantHitManager.Activate()
 
 			return false
 		end -- elseif FireServer ProjectileInflict
-		
+
 		return false
 	end -- _IH_Interceptor
 	return true
@@ -8127,19 +8156,18 @@ table.insert(
 
 			local distance = silentAimConfig.UndergroundDistance or 20
 			local targetCFrame = startCFrame - Vector3.new(0, distance, 0)
+			
 			local duration = silentAimConfig.UndergroundDuration or 1.0
+			if getgenv().Config.Combat.UndergroundDesync then
+				duration = 2.0
+			end
 
 			local cfValue = Instance.new("CFrameValue")
 			cfValue.Value = startCFrame
 
 			local tweenDown = _TweenService:Create(
 				cfValue,
-				-- Sine.Out distributes movement evenly across the full duration.
-				-- Exponential.Out front-loads all motion into the first ~30% of the tween,
-				-- leaving a near-zero velocity tail that only happens to be safe at max
-				-- duration (2s). Sine.Out keeps the exit velocity consistent regardless
-				-- of duration, preventing residual collision impulse at tween completion.
-				TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+				TweenInfo.new(duration, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
 				{ Value = targetCFrame }
 			)
 
@@ -8207,11 +8235,10 @@ table.insert(
 				-- interpolated value on 'conn' after we've already stopped caring about it.
 				cfValue:Destroy()
 				conn:Disconnect()
-				-- NOTE: velocityConn is intentionally NOT disconnected here.
-				-- It must keep zeroing velocity through the snap and anchor so there is
-				-- no window between tween completion and hrp.Anchored = true where
-				-- physics can rebuild downward momentum and cause a void fall.
-				-- It is disconnected immediately after anchoring below.
+				if velocityConn then
+					velocityConn:Disconnect()
+					velocityConn = nil
+				end
 
 				local hrpPosNow = hrp.CFrame.Position
 				local storedNow = getgenv()._StoredRealCFrame and getgenv()._StoredRealCFrame.Position
@@ -8252,41 +8279,28 @@ table.insert(
 					end
 					-- R15 and R6 generally place HRP ~3 studs above feet
 					local rootHeight = hipHeight + (hrp.Size.Y / 2)
-					local safeY = surfaceY + rootHeight
-					local p = startCFrame.Position
-
+					local safeY    = surfaceY + rootHeight
+					local p        = startCFrame.Position
+					
 					if getgenv().AddLog then
-						getgenv().AddLog(
-							string.format(
-								"[UGR RAY HIT] inst=%s surfY=%.2f safeY=%.2f startY=%.2f",
-								rayResult.Instance and rayResult.Instance.Name or "?",
-								surfaceY,
-								safeY,
-								p.Y
-							)
-						)
+						getgenv().AddLog(string.format(
+							"[UGR RAY HIT] inst=%s surfY=%.2f safeY=%.2f startY=%.2f",
+							rayResult.Instance and rayResult.Instance.Name or "?",
+							surfaceY, safeY, p.Y
+						))
 					end
-
+					
 					-- Remove any pitch/roll that might clip corners into the terrain
 					local look = startCFrame.LookVector
 					local flatLook = Vector3.new(look.X, 0, look.Z).Unit
-					if flatLook.Magnitude < 0.1 then
-						flatLook = Vector3.new(0, 0, -1)
-					end
-					safeReturnCFrame = CFrame.lookAt(
-						Vector3.new(p.X, safeY, p.Z),
-						Vector3.new(p.X + flatLook.X, safeY, p.Z + flatLook.Z)
-					)
+					if flatLook.Magnitude < 0.1 then flatLook = Vector3.new(0, 0, -1) end
+					safeReturnCFrame = CFrame.lookAt(Vector3.new(p.X, safeY, p.Z), Vector3.new(p.X + flatLook.X, safeY, p.Z + flatLook.Z))
 				else
 					if getgenv().AddLog then
-						getgenv().AddLog(
-							string.format(
-								"[UGR RAY MISS] No terrain found below startCF %.2f,%.2f,%.2f — using startCFrame as-is",
-								startCFrame.Position.X,
-								startCFrame.Position.Y,
-								startCFrame.Position.Z
-							)
-						)
+						getgenv().AddLog(string.format(
+							"[UGR RAY MISS] No terrain found below startCF %.2f,%.2f,%.2f ΓÇö using startCFrame as-is",
+							startCFrame.Position.X, startCFrame.Position.Y, startCFrame.Position.Z
+						))
 					end
 				end
 
@@ -8316,21 +8330,16 @@ table.insert(
 				-- Suppress the desync offset for the landing window so the character can
 				-- settle onto the surface cleanly. Without this, Heartbeat immediately
 				-- applies undergroundDesyncOffset which shifts HRP underground, physics
-				-- freefalls from there, and _StoredRealCFrame feeds the loop → void fall.
-				-- This does NOT toggle the user's config — only the offset application.
+				-- freefalls from there, and _StoredRealCFrame feeds the loop ΓåÆ void fall.
+				-- This does NOT toggle the user's config ΓÇö only the offset application.
 				getgenv()._DesyncOffsetSuppressed = true
 				if getgenv().AddLog then
 					getgenv().AddLog("[UGR] Desync offset suppressed for landing window")
 				end
 
-				-- Anchor briefly to kill any built-up collision momentum and reset state.
-				-- Disconnect velocityConn HERE, only after anchoring — this guarantees
-				-- velocity is zero at every frame from tween completion through anchor.
+				-- Anchor briefly to kill any built-up collision momentum and reset state
+				-- NOTE: It's ALREADY anchored from the start of the tween, but we ensure it here.
 				hrp.Anchored = true
-				if velocityConn then
-					velocityConn:Disconnect()
-					velocityConn = nil
-				end
 				if humanoid then
 					humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
 				end
@@ -8356,7 +8365,7 @@ table.insert(
 					getgenv()._UndergroundResolverActive = false
 					getgenv()._LastGuardDeactivate = tick()
 					if getgenv().AddLog then
-						getgenv().AddLog("[UGR FLAG] _UndergroundResolverActive released → false")
+						getgenv().AddLog("[UGR FLAG] _UndergroundResolverActive released ΓåÆ false")
 					end
 					-- Additional 0.3s after anchor release before re-enabling the desync offset.
 					-- This gives physics 0.3s to land the character cleanly on the surface
