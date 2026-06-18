@@ -2285,7 +2285,11 @@ local steppedRestoreConnection = RunService.Stepped:Connect(function()
 		-- If the server rubberbands the player drastically (e.g., > 15 studs),
 		-- accept the server's position to prevent an infinite fight and a Noclip kick.
 		local guardBlocked = getgenv()._UndergroundResolverActive or getgenv()._SkyPeekActive
-		if not guardBlocked and (tick() - (getgenv()._LastGuardDeactivate or 0) > 1.5) and (prevPos - getgenv()._StoredRealCFrame.Position).Magnitude > 15 then
+		if
+			not guardBlocked
+			and (tick() - (getgenv()._LastGuardDeactivate or 0) > 1.5)
+			and (prevPos - getgenv()._StoredRealCFrame.Position).Magnitude > 15
+		then
 			getgenv()._StoredRealCFrame = HRP.CFrame
 		end
 		HRP.CFrame = getgenv()._StoredRealCFrame
@@ -2295,18 +2299,22 @@ local steppedRestoreConnection = RunService.Stepped:Connect(function()
 			_steppedDbgTick = 0
 			if getgenv().AddLog then
 				local stored = getgenv()._StoredRealCFrame.Position
-				getgenv().AddLog(string.format(
-					"[Stepped] HRP %.2f,%.2f,%.2f ΓåÆ Stored %.2f,%.2f,%.2f | UGR=%s SPeek=%s",
-					prevPos.X, prevPos.Y, prevPos.Z,
-					stored.X, stored.Y, stored.Z,
-					tostring(getgenv()._UndergroundResolverActive == true),
-					tostring(getgenv()._SkyPeekActive == true)
-				))
+				getgenv().AddLog(
+					string.format(
+						"[Stepped] HRP %.2f,%.2f,%.2f ΓåÆ Stored %.2f,%.2f,%.2f | UGR=%s SPeek=%s",
+						prevPos.X,
+						prevPos.Y,
+						prevPos.Z,
+						stored.X,
+						stored.Y,
+						stored.Z,
+						tostring(getgenv()._UndergroundResolverActive == true),
+						tostring(getgenv()._SkyPeekActive == true)
+					)
+				)
 			end
 		end
 	end
-
-
 
 	-- Layer 1: Spoof RootJoint for physics replication
 	if isAntiAim and Character and HRP then
@@ -2341,8 +2349,7 @@ local steppedRestoreConnection = RunService.Stepped:Connect(function()
 			-- Downward raycast: ensure there is ground below the offset position
 			-- Without this, body parts appear to float over ledges ΓåÆ fly hack detected
 			local offsetPos = origin + worldOffset
-			local groundHit =
-				workspace:Raycast(offsetPos + Vector3.new(0, 3, 0), Vector3.new(0, -20, 0), raycastParams)
+			local groundHit = workspace:Raycast(offsetPos + Vector3.new(0, 3, 0), Vector3.new(0, -20, 0), raycastParams)
 			if not groundHit then
 				-- No ground at offset position ΓÇö collapse offset to zero to avoid fly detection
 				worldOffset = Vector3.zero
@@ -2382,15 +2389,20 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 			local dy = 0
 			if getgenv()._StoredRealCFrame then
 				local prev = getgenv()._StoredRealCFrame.Position
-				local cur  = captured.Position
+				local cur = captured.Position
 				dy = cur.Y - prev.Y
 
 				-- Flag sudden downward jumps > 1 stud between frames (sign of geometry push-through)
 				if dy < -1 and getgenv().AddLog then
-					getgenv().AddLog(string.format(
-						"[HB WARN] _StoredRealCFrame dropped %.2f studs! prev=%.2f cur=%.2f | HRP actual Y=%.2f",
-						dy, prev.Y, cur.Y, HRP.CFrame.Position.Y
-					))
+					getgenv().AddLog(
+						string.format(
+							"[HB WARN] _StoredRealCFrame dropped %.2f studs! prev=%.2f cur=%.2f | HRP actual Y=%.2f",
+							dy,
+							prev.Y,
+							cur.Y,
+							HRP.CFrame.Position.Y
+						)
+					)
 				end
 			end
 
@@ -2432,18 +2444,23 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 					local safeY = upHit.Position.Y + rootHeight
 					local look = HRP.CFrame.LookVector
 					local flatLook = Vector3.new(look.X, 0, look.Z)
-					if flatLook.Magnitude < 0.1 then flatLook = Vector3.new(0, 0, -1) end
+					if flatLook.Magnitude < 0.1 then
+						flatLook = Vector3.new(0, 0, -1)
+					end
 					flatLook = flatLook.Unit
 					recoveredCFrame = CFrame.lookAt(
 						Vector3.new(pos.X, safeY, pos.Z),
 						Vector3.new(pos.X + flatLook.X, safeY, pos.Z + flatLook.Z)
 					)
 					if getgenv().AddLog then
-						getgenv().AddLog(string.format(
-							"[VOID RECOVERY] Upcast hit %s at Y=%.2f → snapping to safeY=%.2f",
-							upHit.Instance and upHit.Instance.Name or "?",
-							upHit.Position.Y, safeY
-						))
+						getgenv().AddLog(
+							string.format(
+								"[VOID RECOVERY] Upcast hit %s at Y=%.2f → snapping to safeY=%.2f",
+								upHit.Instance and upHit.Instance.Name or "?",
+								upHit.Position.Y,
+								safeY
+							)
+						)
 					end
 				else
 					-- No surface found above — cast downward as fallback
@@ -2458,18 +2475,23 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 						local safeY = downHit.Position.Y + rootHeight
 						local look = HRP.CFrame.LookVector
 						local flatLook = Vector3.new(look.X, 0, look.Z)
-						if flatLook.Magnitude < 0.1 then flatLook = Vector3.new(0, 0, -1) end
+						if flatLook.Magnitude < 0.1 then
+							flatLook = Vector3.new(0, 0, -1)
+						end
 						flatLook = flatLook.Unit
 						recoveredCFrame = CFrame.lookAt(
 							Vector3.new(pos.X, safeY, pos.Z),
 							Vector3.new(pos.X + flatLook.X, safeY, pos.Z + flatLook.Z)
 						)
 						if getgenv().AddLog then
-							getgenv().AddLog(string.format(
-								"[VOID RECOVERY] Downcast hit %s at Y=%.2f → snapping to safeY=%.2f",
-								downHit.Instance and downHit.Instance.Name or "?",
-								downHit.Position.Y, safeY
-							))
+							getgenv().AddLog(
+								string.format(
+									"[VOID RECOVERY] Downcast hit %s at Y=%.2f → snapping to safeY=%.2f",
+									downHit.Instance and downHit.Instance.Name or "?",
+									downHit.Position.Y,
+									safeY
+								)
+							)
 						end
 					else
 						if getgenv().AddLog then
@@ -2504,12 +2526,19 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 			if desyncTick >= 60 and getgenv().AddLog then
 				desyncTick = 0
 				local stored = getgenv()._StoredRealCFrame
-				getgenv().AddLog(string.format(
-					"[HB GUARD] UGR=%s SPeek=%s | Stored=%.2f,%.2f,%.2f | HRP=%.2f,%.2f,%.2f",
-					tostring(isUGR), tostring(getgenv()._SkyPeekActive == true),
-					stored and stored.Position.X or 0, stored and stored.Position.Y or 0, stored and stored.Position.Z or 0,
-					HRP.CFrame.Position.X, HRP.CFrame.Position.Y, HRP.CFrame.Position.Z
-				))
+				getgenv().AddLog(
+					string.format(
+						"[HB GUARD] UGR=%s SPeek=%s | Stored=%.2f,%.2f,%.2f | HRP=%.2f,%.2f,%.2f",
+						tostring(isUGR),
+						tostring(getgenv()._SkyPeekActive == true),
+						stored and stored.Position.X or 0,
+						stored and stored.Position.Y or 0,
+						stored and stored.Position.Z or 0,
+						HRP.CFrame.Position.X,
+						HRP.CFrame.Position.Y,
+						HRP.CFrame.Position.Z
+					)
+				)
 			end
 		end
 		getgenv()._realVelocity = HRP.AssemblyLinearVelocity
@@ -8265,8 +8294,23 @@ table.insert(
 				or hrp.CFrame
 
 			local distance = silentAimConfig.UndergroundDistance or 20
+
+			if getgenv().Config.Combat.UndergroundDesync then
+				local preferredTargetY = startCFrame.Position.Y - distance
+				local hardcodedTerrainY = -3
+				
+				-- If the preferred distance pushes us into or below the hardcoded terrain layer, 
+				-- stop 5 studs above it to avoid void-falling.
+				if preferredTargetY <= hardcodedTerrainY then
+					distance = startCFrame.Position.Y - (hardcodedTerrainY + 5)
+					if getgenv().AddLog then
+						getgenv().AddLog(string.format("[UGR] Hardcoded Terrain Check: Target adjusted. Preferred Y=%.2f, Terrain Y=%.2f. New Distance=%.2f", preferredTargetY, hardcodedTerrainY, distance))
+					end
+				end
+			end
+
 			local targetCFrame = startCFrame - Vector3.new(0, distance, 0)
-			
+
 			local duration = silentAimConfig.UndergroundDuration or 1.0
 			if getgenv().Config.Combat.UndergroundDesync then
 				duration = 2.0
@@ -8389,28 +8433,41 @@ table.insert(
 					end
 					-- R15 and R6 generally place HRP ~3 studs above feet
 					local rootHeight = hipHeight + (hrp.Size.Y / 2)
-					local safeY    = surfaceY + rootHeight
-					local p        = startCFrame.Position
-					
+					local safeY = surfaceY + rootHeight
+					local p = startCFrame.Position
+
 					if getgenv().AddLog then
-						getgenv().AddLog(string.format(
-							"[UGR RAY HIT] inst=%s surfY=%.2f safeY=%.2f startY=%.2f",
-							rayResult.Instance and rayResult.Instance.Name or "?",
-							surfaceY, safeY, p.Y
-						))
+						getgenv().AddLog(
+							string.format(
+								"[UGR RAY HIT] inst=%s surfY=%.2f safeY=%.2f startY=%.2f",
+								rayResult.Instance and rayResult.Instance.Name or "?",
+								surfaceY,
+								safeY,
+								p.Y
+							)
+						)
 					end
-					
+
 					-- Remove any pitch/roll that might clip corners into the terrain
 					local look = startCFrame.LookVector
 					local flatLook = Vector3.new(look.X, 0, look.Z).Unit
-					if flatLook.Magnitude < 0.1 then flatLook = Vector3.new(0, 0, -1) end
-					safeReturnCFrame = CFrame.lookAt(Vector3.new(p.X, safeY, p.Z), Vector3.new(p.X + flatLook.X, safeY, p.Z + flatLook.Z))
+					if flatLook.Magnitude < 0.1 then
+						flatLook = Vector3.new(0, 0, -1)
+					end
+					safeReturnCFrame = CFrame.lookAt(
+						Vector3.new(p.X, safeY, p.Z),
+						Vector3.new(p.X + flatLook.X, safeY, p.Z + flatLook.Z)
+					)
 				else
 					if getgenv().AddLog then
-						getgenv().AddLog(string.format(
-							"[UGR RAY MISS] No terrain found below startCF %.2f,%.2f,%.2f ΓÇö using startCFrame as-is",
-							startCFrame.Position.X, startCFrame.Position.Y, startCFrame.Position.Z
-						))
+						getgenv().AddLog(
+							string.format(
+								"[UGR RAY MISS] No terrain found below startCF %.2f,%.2f,%.2f ΓÇö using startCFrame as-is",
+								startCFrame.Position.X,
+								startCFrame.Position.Y,
+								startCFrame.Position.Z
+							)
+						)
 					end
 				end
 
@@ -8432,13 +8489,13 @@ table.insert(
 					-- we tween back up over 0.5s to trick the anti-cheat into accepting the movement as valid velocity.
 					local cfValueUp = Instance.new("CFrameValue")
 					cfValueUp.Value = hrp.CFrame
-					
+
 					local tweenUp = _TweenService:Create(
 						cfValueUp,
 						TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
 						{ Value = safeReturnCFrame }
 					)
-					
+
 					local connUp = cfValueUp.Changed:Connect(function(val)
 						if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
 							getgenv()._StoredRealCFrame = val
@@ -8451,20 +8508,20 @@ table.insert(
 					if getgenv().AddLog then
 						getgenv().AddLog("[UGR] Tweening back up to surface...")
 					end
-					
+
 					tweenUp:Play()
 					tweenUp.Completed:Connect(function()
 						cfValueUp:Destroy()
 						connUp:Disconnect()
-						
+
 						hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
 						hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-						
+
 						if hrp and hrp.Parent then
 							hrp.CFrame = safeReturnCFrame
 							hrp.Anchored = false
 						end
-						
+
 						if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
 							getgenv()._StoredRealCFrame = safeReturnCFrame
 						end
@@ -8478,7 +8535,7 @@ table.insert(
 						if getgenv().AddLog then
 							getgenv().AddLog("[UGR FLAG] _UndergroundResolverActive released → false")
 						end
-						
+
 						-- Give physics 0.3s to land on the surface cleanly before applying the deep offset
 						task.delay(0.3, function()
 							getgenv()._DesyncOffsetSuppressed = false
