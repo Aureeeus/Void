@@ -2358,7 +2358,11 @@ local steppedRestoreConnection = RunService.Stepped:Connect(function()
 	end
 end)
 table.insert(ConnectionList, steppedRestoreConnection)
+
+-- Safety net: track consecutive falling frames to detect void-fall loop
+local _voidFallCounter = getgenv()._VoidFallCounter or 0
 local desyncTick = 0
+
 local heartbeatConnection = RunService.Heartbeat:Connect(function()
 	local Character = getTargetCharacter()
 	if not Character then
@@ -2373,20 +2377,126 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 	if isDesync or isUGR or isAntiAim then
 		local guardBlocked = getgenv()._UndergroundResolverActive or getgenv()._SkyPeekActive
 		if not guardBlocked then
-			-- Capture real position ΓÇö log when something looks wrong (Y too low = inside terrain)
+			-- Capture real position — log when something looks wrong (Y too low = inside terrain)
 			local captured = HRP.CFrame
-			if getgenv().AddLog and getgenv()._StoredRealCFrame then
+			local dy = 0
+			if getgenv()._StoredRealCFrame then
 				local prev = getgenv()._StoredRealCFrame.Position
 				local cur  = captured.Position
-				local dy   = cur.Y - prev.Y
+				dy = cur.Y - prev.Y
+
 				-- Flag sudden downward jumps > 1 stud between frames (sign of geometry push-through)
-				if dy < -1 then
+				if dy < -1 and getgenv().AddLog then
 					getgenv().AddLog(string.format(
 						"[HB WARN] _StoredRealCFrame dropped %.2f studs! prev=%.2f cur=%.2f | HRP actual Y=%.2f",
 						dy, prev.Y, cur.Y, HRP.CFrame.Position.Y
 					))
 				end
 			end
+
+			-- ── VOID-FALL SAFETY NET ──────────────────────────────────────────────────
+			-- If the stored position has been falling continuously (dy < -0.5 every frame)
+			-- for 20+ consecutive Heartbeat ticks (~0.33s at 60Hz), we are in a void-fall
+			-- feedback loop caused by the desync offset pushing HRP through terrain.
+			-- Recovery: raycast upward from current XZ to find the nearest surface,
+			-- snap _StoredRealCFrame back to it, re-suppress the desync offset, and zero
+			-- out velocity so the loop can't re-establish itself.
+			if dy < -0.5 then
+				_voidFallCounter = _voidFallCounter + 1
+			else
+				_voidFallCounter = 0
+			end
+			getgenv()._VoidFallCounter = _voidFallCounter
+
+			if _voidFallCounter >= 20 then
+				_voidFallCounter = 0
+				getgenv()._VoidFallCounter = 0
+
+				local pos = HRP.CFrame.Position
+				local rayParams = RaycastParams.new()
+				rayParams.FilterDescendantsInstances = { Character }
+				rayParams.FilterType = Enum.RaycastFilterType.Exclude
+				rayParams.IgnoreWater = true
+
+				-- Cast upward from current (underground) position to find the floor above
+				local upHit = workspace:Raycast(pos, Vector3.new(0, 500, 0), rayParams)
+				local recoveredCFrame
+
+				if upHit then
+					local humanoid = Character:FindFirstChildOfClass("Humanoid")
+					local hipHeight = 2
+					if humanoid and humanoid.RigType == Enum.HumanoidRigType.R15 then
+						hipHeight = humanoid.HipHeight
+					end
+					local rootHeight = hipHeight + (HRP.Size.Y / 2)
+					local safeY = upHit.Position.Y + rootHeight
+					local look = HRP.CFrame.LookVector
+					local flatLook = Vector3.new(look.X, 0, look.Z)
+					if flatLook.Magnitude < 0.1 then flatLook = Vector3.new(0, 0, -1) end
+					flatLook = flatLook.Unit
+					recoveredCFrame = CFrame.lookAt(
+						Vector3.new(pos.X, safeY, pos.Z),
+						Vector3.new(pos.X + flatLook.X, safeY, pos.Z + flatLook.Z)
+					)
+					if getgenv().AddLog then
+						getgenv().AddLog(string.format(
+							"[VOID RECOVERY] Upcast hit %s at Y=%.2f → snapping to safeY=%.2f",
+							upHit.Instance and upHit.Instance.Name or "?",
+							upHit.Position.Y, safeY
+						))
+					end
+				else
+					-- No surface found above — cast downward as fallback
+					local downHit = workspace:Raycast(pos, Vector3.new(0, -500, 0), rayParams)
+					if downHit then
+						local humanoid = Character:FindFirstChildOfClass("Humanoid")
+						local hipHeight = 2
+						if humanoid and humanoid.RigType == Enum.HumanoidRigType.R15 then
+							hipHeight = humanoid.HipHeight
+						end
+						local rootHeight = hipHeight + (HRP.Size.Y / 2)
+						local safeY = downHit.Position.Y + rootHeight
+						local look = HRP.CFrame.LookVector
+						local flatLook = Vector3.new(look.X, 0, look.Z)
+						if flatLook.Magnitude < 0.1 then flatLook = Vector3.new(0, 0, -1) end
+						flatLook = flatLook.Unit
+						recoveredCFrame = CFrame.lookAt(
+							Vector3.new(pos.X, safeY, pos.Z),
+							Vector3.new(pos.X + flatLook.X, safeY, pos.Z + flatLook.Z)
+						)
+						if getgenv().AddLog then
+							getgenv().AddLog(string.format(
+								"[VOID RECOVERY] Downcast hit %s at Y=%.2f → snapping to safeY=%.2f",
+								downHit.Instance and downHit.Instance.Name or "?",
+								downHit.Position.Y, safeY
+							))
+						end
+					else
+						if getgenv().AddLog then
+							getgenv().AddLog("[VOID RECOVERY] No surface found in either direction — skip")
+						end
+					end
+				end
+
+				if recoveredCFrame then
+					HRP.CFrame = recoveredCFrame
+					HRP.AssemblyLinearVelocity = Vector3.zero
+					HRP.AssemblyAngularVelocity = Vector3.zero
+					getgenv()._StoredRealCFrame = recoveredCFrame
+					-- Re-suppress desync offset so it doesn't immediately push HRP underground again
+					getgenv()._DesyncOffsetSuppressed = true
+					task.delay(0.5, function()
+						getgenv()._DesyncOffsetSuppressed = false
+						if getgenv().AddLog then
+							getgenv().AddLog("[VOID RECOVERY] Desync offset re-enabled after recovery")
+						end
+					end)
+				end
+
+				return
+			end
+			-- ── END VOID-FALL SAFETY NET ──────────────────────────────────────────────
+
 			getgenv()._StoredRealCFrame = captured
 		else
 			-- Guard is active: log every 60 ticks to confirm we're not leaking
@@ -8317,66 +8427,103 @@ table.insert(
 					)
 				end
 
-				-- Apply snap atomically: hrp.CFrame and _StoredRealCFrame must match
-				-- before the guard releases so Stepped doesn't re-embed into old position.
-				hrp.CFrame = safeReturnCFrame
-				if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
-					getgenv()._StoredRealCFrame = safeReturnCFrame
-				end
+				if getgenv().Config.Combat.UndergroundDesync then
+					-- Instead of snapping instantly (which the server rejects as a teleport, causing a rubberband back underground),
+					-- we tween back up over 0.5s to trick the anti-cheat into accepting the movement as valid velocity.
+					local cfValueUp = Instance.new("CFrameValue")
+					cfValueUp.Value = hrp.CFrame
+					
+					local tweenUp = _TweenService:Create(
+						cfValueUp,
+						TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+						{ Value = safeReturnCFrame }
+					)
+					
+					local connUp = cfValueUp.Changed:Connect(function(val)
+						if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
+							getgenv()._StoredRealCFrame = val
+						else
+							hrp.CFrame = val
+						end
+					end)
 
-				hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-				hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-
-				-- Suppress the desync offset for the landing window so the character can
-				-- settle onto the surface cleanly. Without this, Heartbeat immediately
-				-- applies undergroundDesyncOffset which shifts HRP underground, physics
-				-- freefalls from there, and _StoredRealCFrame feeds the loop ΓåÆ void fall.
-				-- This does NOT toggle the user's config ΓÇö only the offset application.
-				getgenv()._DesyncOffsetSuppressed = true
-				if getgenv().AddLog then
-					getgenv().AddLog("[UGR] Desync offset suppressed for landing window")
-				end
-
-				-- Anchor briefly to kill any built-up collision momentum and reset state
-				-- NOTE: It's ALREADY anchored from the start of the tween, but we ensure it here.
-				hrp.Anchored = true
-				if humanoid then
-					humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
-				end
-
-				-- Defer flag release to ensure the server fully replicates the safe surface
-				-- position before Heartbeat resumes applying the deep desync offset.
-				-- 0.4s guarantees the server sees we are cleanly above ground.
-				task.delay(0.4, function()
-					if hrp and hrp.Parent then
-						hrp.Anchored = false
+					getgenv()._DesyncOffsetSuppressed = true
+					if getgenv().AddLog then
+						getgenv().AddLog("[UGR] Tweening back up to surface...")
 					end
-					if humanoid then
-						humanoid:ChangeState(Enum.HumanoidStateType.Running)
-					end
-					if hrp and hrp.Parent then
-						hrp.CFrame = safeReturnCFrame
+					
+					tweenUp:Play()
+					tweenUp.Completed:Connect(function()
+						cfValueUp:Destroy()
+						connUp:Disconnect()
+						
 						hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
 						hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-					end
+						
+						if hrp and hrp.Parent then
+							hrp.CFrame = safeReturnCFrame
+							hrp.Anchored = false
+						end
+						
+						if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
+							getgenv()._StoredRealCFrame = safeReturnCFrame
+						end
+
+						if humanoid then
+							humanoid:ChangeState(Enum.HumanoidStateType.Running)
+						end
+
+						getgenv()._UndergroundResolverActive = false
+						getgenv()._LastGuardDeactivate = tick()
+						if getgenv().AddLog then
+							getgenv().AddLog("[UGR FLAG] _UndergroundResolverActive released → false")
+						end
+						
+						-- Give physics 0.3s to land on the surface cleanly before applying the deep offset
+						task.delay(0.3, function()
+							getgenv()._DesyncOffsetSuppressed = false
+							if getgenv().AddLog then
+								getgenv().AddLog("[UGR] Desync offset re-enabled")
+							end
+						end)
+					end)
+				else
+					-- Normal instantaneous snap-back when desync is off
+					hrp.CFrame = safeReturnCFrame
 					if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
 						getgenv()._StoredRealCFrame = safeReturnCFrame
 					end
-					getgenv()._UndergroundResolverActive = false
-					getgenv()._LastGuardDeactivate = tick()
-					if getgenv().AddLog then
-						getgenv().AddLog("[UGR FLAG] _UndergroundResolverActive released ΓåÆ false")
+
+					hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+					hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+
+					hrp.Anchored = true
+					if humanoid then
+						humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
 					end
-					-- Additional 0.3s after anchor release before re-enabling the desync offset.
-					-- This gives physics 0.3s to land the character cleanly on the surface
-					-- with no underground offset interference.
-					task.delay(0.3, function()
-						getgenv()._DesyncOffsetSuppressed = false
+
+					task.delay(0.4, function()
+						if hrp and hrp.Parent then
+							hrp.Anchored = false
+						end
+						if humanoid then
+							humanoid:ChangeState(Enum.HumanoidStateType.Running)
+						end
+						if hrp and hrp.Parent then
+							hrp.CFrame = safeReturnCFrame
+							hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+							hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+						end
+						if getgenv().Config.Combat.UndergroundDesync or getgenv().Config.Combat.AntiAim then
+							getgenv()._StoredRealCFrame = safeReturnCFrame
+						end
+						getgenv()._UndergroundResolverActive = false
+						getgenv()._LastGuardDeactivate = tick()
 						if getgenv().AddLog then
-							getgenv().AddLog("[UGR] Desync offset re-enabled")
+							getgenv().AddLog("[UGR FLAG] _UndergroundResolverActive released → false")
 						end
 					end)
-				end)
+				end
 			end)
 		end
 
