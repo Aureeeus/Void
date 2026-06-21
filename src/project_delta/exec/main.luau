@@ -110,7 +110,7 @@ getgenv().Config = getgenv().Config
 			VisibleColor = Color3.fromRGB(0, 255, 0),
 			BulletTracers = false,
 			TracerType = "Default",
-			TracerColor = Color3.fromRGB(255, 255, 255),
+			TracerColor = Color3.fromHex("#7f4a83"),
 			TracerTransparency = 0.5,
 			TracerGlowEffect = false,
 		},
@@ -160,6 +160,7 @@ getgenv().Config = getgenv().Config
 			NoFog = false,
 			NoFoliage = false,
 			RemoveGrass = false,
+			NoLandmines = false,
 			Hitsound = false,
 			HitsoundType = "Rust",
 			HitsoundVolume = 1.0,
@@ -1147,6 +1148,7 @@ local AutopilotSection = CombatTab:AddLeftGroupbox("Autopilot")
 
 AutopilotSection:AddToggle("Autopilot", {
 	Text = "Autopilot",
+	Tooltip = "Requires Instant Hit and Silent Aim to work.",
 	Default = getgenv().Config.Combat.Autopilot or false,
 }):OnChanged(function(value)
 	getgenv().Config.Combat.Autopilot = value
@@ -1168,7 +1170,7 @@ AutopilotSection:AddToggle("Autopilot", {
 	if value then
 		if not getgenv()._AutopilotConnection then
 			getgenv()._AutopilotConnection = game:GetService("RunService").RenderStepped:Connect(function()
-				if not (getgenv().Config.Combat.Autopilot and getgenv().Config.SilentAim.Enabled) then
+				if not (getgenv().Config.Combat.Autopilot and getgenv().Config.SilentAim.Enabled and getgenv().Config.Combat.InstantHit) then
 					if getgenv()._DeltaIsAutoHolding then
 						if type(mouse1release) == "function" then
 							pcall(mouse1release)
@@ -1219,60 +1221,106 @@ AutopilotSection:AddToggle("Autopilot", {
 					table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: ActiveCharacters count: %d", os.date("%X"), numActive))
 				end
 
+				local candidates = {}
+				local cameraPos = game:GetService("Workspace").CurrentCamera.CFrame.Position
+
 				for characterModel, data in pairs(activeCharacters) do
 					local player = data.Player
-					if player == localPlayer then
-						continue
-					end
-
+					if player == localPlayer then continue end
+					
 					if player then
 						local playerName = player.Name
-						if whitelistPlayers[playerName] then
-							continue
-						end
-
-						if hasHitlist and not hitlistPlayers[playerName] then
-							continue
-						end
+						if whitelistPlayers[playerName] then continue end
+						if hasHitlist and not hitlistPlayers[playerName] then continue end
 					end
 
 					local char = data.Character
 					if char and char:IsA("Model") then
 						local targetPart = char:FindFirstChild(targetPartName) or data.Head
 						if targetPart then
-							local isVis = false
-							if getgenv().CharacterManager and getgenv().CharacterManager.IsVisible then
-								isVis = getgenv().CharacterManager.IsVisible(targetPart, char)
+							local rootPart = char:FindFirstChild("HumanoidRootPart")
+							local hum = char:FindFirstChildOfClass("Humanoid")
+							local health = (rootPart and rootPart:GetAttribute("Health")) or (hum and hum.Health) or 0
+							
+							if health > 0 then
+								local dist = (targetPart.Position - cameraPos).Magnitude
+								table.insert(candidates, {
+									Data = data,
+									Char = char,
+									Part = targetPart,
+									RootPart = rootPart,
+									Humanoid = hum,
+									Dist = dist,
+									Player = player
+								})
 							end
+						end
+					end
+				end
 
-							local traceName = player and player.Name or char.Name
-							if getgenv()._DbgLastVisCheck ~= traceName .. tostring(isVis) then
-								getgenv()._DbgLastVisCheck = traceName .. tostring(isVis)
-								if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-								table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: Target %s visibility check: %s", os.date("%X"), traceName, tostring(isVis)))
-							end
+				if not getgenv()._AutopilotPenaltyQueue then
+					getgenv()._AutopilotPenaltyQueue = {}
+				end
 
-							if isVis then
-								local rootPart = char:FindFirstChild("HumanoidRootPart")
-								local hum = char:FindFirstChildOfClass("Humanoid")
-								local health = (rootPart and rootPart:GetAttribute("Health"))
-									or (hum and hum.Health)
-									or 0
+				table.sort(candidates, function(a, b)
+					local pA = getgenv()._AutopilotPenaltyQueue[a.Char] or 0
+					local pB = getgenv()._AutopilotPenaltyQueue[b.Char] or 0
+					if pA ~= pB then
+						return pA < pB
+					end
+					return a.Dist < b.Dist
+				end)
 
-								if health > 0 then
-									shouldShoot = true
-									overrideData = {
-										Player = player,
-										Character = char,
-										Head = targetPart,
-										RootPart = rootPart,
-										Humanoid = hum,
-										Type = player and "Player" or "NPC",
-									}
-									break
+				for _, cand in ipairs(candidates) do
+					local isVis = false
+					if getgenv().CharacterManager and getgenv().CharacterManager.IsVisible then
+						isVis = getgenv().CharacterManager.IsVisible(cand.Part, cand.Char)
+					end
+
+					local traceName = cand.Player and cand.Player.Name or cand.Char.Name
+					if getgenv()._DbgLastVisCheck ~= traceName .. tostring(isVis) then
+						getgenv()._DbgLastVisCheck = traceName .. tostring(isVis)
+						if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
+						table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: Target %s visibility check: %s", os.date("%X"), traceName, tostring(isVis)))
+					end
+
+					if isVis then
+						local health = (cand.RootPart and cand.RootPart:GetAttribute("Health")) or (cand.Humanoid and cand.Humanoid.Health) or 0
+						
+						if not getgenv()._AutopilotDamageTracker then 
+							getgenv()._AutopilotDamageTracker = {} 
+						end
+						
+						local tracker = getgenv()._AutopilotDamageTracker
+						if tracker.Target ~= cand.Char then
+							tracker.Target = cand.Char
+							tracker.InitialHealth = health
+							tracker.LastHealthTime = os.clock()
+						else
+							if health < tracker.InitialHealth then
+								tracker.InitialHealth = health
+								tracker.LastHealthTime = os.clock()
+							else
+								if os.clock() - tracker.LastHealthTime > 0.3 then
+									getgenv()._AutopilotPenaltyQueue[cand.Char] = os.clock()
+									tracker.LastHealthTime = os.clock()
+									if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
+									table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: Target %s unhittable, moved to back of queue", os.date("%X"), traceName))
+									continue
 								end
 							end
 						end
+
+						shouldShoot = true
+						overrideData = {
+							Player = cand.Player,
+							Character = cand.Char,
+							Head = cand.Part,
+							RootPart = cand.RootPart,
+							Humanoid = cand.Humanoid,
+							Type = cand.Player and "Player" or "NPC",
+						}
+						break
 					end
 				end
 
@@ -1281,7 +1329,11 @@ AutopilotSection:AddToggle("Autopilot", {
 					local uis = game:GetService("UserInputService")
 					local now = os.clock()
 
-					local isUIOpen = uis.MouseIconEnabled or getgenv()._LinoriaIsToggled
+					local isUIOpen = uis.MouseIconEnabled
+						or (Library and Library.Toggled)
+						or getgenv()._LinoriaIsToggled
+						or game:GetService("GuiService").MenuIsOpen
+						or uis:GetFocusedTextBox() ~= nil
 					local activeWeapon = getgenv()._DeltaActiveWeaponTable
 					if type(activeWeapon) == "table" and activeWeapon.CancelTables then
 						for _, uiTable in ipairs(activeWeapon.CancelTables) do
@@ -2166,6 +2218,49 @@ local function toggleGrassAlgorithm(enabled)
 		end
 	end
 end
+local landminesConnections = {}
+
+local function toggleLandminesAlgorithm(enabled)
+	local function processLandmine(item)
+		if item:IsA("Model") and (item.Name == "PMN2" or item.Name == "MON50") then
+			item:Destroy()
+		end
+	end
+
+	if enabled then
+		local targetFolders = {}
+		
+		local aiZones = workspace:FindFirstChild("AiZones")
+		if aiZones then
+			table.insert(targetFolders, aiZones)
+		end
+		
+		local noCollision = workspace:FindFirstChild("NoCollision")
+		if noCollision then
+			local ncAiZones = noCollision:FindFirstChild("AiZones")
+			if ncAiZones then
+				table.insert(targetFolders, ncAiZones)
+			end
+		end
+
+		for _, folder in ipairs(targetFolders) do
+			for _, v in ipairs(folder:GetDescendants()) do
+				processLandmine(v)
+			end
+
+			local conn = folder.DescendantAdded:Connect(function(v)
+				processLandmine(v)
+			end)
+			table.insert(landminesConnections, conn)
+			table.insert(ConnectionList, conn)
+		end
+	else
+		for _, conn in ipairs(landminesConnections) do
+			conn:Disconnect()
+		end
+		table.clear(landminesConnections)
+	end
+end
 
 WorldModsSection:AddToggle("NoFoliage", {
 	Text = "No Foliage",
@@ -2181,6 +2276,14 @@ WorldModsSection:AddToggle("RemoveGrass", {
 }):OnChanged(function(value)
 	getgenv().Config.Mods.RemoveGrass = value
 	toggleGrassAlgorithm(value)
+end)
+
+WorldModsSection:AddToggle("NoLandmines", {
+	Text = "No Landmines",
+	Default = getgenv().Config.Mods.NoLandmines,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.NoLandmines = value
+	toggleLandminesAlgorithm(value)
 end)
 
 WorldModsSection:AddToggle("NoVisor", {
@@ -3329,6 +3432,7 @@ local function applyLoadedConfig(data)
 		safeSetToggle("NoFog", data.Mods.NoFog)
 		safeSetToggle("NoFoliage", data.Mods.NoFoliage)
 		safeSetToggle("RemoveGrass", data.Mods.RemoveGrass)
+		safeSetToggle("NoLandmines", data.Mods.NoLandmines)
 		safeSetToggle("NoVisor", data.Mods.NoVisor)
 		safeSetToggle("NoFallDamage", data.Mods.NoFallDamage)
 		safeSetToggle("Speedhack", data.Mods.Speedhack)
