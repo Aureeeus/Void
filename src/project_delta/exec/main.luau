@@ -80,16 +80,17 @@ getgenv().Config = getgenv().Config
 			LockTargetInfoHUD = false,
 			TargetInfoHUDX = nil,
 			TargetInfoHUDY = nil,
-			ViewmodelBodyChams = false,
-			ViewmodelBodyFillColor = Color3.fromRGB(255, 255, 255),
-			ViewmodelBodyOutlineColor = Color3.fromRGB(255, 255, 255),
+			HideArms = false,
+			ViewmodelArmChams = false,
+			ViewmodelArmColor = Color3.fromRGB(255, 255, 255),
+			ViewmodelArmMaterial = "ForceField",
 			ViewmodelGunChams = false,
-			ViewmodelGunFillColor = Color3.fromRGB(255, 255, 255),
-			ViewmodelGunOutlineColor = Color3.fromRGB(255, 255, 255),
-			EnableGunSparkles = false,
-			GunGlowIntensity = 0.8,
+			ViewmodelGunColor = Color3.fromRGB(255, 255, 255),
+			ViewmodelGunMaterial = "ForceField",
 			ViewmodelChamsTransparency = 0.55,
-			ViewmodelChamsEffect = 1,
+			ViewmodelOffsetX = 0,
+			ViewmodelOffsetY = 0,
+			ViewmodelOffsetZ = 0,
 		},
 		SilentAim = {
 			Enabled = false,
@@ -131,6 +132,9 @@ getgenv().Config = getgenv().Config
 			LiftHitboxes = false,
 			LiftHitboxesHeight = 2,
 			NoRecoil = false,
+			NoScope = false,
+			NoSway = false,
+			NoBob = false,
 			NoSpread = false,
 			InstantADS = false,
 			ADSZoomMultiplier = 1.0,
@@ -152,6 +156,7 @@ getgenv().Config = getgenv().Config
 			ThirdPersonKeybind = "J",
 			ZoomDistance = 15,
 			FOV = 70,
+			WorldTime = 12,
 			NoVisor = false,
 			NoFallDamage = false,
 			Speedhack = false,
@@ -580,7 +585,7 @@ BulletTracersSection:AddToggle("TracerGlowEffect", {
 end)
 
 BulletTracersSection:AddDropdown("TracerType", {
-	Values = { "Default", "Lightning", "Heartbeat" },
+	Values = { "Default", "Lightning", "Heartbeat", "Retro Laser" },
 	Default = 1,
 	Multi = false,
 	Text = "Tracer Type",
@@ -683,25 +688,68 @@ TargetInfoSection:AddSlider("TargetInfoHUDSize", {
 	getgenv().Config.ESP.TargetInfoHUDSize = value
 end)
 
-local CharacterSection = VisualsTab:AddRightGroupbox("Character")
+local CharacterSection = VisualsTab:AddRightGroupbox("Viewmodel")
 
-CharacterSection:AddToggle("BodyChams", {
-	Text = "Body Chams",
-	Default = getgenv().Config.ESP.ViewmodelBodyChams,
+CharacterSection:AddToggle("HideArms", {
+	Text = "Hide Arms",
+	Default = getgenv().Config.ESP.HideArms,
 }):OnChanged(function(value)
-	getgenv().Config.ESP.ViewmodelBodyChams = value
+	getgenv().Config.ESP.HideArms = value
 end)
 
-CharacterSection:AddDropdown("ViewmodelChamsEffect", {
-	Values = { "None", "Breathing", "Chroma", "Both" },
-	Default = getgenv().Config.ESP.ViewmodelChamsEffect,
-	Multi = false,
-	Text = "Effect Type",
-})
-getgenv().Options.ViewmodelChamsEffect:OnChanged(function(value)
-	local map = { ["None"] = 1, ["Breathing"] = 2, ["Chroma"] = 3, ["Both"] = 4 }
-	getgenv().Config.ESP.ViewmodelChamsEffect = map[value] or 1
+CharacterSection:AddToggle("ArmChams", {
+	Text = "Arm Chams",
+	Default = getgenv().Config.ESP.ViewmodelArmChams,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelArmChams = value
 end)
+
+CharacterSection:AddLabel("Arm Color"):AddColorPicker("ArmColor", {
+	Default = getgenv().Config.ESP.ViewmodelArmColor,
+	Title = "Arm Color",
+})
+getgenv().Options.ArmColor:OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelArmColor = value
+end)
+
+CharacterSection:AddDropdown("ArmMaterial", {
+	Values = {"ForceField", "Neon", "SmoothPlastic", "Glass"},
+	Default = getgenv().Config.ESP.ViewmodelArmMaterial,
+	Multi = false,
+	Text = "Arm Material",
+})
+getgenv().Options.ArmMaterial:OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelArmMaterial = value
+end)
+
+CharacterSection:AddDivider()
+
+CharacterSection:AddToggle("GunChams", {
+	Text = "Gun Chams",
+	Default = getgenv().Config.ESP.ViewmodelGunChams,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelGunChams = value
+end)
+
+CharacterSection:AddLabel("Gun Color"):AddColorPicker("GunColor", {
+	Default = getgenv().Config.ESP.ViewmodelGunColor,
+	Title = "Gun Color",
+})
+getgenv().Options.GunColor:OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelGunColor = value
+end)
+
+CharacterSection:AddDropdown("GunMaterial", {
+	Values = {"ForceField", "Neon", "SmoothPlastic", "Glass"},
+	Default = getgenv().Config.ESP.ViewmodelGunMaterial,
+	Multi = false,
+	Text = "Gun Material",
+})
+getgenv().Options.GunMaterial:OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelGunMaterial = value
+end)
+
+CharacterSection:AddDivider()
 
 CharacterSection:AddSlider("ViewmodelChamsTransparency", {
 	Text = "Chams Transparency",
@@ -715,69 +763,34 @@ getgenv().Options.ViewmodelChamsTransparency:OnChanged(function(value)
 	getgenv().Config.ESP.ViewmodelChamsTransparency = value
 end)
 
-CharacterSection:AddLabel("Body Fill Color"):AddColorPicker("BodyChamsFillColor", {
-	Default = getgenv().Config.ESP.ViewmodelBodyFillColor,
-	Title = "Body Fill",
+CharacterSection:AddSlider("ViewmodelOffsetX", {
+	Text = "Viewmodel X Offset",
+	Default = getgenv().Config.ESP.ViewmodelOffsetX,
+	Min = -5, Max = 5, Rounding = 1, Compact = true,
 })
-getgenv().Options.BodyChamsFillColor:OnChanged(function(value)
-	getgenv().Config.ESP.ViewmodelBodyFillColor = value
+getgenv().Options.ViewmodelOffsetX:OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelOffsetX = value
 end)
 
-CharacterSection:AddLabel("Body Outline Color"):AddColorPicker("BodyChamsOutlineColor", {
-	Default = getgenv().Config.ESP.ViewmodelBodyOutlineColor,
-	Title = "Body Outline",
+CharacterSection:AddSlider("ViewmodelOffsetY", {
+	Text = "Viewmodel Y Offset",
+	Default = getgenv().Config.ESP.ViewmodelOffsetY,
+	Min = -5, Max = 5, Rounding = 1, Compact = true,
 })
-getgenv().Options.BodyChamsOutlineColor:OnChanged(function(value)
-	getgenv().Config.ESP.ViewmodelBodyOutlineColor = value
+getgenv().Options.ViewmodelOffsetY:OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelOffsetY = value
 end)
 
-CharacterSection:AddDivider()
-
-CharacterSection:AddToggle("GunChams", {
-	Text = "Gun Chams",
-	Default = getgenv().Config.ESP.ViewmodelGunChams,
-}):OnChanged(function(value)
-	getgenv().Config.ESP.ViewmodelGunChams = value
-end)
-
-CharacterSection:AddLabel("Gun Fill Color"):AddColorPicker("GunChamsFillColor", {
-	Default = getgenv().Config.ESP.ViewmodelGunFillColor,
-	Title = "Gun Fill",
+CharacterSection:AddSlider("ViewmodelOffsetZ", {
+	Text = "Viewmodel Z Offset",
+	Default = getgenv().Config.ESP.ViewmodelOffsetZ,
+	Min = -5, Max = 5, Rounding = 1, Compact = true,
 })
-getgenv().Options.GunChamsFillColor:OnChanged(function(value)
-	getgenv().Config.ESP.ViewmodelGunFillColor = value
+getgenv().Options.ViewmodelOffsetZ:OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelOffsetZ = value
 end)
 
-CharacterSection:AddLabel("Gun Outline Color"):AddColorPicker("GunChamsOutlineColor", {
-	Default = getgenv().Config.ESP.ViewmodelGunOutlineColor,
-	Title = "Gun Outline",
-})
-getgenv().Options.GunChamsOutlineColor:OnChanged(function(value)
-	getgenv().Config.ESP.ViewmodelGunOutlineColor = value
-end)
-
-CharacterSection:AddDivider()
-
-CharacterSection:AddToggle("GunSparkles", {
-	Text = "Gun Sparkles",
-	Default = getgenv().Config.ESP.EnableGunSparkles,
-}):OnChanged(function(value)
-	getgenv().Config.ESP.EnableGunSparkles = value
-end)
-
-CharacterSection:AddSlider("GunGlowIntensity", {
-	Text = "Gun Glow Intensity",
-	Default = getgenv().Config.ESP.GunGlowIntensity,
-	Min = 0,
-	Max = 1,
-	Rounding = 2,
-	Compact = false,
-})
-getgenv().Options.GunGlowIntensity:OnChanged(function(value)
-	getgenv().Config.ESP.GunGlowIntensity = value
-end)
-
-CharacterSection:AddDivider() -- ==========================================
+-- ==========================================
 -- Combat Tab
 -- ==========================================
 local CombatSection = CombatTab:AddLeftGroupbox("Combat Modifications")
@@ -1170,7 +1183,13 @@ AutopilotSection:AddToggle("Autopilot", {
 	if value then
 		if not getgenv()._AutopilotConnection then
 			getgenv()._AutopilotConnection = game:GetService("RunService").RenderStepped:Connect(function()
-				if not (getgenv().Config.Combat.Autopilot and getgenv().Config.SilentAim.Enabled and getgenv().Config.Combat.InstantHit) then
+				if
+					not (
+						getgenv().Config.Combat.Autopilot
+						and getgenv().Config.SilentAim.Enabled
+						and getgenv().Config.Combat.InstantHit
+					)
+				then
 					if getgenv()._DeltaIsAutoHolding then
 						if type(mouse1release) == "function" then
 							pcall(mouse1release)
@@ -1213,12 +1232,19 @@ AutopilotSection:AddToggle("Autopilot", {
 
 				local numActive = 0
 				if activeCharacters then
-					for _, _ in pairs(activeCharacters) do numActive = numActive + 1 end
+					for _, _ in pairs(activeCharacters) do
+						numActive = numActive + 1
+					end
 				end
 				if getgenv()._DbgNumActive ~= numActive then
 					getgenv()._DbgNumActive = numActive
-					if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-					table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: ActiveCharacters count: %d", os.date("%X"), numActive))
+					if not getgenv().DebugLogs then
+						getgenv().DebugLogs = {}
+					end
+					table.insert(
+						getgenv().DebugLogs,
+						string.format("[%s] Autopilot Debug: ActiveCharacters count: %d", os.date("%X"), numActive)
+					)
 				end
 
 				local candidates = {}
@@ -1226,12 +1252,18 @@ AutopilotSection:AddToggle("Autopilot", {
 
 				for characterModel, data in pairs(activeCharacters) do
 					local player = data.Player
-					if player == localPlayer then continue end
-					
+					if player == localPlayer then
+						continue
+					end
+
 					if player then
 						local playerName = player.Name
-						if whitelistPlayers[playerName] then continue end
-						if hasHitlist and not hitlistPlayers[playerName] then continue end
+						if whitelistPlayers[playerName] then
+							continue
+						end
+						if hasHitlist and not hitlistPlayers[playerName] then
+							continue
+						end
 					end
 
 					local char = data.Character
@@ -1241,7 +1273,7 @@ AutopilotSection:AddToggle("Autopilot", {
 							local rootPart = char:FindFirstChild("HumanoidRootPart")
 							local hum = char:FindFirstChildOfClass("Humanoid")
 							local health = (rootPart and rootPart:GetAttribute("Health")) or (hum and hum.Health) or 0
-							
+
 							if health > 0 then
 								local dist = (targetPart.Position - cameraPos).Magnitude
 								table.insert(candidates, {
@@ -1251,7 +1283,7 @@ AutopilotSection:AddToggle("Autopilot", {
 									RootPart = rootPart,
 									Humanoid = hum,
 									Dist = dist,
-									Player = player
+									Player = player,
 								})
 							end
 						end
@@ -1280,17 +1312,29 @@ AutopilotSection:AddToggle("Autopilot", {
 					local traceName = cand.Player and cand.Player.Name or cand.Char.Name
 					if getgenv()._DbgLastVisCheck ~= traceName .. tostring(isVis) then
 						getgenv()._DbgLastVisCheck = traceName .. tostring(isVis)
-						if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-						table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: Target %s visibility check: %s", os.date("%X"), traceName, tostring(isVis)))
+						if not getgenv().DebugLogs then
+							getgenv().DebugLogs = {}
+						end
+						table.insert(
+							getgenv().DebugLogs,
+							string.format(
+								"[%s] Autopilot Debug: Target %s visibility check: %s",
+								os.date("%X"),
+								traceName,
+								tostring(isVis)
+							)
+						)
 					end
 
 					if isVis then
-						local health = (cand.RootPart and cand.RootPart:GetAttribute("Health")) or (cand.Humanoid and cand.Humanoid.Health) or 0
-						
-						if not getgenv()._AutopilotDamageTracker then 
-							getgenv()._AutopilotDamageTracker = {} 
+						local health = (cand.RootPart and cand.RootPart:GetAttribute("Health"))
+							or (cand.Humanoid and cand.Humanoid.Health)
+							or 0
+
+						if not getgenv()._AutopilotDamageTracker then
+							getgenv()._AutopilotDamageTracker = {}
 						end
-						
+
 						local tracker = getgenv()._AutopilotDamageTracker
 						if tracker.Target ~= cand.Char then
 							tracker.Target = cand.Char
@@ -1304,8 +1348,17 @@ AutopilotSection:AddToggle("Autopilot", {
 								if os.clock() - tracker.LastHealthTime > 0.3 then
 									getgenv()._AutopilotPenaltyQueue[cand.Char] = os.clock()
 									tracker.LastHealthTime = os.clock()
-									if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-									table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: Target %s unhittable, moved to back of queue", os.date("%X"), traceName))
+									if not getgenv().DebugLogs then
+										getgenv().DebugLogs = {}
+									end
+									table.insert(
+										getgenv().DebugLogs,
+										string.format(
+											"[%s] Autopilot Debug: Target %s unhittable, moved to back of queue",
+											os.date("%X"),
+											traceName
+										)
+									)
 									continue
 								end
 							end
@@ -1360,17 +1413,36 @@ AutopilotSection:AddToggle("Autopilot", {
 					end
 
 					local traceName = overrideData.Player and overrideData.Player.Name or overrideData.Character.Name
-					if getgenv()._DbgLastShootTarget ~= traceName .. tostring(isUIOpen) .. tostring(uis.MouseBehavior) then
+					if
+						getgenv()._DbgLastShootTarget
+						~= traceName .. tostring(isUIOpen) .. tostring(uis.MouseBehavior)
+					then
 						getgenv()._DbgLastShootTarget = traceName .. tostring(isUIOpen) .. tostring(uis.MouseBehavior)
-						if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-						table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: Target acquired: %s. MouseBehavior: %s, isUIOpen: %s", os.date("%X"), traceName, tostring(uis.MouseBehavior), tostring(isUIOpen)))
+						if not getgenv().DebugLogs then
+							getgenv().DebugLogs = {}
+						end
+						table.insert(
+							getgenv().DebugLogs,
+							string.format(
+								"[%s] Autopilot Debug: Target acquired: %s. MouseBehavior: %s, isUIOpen: %s",
+								os.date("%X"),
+								traceName,
+								tostring(uis.MouseBehavior),
+								tostring(isUIOpen)
+							)
+						)
 					end
 
 					if uis.MouseBehavior == Enum.MouseBehavior.LockCenter and not isUIOpen then
 						if not getgenv()._DeltaIsAutoHolding then
 							if type(mouse1press) == "function" then
-								if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-								table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: Initiated mouse1press", os.date("%X")))
+								if not getgenv().DebugLogs then
+									getgenv().DebugLogs = {}
+								end
+								table.insert(
+									getgenv().DebugLogs,
+									string.format("[%s] Autopilot Debug: Initiated mouse1press", os.date("%X"))
+								)
 								pcall(mouse1press)
 								getgenv()._DeltaIsAutoHolding = true
 								getgenv()._DeltaLastAutoPressTime = now
@@ -1402,8 +1474,16 @@ AutopilotSection:AddToggle("Autopilot", {
 				else
 					if getgenv()._DbgLastShootTarget ~= "None" then
 						getgenv()._DbgLastShootTarget = "None"
-						if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-						table.insert(getgenv().DebugLogs, string.format("[%s] Autopilot Debug: No valid target found. shouldShoot is false.", os.date("%X")))
+						if not getgenv().DebugLogs then
+							getgenv().DebugLogs = {}
+						end
+						table.insert(
+							getgenv().DebugLogs,
+							string.format(
+								"[%s] Autopilot Debug: No valid target found. shouldShoot is false.",
+								os.date("%X")
+							)
+						)
 					end
 					getgenv()._AutopilotTargetOverride = nil
 					if getgenv()._DeltaIsAutoHolding then
@@ -1778,6 +1858,126 @@ ModsSection:AddToggle("NoRecoil", {
 				self.settings.MaxRecoil = self.settings.OrigRecoil
 			end
 		end
+	end
+end)
+
+ModsSection:AddToggle("NoScope", {
+	Text = "No Scope",
+	Default = getgenv().Config.Combat.NoScope,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.NoScope = value
+end)
+
+local function UpdateWeaponSwayAndBob()
+	if getgenv()._DeltaActiveWeaponTable and type(rawget(getgenv()._DeltaActiveWeaponTable, "settings")) == "table" then
+		local self = getgenv()._DeltaActiveWeaponTable
+		local settings = self.settings
+
+		if not rawget(self, "OrigSprintIdleOffset") then self.OrigSprintIdleOffset = self.sprintIdleOffset end
+		if not rawget(settings, "OrigSprintOffSet") then settings.OrigSprintOffSet = settings.sprintOffSet end
+		if not rawget(settings, "OrigSprintSway") then settings.OrigSprintSway = settings.SprintSwayModifer end
+		if not rawget(settings, "OrigWalkSway") then settings.OrigWalkSway = settings.WalkSwayModifer end
+		if not rawget(settings, "OrigIdleSway") then settings.OrigIdleSway = settings.IdleSwayModifier end
+		if not rawget(settings, "OrigSwayMult") then settings.OrigSwayMult = settings.swayMult end
+
+		if getgenv().Config.Combat.NoSway then
+			settings.sprintOffSet = Vector3.zero
+			self.sprintOffSet = Vector3.zero
+			settings.swayMult = 0
+			self.swayMult = 0
+			if self.weaponOffSet then
+				self.sprintIdleOffset = self.weaponOffSet
+			end
+		else
+			if rawget(settings, "OrigSprintOffSet") then
+				settings.sprintOffSet = settings.OrigSprintOffSet
+				self.sprintOffSet = settings.OrigSprintOffSet
+			end
+			if rawget(settings, "OrigSwayMult") then
+				settings.swayMult = settings.OrigSwayMult
+				self.swayMult = settings.OrigSwayMult
+			end
+			if rawget(self, "OrigSprintIdleOffset") then
+				self.sprintIdleOffset = self.OrigSprintIdleOffset
+			end
+		end
+
+		if getgenv().Config.Combat.NoBob then
+			settings.SprintSwayModifer = 0
+			settings.WalkSwayModifer = 0
+			settings.IdleSwayModifier = 0
+			self.SprintSwayModifer = 0
+			self.WalkSwayModifer = 0
+			self.IdleSwayModifier = 0
+		else
+			if rawget(settings, "OrigSprintSway") then
+				settings.SprintSwayModifer = settings.OrigSprintSway
+				self.SprintSwayModifer = settings.OrigSprintSway
+			end
+			if rawget(settings, "OrigWalkSway") then
+				settings.WalkSwayModifer = settings.OrigWalkSway
+				self.WalkSwayModifer = settings.OrigWalkSway
+			end
+			if rawget(settings, "OrigIdleSway") then
+				settings.IdleSwayModifier = settings.OrigIdleSway
+				self.IdleSwayModifier = settings.OrigIdleSway
+			end
+		end
+
+		if type(rawget(self, "springs")) == "table" then
+			for springName, springObj in pairs(self.springs) do
+				if type(springName) == "string" and type(springObj) == "table" and type(rawget(springObj, "update")) == "function" then
+					local lName = string.lower(springName)
+					
+					if lName == "sway" or lName == "gunsway" then
+						if not rawget(springObj, "__noSwayUpdateHooked") then
+							local oldUpdate = springObj.update
+							springObj.update = function(selfObj, ...)
+								if getgenv().Config.Combat.NoSway then
+									return Vector3.zero
+								end
+								return oldUpdate(selfObj, ...)
+							end
+							rawset(springObj, "__noSwayUpdateHooked", true)
+						end
+					end
+					
+					if lName == "walkcycle" or lName == "sprintcycle" or lName == "strafetilt" or lName == "jumptilt" or lName == "jumpcameratilt" then
+						if not rawget(springObj, "__noBobUpdateHooked") then
+							local oldUpdate = springObj.update
+							springObj.update = function(selfObj, ...)
+								if getgenv().Config.Combat.NoBob then
+									return Vector3.zero
+								end
+								return oldUpdate(selfObj, ...)
+							end
+							rawset(springObj, "__noBobUpdateHooked", true)
+						end
+					end
+				end
+			end
+		end
+	end
+end
+getgenv().UpdateWeaponSwayAndBob = UpdateWeaponSwayAndBob
+
+ModsSection:AddToggle("NoSway", {
+	Text = "No Sway",
+	Default = getgenv().Config.Combat.NoSway,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.NoSway = value
+	if getgenv().UpdateWeaponSwayAndBob then
+		getgenv().UpdateWeaponSwayAndBob()
+	end
+end)
+
+ModsSection:AddToggle("NoBob", {
+	Text = "No Bob",
+	Default = getgenv().Config.Combat.NoBob,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.NoBob = value
+	if getgenv().UpdateWeaponSwayAndBob then
+		getgenv().UpdateWeaponSwayAndBob()
 	end
 end)
 
@@ -2229,12 +2429,12 @@ local function toggleLandminesAlgorithm(enabled)
 
 	if enabled then
 		local targetFolders = {}
-		
+
 		local aiZones = workspace:FindFirstChild("AiZones")
 		if aiZones then
 			table.insert(targetFolders, aiZones)
 		end
-		
+
 		local noCollision = workspace:FindFirstChild("NoCollision")
 		if noCollision then
 			local ncAiZones = noCollision:FindFirstChild("AiZones")
@@ -2303,6 +2503,18 @@ WorldModsSection:AddSlider("FOV", {
 })
 getgenv().Options.FOV:OnChanged(function(value)
 	getgenv().Config.Mods.FOV = value
+end)
+
+WorldModsSection:AddSlider("WorldTime", {
+	Text = "World Time",
+	Default = getgenv().Config.Mods.WorldTime or 12,
+	Min = 0,
+	Max = 24,
+	Rounding = 1,
+	Compact = false,
+})
+getgenv().Options.WorldTime:OnChanged(function(value)
+	getgenv().Config.Mods.WorldTime = value
 end)
 
 local CharacterModsSection = ModsTab:AddRightGroupbox("Character")
@@ -3103,6 +3315,7 @@ DebugSection:AddButton({
 	DoubleClick = false,
 })
 
+
 DebugSection:AddButton({
 	Text = "Clear Debug Logs",
 	Func = function()
@@ -3280,18 +3493,19 @@ local function applyLoadedConfig(data)
 		safeSetToggle("VisibleCheck", data.ESP.VisibleCheck)
 		safeSetColorPicker("VisibleColor", parseColor(data.ESP.VisibleColor))
 
-		safeSetToggle("BodyChams", data.ESP.ViewmodelBodyChams)
-		safeSetColorPicker("BodyChamsFillColor", parseColor(data.ESP.ViewmodelBodyFillColor))
-		safeSetColorPicker("BodyChamsOutlineColor", parseColor(data.ESP.ViewmodelBodyOutlineColor))
+		safeSetToggle("HideArms", data.ESP.HideArms)
+		safeSetToggle("ArmChams", data.ESP.ViewmodelArmChams)
+		safeSetColorPicker("ArmColor", parseColor(data.ESP.ViewmodelArmColor))
+		safeSetOption("ArmMaterial", data.ESP.ViewmodelArmMaterial)
 
 		safeSetToggle("GunChams", data.ESP.ViewmodelGunChams)
-		safeSetColorPicker("GunChamsFillColor", parseColor(data.ESP.ViewmodelGunFillColor))
-		safeSetColorPicker("GunChamsOutlineColor", parseColor(data.ESP.ViewmodelGunOutlineColor))
-
-		safeSetToggle("GunSparkles", data.ESP.EnableGunSparkles)
-		safeSetOption("GunGlowIntensity", data.ESP.GunGlowIntensity)
+		safeSetColorPicker("GunColor", parseColor(data.ESP.ViewmodelGunColor))
+		safeSetOption("GunMaterial", data.ESP.ViewmodelGunMaterial)
 
 		safeSetOption("ViewmodelChamsTransparency", data.ESP.ViewmodelChamsTransparency)
+		safeSetOption("ViewmodelOffsetX", data.ESP.ViewmodelOffsetX)
+		safeSetOption("ViewmodelOffsetY", data.ESP.ViewmodelOffsetY)
+		safeSetOption("ViewmodelOffsetZ", data.ESP.ViewmodelOffsetZ)
 
 		safeSetToggle("NPCESP", data.ESP.NPCESPEnabled)
 		safeSetColorPicker("NPCTextColor", parseColor(data.ESP.NPCTextColor))
@@ -3409,6 +3623,9 @@ local function applyLoadedConfig(data)
 		safeSetKeyPicker("SpiderClimbKeybind", data.Combat.SpiderClimbKeybind, "Hold")
 
 		safeSetToggle("NoRecoil", data.Combat.NoRecoil)
+		safeSetToggle("NoScope", data.Combat.NoScope)
+		safeSetToggle("NoSway", data.Combat.NoSway)
+		safeSetToggle("NoBob", data.Combat.NoBob)
 		safeSetToggle("NoSpread", data.Combat.NoSpread)
 		safeSetToggle("RapidFire", data.Combat.RapidFire)
 		safeSetOption("RapidFireMultiplier", data.Combat.RapidFireValue)
@@ -3438,6 +3655,7 @@ local function applyLoadedConfig(data)
 		safeSetToggle("Speedhack", data.Mods.Speedhack)
 		safeSetOption("WalkspeedValue", data.Mods.WalkspeedValue)
 		safeSetOption("FOV", data.Mods.FOV)
+		safeSetOption("WorldTime", data.Mods.WorldTime)
 	end
 
 	if data.Utilities then
@@ -3831,14 +4049,24 @@ function CharacterManager.GetManipulatedOrigin(base_pos, target_pos, targetRoot,
 	if not getgenv().Config or not getgenv().Config.Combat or not getgenv().Config.Combat.OriginManipulation then
 		return nil
 	end
+	
+	if getgenv().TargetManager and getgenv().TargetManager.CurrentTarget then
+		local currentTarget = getgenv().TargetManager.CurrentTarget
+		local currentTargetRoot = currentTarget.RootPart or (currentTarget.Character and currentTarget.Character:FindFirstChild("HumanoidRootPart")) or currentTarget.Head
+		if currentTargetRoot ~= targetRoot then
+			return nil -- Only manipulate origin for the current Silent Aim target
+		end
+	end
 
 	local max_dist = getgenv().Config.Combat.OriginManipulationDistance or 5
 	local right = Workspace.CurrentCamera.CFrame.RightVector
 	local up = Workspace.CurrentCamera.CFrame.UpVector
 	local directions = {
-		right, -right, up,
-		(right + up).Unit, (-right + up).Unit,
-		-up, (right - up).Unit, (-right - up).Unit,
+		up,
+		-right, -- left
+		right,
+		(-right + up).Unit, -- up-left
+		(right + up).Unit, -- up-right
 	}
 
 	local params = RaycastParams.new()
@@ -3852,7 +4080,9 @@ function CharacterManager.GetManipulatedOrigin(base_pos, target_pos, targetRoot,
 
 	if getgenv().CachedGlobalIgnoreList then
 		local filtered = params.FilterDescendantsInstances
-		for _, v in ipairs(getgenv().CachedGlobalIgnoreList) do table.insert(filtered, v) end
+		for _, v in ipairs(getgenv().CachedGlobalIgnoreList) do
+			table.insert(filtered, v)
+		end
 		params.FilterDescendantsInstances = filtered
 	end
 
@@ -3875,12 +4105,28 @@ function CharacterManager.GetManipulatedOrigin(base_pos, target_pos, targetRoot,
 				local offset = dir * dist
 				local origin_test = base_pos + offset
 				local res = Workspace:Raycast(origin_test, target_pos - origin_test, params)
-				if not res or (targetRoot and res.Instance and targetRoot.Parent and res.Instance:IsDescendantOf(targetRoot.Parent)) then
+				if
+					not res
+					or (
+						targetRoot
+						and res.Instance
+						and targetRoot.Parent
+						and res.Instance:IsDescendantOf(targetRoot.Parent)
+					)
+				then
 					local buffered_dist = dist + 1.5
 					if clear_distances[i] >= buffered_dist then
 						local buffered_origin = base_pos + (dir * buffered_dist)
 						local b_res = Workspace:Raycast(buffered_origin, target_pos - buffered_origin, params)
-						if not b_res or (targetRoot and b_res.Instance and targetRoot.Parent and b_res.Instance:IsDescendantOf(targetRoot.Parent)) then
+						if
+							not b_res
+							or (
+								targetRoot
+								and b_res.Instance
+								and targetRoot.Parent
+								and b_res.Instance:IsDescendantOf(targetRoot.Parent)
+							)
+						then
 							found_origin = buffered_origin
 							break
 						end
@@ -3892,7 +4138,9 @@ function CharacterManager.GetManipulatedOrigin(base_pos, target_pos, targetRoot,
 				end
 			end
 		end
-		if found_origin then break end
+		if found_origin then
+			break
+		end
 	end
 
 	return found_origin
@@ -5278,6 +5526,8 @@ end
 local BulletTracerManager = {
 	Tracers = getgenv().DeltaTracersCache or {},
 	LastFlicker = 0,
+	LastRawColor = nil,
+	LastParsedColor = nil,
 }
 getgenv().DeltaTracersCache = BulletTracerManager.Tracers
 
@@ -5310,6 +5560,106 @@ function BulletTracerManager.ParseColor(cColor)
 	return Color3.fromRGB(255, 255, 255)
 end
 
+BulletTracerManager.InstanceCache = {
+	Beams = {},
+	Attachments = {},
+	Parts = {}
+}
+
+function BulletTracerManager.GetAttachment()
+	local cache = BulletTracerManager.InstanceCache.Attachments
+	if #cache > 0 then return table.remove(cache) end
+	return Instance.new("Attachment")
+end
+
+function BulletTracerManager.ReleaseAttachment(att)
+	if not att then return end
+	att.Parent = nil
+	if #BulletTracerManager.InstanceCache.Attachments < 500 then
+		table.insert(BulletTracerManager.InstanceCache.Attachments, att)
+	else
+		att:Destroy()
+	end
+end
+
+function BulletTracerManager.GetBeam()
+	local cache = BulletTracerManager.InstanceCache.Beams
+	if #cache > 0 then return table.remove(cache) end
+	return Instance.new("Beam")
+end
+
+function BulletTracerManager.ReleaseBeam(beam)
+	if not beam then return end
+	beam.Parent = nil
+	if #BulletTracerManager.InstanceCache.Beams < 500 then
+		table.insert(BulletTracerManager.InstanceCache.Beams, beam)
+	else
+		beam:Destroy()
+	end
+end
+
+function BulletTracerManager.GetPart()
+	local cache = BulletTracerManager.InstanceCache.Parts
+	if #cache > 0 then return table.remove(cache) end
+	return Instance.new("Part")
+end
+
+function BulletTracerManager.ReleasePart(part)
+	if not part then return end
+	part.Parent = nil
+	if #BulletTracerManager.InstanceCache.Parts < 500 then
+		table.insert(BulletTracerManager.InstanceCache.Parts, part)
+	else
+		part:Destroy()
+	end
+end
+
+function BulletTracerManager.CreateFOVLayeredGlowBeam(a0, a1, cColor, cTrans)
+	local glowBeams = {}
+	for j = 1, 4 do
+		local opacity = math.clamp(0.8 / (j ^ 1.2), 0.02, 0.8) * (1 - cTrans)
+		local widthScale = 1 + (j * 0.4)
+		
+		local gb = BulletTracerManager.GetBeam()
+		gb.Attachment0 = a0
+		gb.Attachment1 = a1
+		gb.FaceCamera = true
+		gb.Color = ColorSequence.new(cColor)
+		gb.Transparency = NumberSequence.new(1 - opacity)
+		gb.Width0 = 0.2 * widthScale
+		gb.Width1 = 0.2 * widthScale
+		gb.LightEmission = 1
+		gb.LightInfluence = 0
+		gb.Parent = Workspace.Terrain
+		table.insert(glowBeams, gb)
+	end
+	return glowBeams
+end
+
+function BulletTracerManager.CreateFOVLayeredGlowPart(basePart, segmentDist, cColor, cTrans)
+	local glowParts = {}
+	for j = 1, 4 do
+		local opacity = math.clamp(0.8 / (j ^ 1.2), 0.02, 0.8) * (1 - cTrans)
+		local widthScale = 1 + (j * 0.4)
+		
+		local glowPart = BulletTracerManager.GetPart()
+		glowPart.Anchored = true
+		glowPart.CanCollide = false
+		glowPart.CanQuery = false
+		glowPart.CastShadow = false
+		glowPart.Material = Enum.Material.Neon
+		glowPart.Shape = Enum.PartType.Cylinder
+		local gWidth = 0.05 * widthScale
+		glowPart.Size = Vector3.new(segmentDist, gWidth, gWidth)
+		glowPart.Color = cColor
+		glowPart.CFrame = basePart.CFrame
+		glowPart.Transparency = 1 - opacity
+		glowPart.Parent = Workspace.Terrain
+		table.insert(glowParts, glowPart)
+	end
+	return glowParts
+end
+
 function BulletTracerManager.CreateLightning(origin, hitPos, config)
 	local distance = (hitPos - origin).Magnitude
 	local numSegments = math.clamp(math.floor(distance / 5), 3, 15)
@@ -5330,6 +5680,10 @@ function BulletTracerManager.CreateLightning(origin, hitPos, config)
 		IsLightning = true,
 	}
 
+	local cColor = BulletTracerManager.ParseColor(config.TracerColor)
+	local cTrans = config.TracerTransparency
+	if type(cTrans) ~= "number" then cTrans = 0.5 end
+
 	local points = { origin }
 	for i = 1, numSegments - 1 do
 		local offset = direction * (distance * (i / numSegments))
@@ -5339,41 +5693,34 @@ function BulletTracerManager.CreateLightning(origin, hitPos, config)
 	table.insert(points, hitPos)
 
 	for i = 1, #points - 1 do
-		local a0 = Instance.new("Attachment")
+		local a0 = BulletTracerManager.GetAttachment()
 		a0.WorldPosition = points[i]
 		a0.Parent = Workspace.Terrain
 
-		local a1 = Instance.new("Attachment")
+		local a1 = BulletTracerManager.GetAttachment()
 		a1.WorldPosition = points[i + 1]
 		a1.Parent = Workspace.Terrain
 
-		local beam = Instance.new("Beam")
+		local beam = BulletTracerManager.GetBeam()
 		beam.Attachment0 = a0
 		beam.Attachment1 = a1
 		beam.FaceCamera = true
-		local cColor = BulletTracerManager.ParseColor(config.TracerColor)
 		beam.Color = ColorSequence.new(cColor)
-		beam.Transparency = NumberSequence.new(0)
-		beam.Width0 = 0.1
-		beam.Width1 = 0.1
+		beam.Transparency = NumberSequence.new(math.clamp(cTrans - 0.3, 0, 1))
+		beam.Width0 = 0.2
+		beam.Width1 = 0.2
 		beam.LightEmission = 1
+		beam.LightInfluence = 0
 		beam.Parent = Workspace.Terrain
 
 		table.insert(strandInfo.Beams, { Beam = beam, A0 = a0, A1 = a1 })
 
+		local glowBeams = {}
 		if config.TracerGlowEffect then
-			local glowBeam = Instance.new("Beam")
-			glowBeam.Attachment0 = a0
-			glowBeam.Attachment1 = a1
-			glowBeam.FaceCamera = true
-			glowBeam.Color = beam.Color
-			glowBeam.Transparency = NumberSequence.new(0.8)
-			glowBeam.Width0 = 0.3
-			glowBeam.Width1 = 0.3
-			glowBeam.LightEmission = 1
-			glowBeam.Parent = Workspace.Terrain
-			table.insert(strandInfo.Beams, { Beam = glowBeam, A0 = a0, A1 = a1 })
+			glowBeams = BulletTracerManager.CreateFOVLayeredGlowBeam(a0, a1, cColor, cTrans)
 		end
+		
+		strandInfo.Beams[#strandInfo.Beams].Glows = glowBeams
 	end
 
 	table.insert(BulletTracerManager.Tracers, strandInfo)
@@ -5399,6 +5746,10 @@ function BulletTracerManager.CreateHeartbeat(origin, hitPos, config)
 		IsHeartbeat = true,
 	}
 
+	local cColor = BulletTracerManager.ParseColor(config.TracerColor)
+	local cTrans = config.TracerTransparency
+	if type(cTrans) ~= "number" then cTrans = 0.5 end
+
 	local points = { origin }
 	for i = 1, numSegments - 1 do
 		local offset = direction * (distance * (i / numSegments))
@@ -5409,46 +5760,98 @@ function BulletTracerManager.CreateHeartbeat(origin, hitPos, config)
 	table.insert(points, hitPos)
 
 	for i = 1, #points - 1 do
-		local a0 = Instance.new("Attachment")
+		local a0 = BulletTracerManager.GetAttachment()
 		a0.WorldPosition = points[i]
 		a0.Parent = Workspace.Terrain
 
-		local a1 = Instance.new("Attachment")
+		local a1 = BulletTracerManager.GetAttachment()
 		a1.WorldPosition = points[i + 1]
 		a1.Parent = Workspace.Terrain
 
-		local beam = Instance.new("Beam")
+		local beam = BulletTracerManager.GetBeam()
 		beam.Attachment0 = a0
 		beam.Attachment1 = a1
 		beam.FaceCamera = true
-
-		local cColor = BulletTracerManager.ParseColor(config.TracerColor)
 		beam.Color = ColorSequence.new(cColor)
-
-		beam.Transparency = NumberSequence.new(0)
-		beam.Width0 = 0.1
-		beam.Width1 = 0.1
+		beam.Transparency = NumberSequence.new(math.clamp(cTrans - 0.3, 0, 1))
+		beam.Width0 = 0.2
+		beam.Width1 = 0.2
 		beam.LightEmission = 1
+		beam.LightInfluence = 0
 		beam.Parent = Workspace.Terrain
 
 		table.insert(strandInfo.Beams, { Beam = beam, A0 = a0, A1 = a1 })
 
+		local glowBeams = {}
 		if config.TracerGlowEffect then
-			local glowBeam = Instance.new("Beam")
-			glowBeam.Attachment0 = a0
-			glowBeam.Attachment1 = a1
-			glowBeam.FaceCamera = true
-			glowBeam.Color = beam.Color
-			glowBeam.Transparency = NumberSequence.new(0.8)
-			glowBeam.Width0 = 0.3
-			glowBeam.Width1 = 0.3
-			glowBeam.LightEmission = 1
-			glowBeam.Parent = Workspace.Terrain
-			table.insert(strandInfo.Beams, { Beam = glowBeam, A0 = a0, A1 = a1 })
+			glowBeams = BulletTracerManager.CreateFOVLayeredGlowBeam(a0, a1, cColor, cTrans)
 		end
+		
+		strandInfo.Beams[#strandInfo.Beams].Glows = glowBeams
 	end
 
 	table.insert(BulletTracerManager.Tracers, strandInfo)
+end
+
+function BulletTracerManager.CreateRetroLaser(origin, hitPos, config)
+	local distance = (hitPos - origin).Magnitude
+	local direction = (hitPos - origin).Unit
+
+	local segmentLength = 12
+	local gapLength = 8
+	local totalSpacing = segmentLength + gapLength
+	local numSegments = math.min(30, math.ceil(distance / totalSpacing))
+	
+	if numSegments == 30 then
+		totalSpacing = distance / numSegments
+		segmentLength = totalSpacing * (12 / 20)
+	end
+
+	local cColor = BulletTracerManager.ParseColor(config.TracerColor)
+	local cTrans = config.TracerTransparency
+	if type(cTrans) ~= "number" then cTrans = 0.5 end
+
+	local beams = {}
+
+	for i = 1, numSegments do
+		local a0 = BulletTracerManager.GetAttachment()
+		a0.Parent = Workspace.Terrain
+		
+		local a1 = BulletTracerManager.GetAttachment()
+		a1.Parent = Workspace.Terrain
+		
+		local beam = BulletTracerManager.GetBeam()
+		beam.Attachment0 = a0
+		beam.Attachment1 = a1
+		beam.FaceCamera = true
+		beam.Color = ColorSequence.new(cColor)
+		beam.Transparency = NumberSequence.new(math.clamp(cTrans - 0.3, 0, 1))
+		beam.Width0 = 0.8
+		beam.Width1 = 0.8
+		beam.LightEmission = 1
+		beam.LightInfluence = 0
+		beam.Parent = Workspace.Terrain
+		
+		local glowBeams = {}
+		if config.TracerGlowEffect then
+			glowBeams = BulletTracerManager.CreateFOVLayeredGlowBeam(a0, a1, cColor, cTrans)
+		end
+
+		table.insert(beams, { Beam = beam, Glows = glowBeams, A0 = a0, A1 = a1, BaseIndex = i - 1 })
+	end
+
+	table.insert(BulletTracerManager.Tracers, {
+		IsRetroLaser = true,
+		Origin = origin,
+		HitPos = hitPos,
+		Direction = direction,
+		Distance = distance,
+		SegmentLength = segmentLength,
+		TotalSpacing = totalSpacing,
+		Beams = beams,
+		CreationTime = os.clock(),
+		ExpireTime = os.clock() + 2,
+	})
 end
 
 function BulletTracerManager.AddTracer(origin, hitPos)
@@ -5461,6 +5864,8 @@ function BulletTracerManager.AddTracer(origin, hitPos)
 		BulletTracerManager.CreateLightning(origin, hitPos, config)
 	elseif config.TracerType == "Heartbeat" then
 		BulletTracerManager.CreateHeartbeat(origin, hitPos, config)
+	elseif config.TracerType == "Retro Laser" then
+		BulletTracerManager.CreateRetroLaser(origin, hitPos, config)
 	else
 		local dist = (hitPos - origin).Magnitude
 		local numParts = math.ceil(dist / 1000)
@@ -5472,10 +5877,12 @@ function BulletTracerManager.AddTracer(origin, hitPos)
 
 		local partsTable = {}
 		local glowPartsTable = {}
+		
+		local cColor = BulletTracerManager.ParseColor(config.TracerColor)
 
 		for i = 1, numParts do
 			local offset = segmentDist * (i - 0.5)
-			local tracerPart = Instance.new("Part")
+			local tracerPart = BulletTracerManager.GetPart()
 			tracerPart.Anchored = true
 			tracerPart.CanCollide = false
 			tracerPart.CanQuery = false
@@ -5486,17 +5893,16 @@ function BulletTracerManager.AddTracer(origin, hitPos)
 			tracerPart.CFrame = CFrame.lookAt(origin, hitPos)
 				* CFrame.new(0, 0, -offset)
 				* CFrame.Angles(0, math.pi / 2, 0)
-			tracerPart.Color = BulletTracerManager.ParseColor(config.TracerColor)
-			tracerPart.Transparency = cTrans
+			tracerPart.Color = cColor
+			tracerPart.Transparency = math.clamp(cTrans - 0.3, 0, 1)
 			tracerPart.Parent = Workspace.Terrain
 			table.insert(partsTable, tracerPart)
 
 			if config.TracerGlowEffect then
-				local glowPart = tracerPart:Clone()
-				glowPart.Size = Vector3.new(segmentDist, 0.15, 0.15)
-				glowPart.Transparency = math.clamp(cTrans + 0.3, 0, 1)
-				glowPart.Parent = Workspace.Terrain
-				table.insert(glowPartsTable, glowPart)
+				local glowParts = BulletTracerManager.CreateFOVLayeredGlowPart(tracerPart, segmentDist, cColor, cTrans)
+				for _, gp in ipairs(glowParts) do
+					table.insert(glowPartsTable, gp)
+				end
 			end
 		end
 
@@ -5518,74 +5924,144 @@ function BulletTracerManager.Update()
 		BulletTracerManager.LastFlicker = now
 	end
 
-	local cColor = BulletTracerManager.ParseColor(config.TracerColor)
+	if BulletTracerManager.LastRawColor ~= config.TracerColor then
+		BulletTracerManager.LastRawColor = config.TracerColor
+		BulletTracerManager.LastParsedColor = BulletTracerManager.ParseColor(config.TracerColor)
+	end
+	local cColor = BulletTracerManager.LastParsedColor or Color3.fromRGB(255, 255, 255)
+
 	local cTrans = config.TracerTransparency
 	if type(cTrans) ~= "number" then
 		cTrans = 0.5
 	end
 	local cachedColor = ColorSequence.new(cColor)
-	local cachedTransparency = NumberSequence.new(cTrans)
+	local cachedTransparency = NumberSequence.new(math.clamp(cTrans - 0.3, 0, 1))
+	local glowTransparency = NumberSequence.new(math.clamp(cTrans + 0.2, 0, 1))
+	local partTransparency = math.clamp(cTrans - 0.3, 0, 1)
 
 	for i = #BulletTracerManager.Tracers, 1, -1 do
 		local tracer = BulletTracerManager.Tracers[i]
 		if now > tracer.ExpireTime or not config.BulletTracers then
-			if tracer.Beam then
-				tracer.Beam:Destroy()
-			end
-			if tracer.GlowBeam then
-				tracer.GlowBeam:Destroy()
-			end
+			if tracer.Beam then BulletTracerManager.ReleaseBeam(tracer.Beam) end
+			if tracer.GlowBeam then BulletTracerManager.ReleaseBeam(tracer.GlowBeam) end
 			if tracer.Parts then
-				for _, p in ipairs(tracer.Parts) do
-					p:Destroy()
-				end
+				for _, p in ipairs(tracer.Parts) do BulletTracerManager.ReleasePart(p) end
 			end
 			if tracer.GlowParts then
-				for _, gp in ipairs(tracer.GlowParts) do
-					gp:Destroy()
-				end
+				for _, gp in ipairs(tracer.GlowParts) do BulletTracerManager.ReleasePart(gp) end
 			end
-			if tracer.A0 then
-				tracer.A0:Destroy()
-			end
-			if tracer.A1 then
-				tracer.A1:Destroy()
-			end
+			if tracer.A0 then BulletTracerManager.ReleaseAttachment(tracer.A0) end
+			if tracer.A1 then BulletTracerManager.ReleaseAttachment(tracer.A1) end
 			if tracer.Beams then
 				for _, b in pairs(tracer.Beams) do
-					b.Beam:Destroy()
-					b.A0:Destroy()
-					b.A1:Destroy()
+					if b.Beam then BulletTracerManager.ReleaseBeam(b.Beam) end
+					if b.Glow then BulletTracerManager.ReleaseBeam(b.Glow) end
+					if b.Glows then
+						for _, gb in ipairs(b.Glows) do BulletTracerManager.ReleaseBeam(gb) end
+					end
+					if b.A0 then BulletTracerManager.ReleaseAttachment(b.A0) end
+					if b.A1 then BulletTracerManager.ReleaseAttachment(b.A1) end
+				end
+			end
+			if tracer.Segments then
+				for _, seg in ipairs(tracer.Segments) do
+					if seg.Part then BulletTracerManager.ReleasePart(seg.Part) end
+					if seg.Glow then BulletTracerManager.ReleaseBeam(seg.Glow) end
 				end
 			end
 			table.remove(BulletTracerManager.Tracers, i)
 		else
-			if tracer.Beam and not tracer.IsLightning then
-				tracer.Beam.Color = cachedColor
-				tracer.Beam.Transparency = cachedTransparency
-			end
-			if tracer.Parts then
-				for _, p in ipairs(tracer.Parts) do
-					p.Color = cColor
-					p.Transparency = cTrans
+			local colorChanged = (tracer.LastColor ~= cColor)
+			local transChanged = (tracer.LastTrans ~= cTrans)
+			
+			if colorChanged or transChanged then
+				tracer.LastColor = cColor
+				tracer.LastTrans = cTrans
+				
+				if tracer.Beam and not tracer.IsLightning then
+					tracer.Beam.Color = cachedColor
+					tracer.Beam.Transparency = cachedTransparency
+				end
+				if tracer.Parts then
+					for _, p in ipairs(tracer.Parts) do
+						p.Color = cColor
+						p.Transparency = partTransparency
+					end
+				end
+				if tracer.GlowBeam then
+					tracer.GlowBeam.Color = cachedColor
+					tracer.GlowBeam.Transparency = glowTransparency
+				end
+				if tracer.GlowParts then
+					for _, gp in ipairs(tracer.GlowParts) do
+						gp.Color = cColor
+					end
+				end
+				if tracer.Beams then
+					for _, b in pairs(tracer.Beams) do
+						if not tracer.IsLightning and b.Beam then
+							b.Beam.Color = cachedColor
+							b.Beam.Transparency = cachedTransparency
+						end
+						if b.Glows then
+							for j, gb in ipairs(b.Glows) do
+								gb.Color = cachedColor
+								local opacity = math.clamp(0.8 / (j ^ 1.2), 0.02, 0.8) * (1 - cTrans)
+								gb.Transparency = NumberSequence.new(1 - opacity)
+							end
+						end
+					end
 				end
 			end
-			if tracer.GlowBeam then
-				tracer.GlowBeam.Color = cachedColor
-				tracer.GlowBeam.Transparency = NumberSequence.new(math.clamp(cTrans + 0.3, 0, 1))
-			end
-			if tracer.GlowParts then
-				for _, gp in ipairs(tracer.GlowParts) do
-					gp.Color = cColor
-					gp.Transparency = math.clamp(cTrans + 0.3, 0, 1)
-				end
-			end
+			
 			if tracer.IsLightning and tracer.Beams and shouldFlicker then
 				local flicker = math.random() * 0.3
 				local flickerTransparency = NumberSequence.new(math.clamp(flicker, 0, 1))
 				for _, b in pairs(tracer.Beams) do
-					b.Beam.Color = cachedColor
-					b.Beam.Transparency = flickerTransparency
+					if b.Beam then
+						b.Beam.Color = cachedColor
+						b.Beam.Transparency = flickerTransparency
+					end
+				end
+			end
+			
+			if tracer.IsRetroLaser and tracer.Beams then
+				local scrollSpeed = 200
+				local offsetDist = (now - tracer.CreationTime) * scrollSpeed
+				
+				for _, b in ipairs(tracer.Beams) do
+					local currentDist = (offsetDist + (b.BaseIndex * tracer.TotalSpacing)) % tracer.Distance
+					
+					local actualLength = tracer.SegmentLength
+					if currentDist + actualLength > tracer.Distance then
+						actualLength = math.max(0.01, tracer.Distance - currentDist)
+					end
+					
+					local pos0 = tracer.Origin + tracer.Direction * currentDist
+					local pos1 = tracer.Origin + tracer.Direction * (currentDist + actualLength)
+					
+					if b.A0 and b.A1 then
+						b.A0.WorldPosition = pos0
+						b.A1.WorldPosition = pos1
+					end
+					
+					if colorChanged or transChanged then
+						if b.Beam then
+							b.Beam.Color = cachedColor
+							b.Beam.Transparency = cachedTransparency
+						end
+						if b.Glow then
+							b.Glow.Color = cachedColor
+							b.Glow.Transparency = glowTransparency
+						end
+						if b.Glows then
+							for j, gb in ipairs(b.Glows) do
+								gb.Color = cachedColor
+								local opacity = math.clamp(0.8 / (j ^ 1.2), 0.02, 0.8) * (1 - cTrans)
+								gb.Transparency = NumberSequence.new(1 - opacity)
+							end
+						end
+					end
 				end
 			end
 		end
@@ -5670,8 +6146,14 @@ if BulletMod then
 					local realOrigin = origin
 
 					if getgenv().Config.Combat.OriginManipulation then
-						local found_origin = getgenv().CharacterManager and getgenv().CharacterManager.GetManipulatedOrigin 
-							and getgenv().CharacterManager.GetManipulatedOrigin(realOrigin, targetAimPart.Position, targetRoot, isUnderground)
+						local found_origin = getgenv().CharacterManager
+							and getgenv().CharacterManager.GetManipulatedOrigin
+							and getgenv().CharacterManager.GetManipulatedOrigin(
+								realOrigin,
+								targetAimPart.Position,
+								targetRoot,
+								isUnderground
+							)
 
 						if found_origin then
 							origin = found_origin
@@ -5689,13 +6171,11 @@ if BulletMod then
 
 					local aimPos
 
-
 					if getgenv().Config.Combat.InstantHit then
 						aimPos = targetAimPart.Position
 						TargetManager.PredictedPosition = aimPos
 						local perfectDir = (aimPos - realOrigin).Unit
 						origin = aimPos - perfectDir * 0.5
-
 					else
 						local targetVelocity = targetRoot.AssemblyLinearVelocity
 						local v = muzzleVelocity
@@ -5734,6 +6214,20 @@ if BulletMod then
 					local clientAimDirection = (aimPos - origin).Unit
 					getgenv().LastServerAimDirection = serverAimDirection
 
+					local trueMuzzleOrigin = realOrigin
+					if type(args[5]) == "table" and args[5].CFrame then
+						trueMuzzleOrigin = args[5].CFrame.Position
+					elseif typeof(args[5]) == "CFrame" then
+						trueMuzzleOrigin = args[5].Position
+					end
+					
+					local viewmodelOffset = Vector3.new(
+						getgenv().Config.ESP.ViewmodelOffsetX or 0,
+						getgenv().Config.ESP.ViewmodelOffsetY or 0,
+						getgenv().Config.ESP.ViewmodelOffsetZ or 0
+					)
+					trueMuzzleOrigin = trueMuzzleOrigin + Camera.CFrame:VectorToWorldSpace(viewmodelOffset)
+
 					if type(args[5]) == "table" then
 						args[5].CFrame = CFrame.lookAt(origin, origin + clientAimDirection * 100)
 					else
@@ -5741,7 +6235,7 @@ if BulletMod then
 					end
 
 					if getgenv().Config.SilentAim.BulletTracers then
-						BulletTracerManager.AddTracer(realOrigin, TargetManager.PredictedPosition)
+						BulletTracerManager.AddTracer(trueMuzzleOrigin, TargetManager.PredictedPosition)
 					end
 				else
 					if getgenv().Config.Combat.NoRecoil then
@@ -5769,12 +6263,27 @@ if BulletMod then
 									getgenv().CachedFunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
 							end)
 						end
+						
+						local trueMuzzleOrigin = origin
+						if type(args[5]) == "table" and args[5].CFrame then
+							trueMuzzleOrigin = args[5].CFrame.Position
+						elseif typeof(args[5]) == "CFrame" then
+							trueMuzzleOrigin = args[5].Position
+						end
+						
+						local viewmodelOffset = Vector3.new(
+							getgenv().Config.ESP.ViewmodelOffsetX or 0,
+							getgenv().Config.ESP.ViewmodelOffsetY or 0,
+							getgenv().Config.ESP.ViewmodelOffsetZ or 0
+						)
+						trueMuzzleOrigin = trueMuzzleOrigin + Camera.CFrame:VectorToWorldSpace(viewmodelOffset)
+
 						local params = RaycastParams.new()
 						params.FilterType = Enum.RaycastFilterType.Exclude
 						params.FilterDescendantsInstances = { LocalPlayer.Character, Camera }
 						local result = Workspace:Raycast(origin, Camera.CFrame.LookVector * 5000, params)
 						local hitPos = result and result.Position or (origin + Camera.CFrame.LookVector * 5000)
-						BulletTracerManager.AddTracer(origin, hitPos)
+						BulletTracerManager.AddTracer(trueMuzzleOrigin, hitPos)
 					end
 				end
 
@@ -5963,6 +6472,10 @@ table.insert(
 													self.settings.MaxRecoil = self.settings.OrigRecoil
 												end
 											end
+
+											if getgenv().UpdateWeaponSwayAndBob then
+												getgenv().UpdateWeaponSwayAndBob()
+											end
 										end
 
 										if type(rawget(self, "springs")) == "table" then
@@ -6150,7 +6663,7 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 				if getgenv().AddLog then
 					getgenv().AddLog(string.format("[Client] Manual UpdateCrouch(%s)", tostring(isCrouching)))
 				end
-				
+
 				-- BLOCK uncrouch packets while UGR is active to maintain our persistent crouch state.
 				-- The game's native character controller constantly tries to uncrouch the player
 				-- when they walk/jump, which overwrites our persistent crouch and ruins hit registration.
@@ -6309,15 +6822,32 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 
 		if typeof(self) == "Instance" and self:IsA("AnimationTrack") then
 			local name = self.Name or ""
+			local lowerName = string.lower(name)
 
 			if getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.UndergroundDesync then
-				local lowerName = string.lower(name)
 				if
 					string.find(lowerName, "crouch")
 					or string.find(lowerName, "walk")
 					or string.find(lowerName, "run")
 				then
 					return
+				end
+			end
+
+			if getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.NoSway then
+				if
+					string.find(lowerName, "walk")
+					or string.find(lowerName, "run")
+					or string.find(lowerName, "sprint")
+				then
+					setnamecallmethod(method)
+					local ret = getgenv().OriginalNamecall(self, ...)
+					task.spawn(function()
+						pcall(function()
+							self:AdjustWeight(0.001)
+						end)
+					end)
+					return ret
 				end
 			end
 
@@ -6760,6 +7290,10 @@ function WorldModsManager.Update()
 		end
 	end
 
+	if getgenv().Config.Mods.WorldTime then
+		_Lighting.ClockTime = getgenv().Config.Mods.WorldTime
+	end
+
 	if getgenv().Config.Mods.NoFog then
 		if _Lighting.FogEnd ~= 100000 then
 			_Lighting.FogEnd = 100000
@@ -6771,13 +7305,16 @@ function WorldModsManager.Update()
 	end
 
 	local sEffects = getgenv()._cachedScreenEffects
-	if not sEffects or not sEffects.Parent then
+	local mFrame = getgenv()._cachedMainFrame
+	if not sEffects or not sEffects.Parent or not mFrame or not mFrame.Parent then
 		local pGui = LocalPlayer:FindFirstChild("PlayerGui")
 		local noInset = pGui and pGui:FindFirstChild("NoInsetGui")
-		local mFrame = noInset and noInset:FindFirstChild("MainFrame")
+		mFrame = noInset and noInset:FindFirstChild("MainFrame")
 		sEffects = mFrame and mFrame:FindFirstChild("ScreenEffects")
 		getgenv()._cachedScreenEffects = sEffects
+		getgenv()._cachedMainFrame = mFrame
 	end
+
 
 	if sEffects then
 		if getgenv().Config.Mods.NoVisor then
@@ -8231,9 +8768,17 @@ function InstantHitManager.Activate()
 					local found_origin = nil
 
 					if getgenv().Config.Combat.OriginManipulation then
-						local targetRoot = target.RootPart or (target.Character and target.Character:FindFirstChild("HumanoidRootPart")) or targetAimPart
-						found_origin = getgenv().CharacterManager and getgenv().CharacterManager.GetManipulatedOrigin 
-							and getgenv().CharacterManager.GetManipulatedOrigin(realOrigin, targetAimPart.Position, targetRoot, isUnderground)
+						local targetRoot = target.RootPart
+							or (target.Character and target.Character:FindFirstChild("HumanoidRootPart"))
+							or targetAimPart
+						found_origin = getgenv().CharacterManager
+							and getgenv().CharacterManager.GetManipulatedOrigin
+							and getgenv().CharacterManager.GetManipulatedOrigin(
+								realOrigin,
+								targetAimPart.Position,
+								targetRoot,
+								isUnderground
+							)
 					end
 
 					if isUnderground then
@@ -8303,7 +8848,6 @@ function InstantHitManager.Activate()
 							end
 
 							inflict:FireServer(targetAimPart, hitCFrame, bulletId, fireTimestamp)
-
 						end
 					end)
 
@@ -8357,329 +8901,228 @@ table.insert(
 	end)
 )
 
-local function UpdateViewmodelTransparency()
+local function UpdateViewmodelRender()
 	local camera = Workspace.CurrentCamera
-	if not camera then
-		return
-	end
+	if not camera then return end
 
 	local isADS = false
-	if getgenv().Config.Combat.HideViewmodelOnADS then
-		isADS = getgenv().DeltaIsZooming == true
-	end
-	if getgenv().Config.Mods.ThirdPerson then
+	local configCombat = getgenv().Config.Combat
+	if configCombat.HideViewmodelOnADS and getgenv().DeltaIsZooming == true then
 		isADS = true
-	end
-
-	local viewModel = camera:FindFirstChild("ViewModel")
-	if viewModel and viewModel:IsA("Model") then
-		local parts = getgenv().DeltaCachedViewmodelParts
-		if not parts or getgenv().DeltaCachedViewmodelParent ~= viewModel then
-			parts = {}
-			for _, desc in ipairs(viewModel:GetDescendants()) do
-				if desc:IsA("BasePart") then
-					table.insert(parts, desc)
-				end
-			end
-			getgenv().DeltaCachedViewmodelParts = parts
-			getgenv().DeltaCachedViewmodelParent = viewModel
-		end
-		for _, desc in ipairs(parts) do
-			desc.LocalTransparencyModifier = isADS and 1 or 0
-		end
-	end
-end
-
-local function UpdateViewmodelChams()
-	local camera = Workspace.CurrentCamera
-	if not camera then
-		return
-	end
-
-	if not getgenv().DeltaViewmodelChamsCache then
-		getgenv().DeltaViewmodelChamsCache = {}
-	end
-
-	local isADS = false
-	if getgenv().Config.Combat.HideViewmodelOnADS then
-		isADS = getgenv().DeltaIsZooming == true
 	end
 	if getgenv().Config.Mods.ThirdPerson then
 		isADS = true
 	end
 
 	local config = getgenv().Config.ESP
-	local bodyEnabled = config.ViewmodelBodyChams and not isADS
+	local hideArms = config.HideArms
+	local armEnabled = config.ViewmodelArmChams and not isADS
 	local gunEnabled = config.ViewmodelGunChams and not isADS
-
-	local effect = config.ViewmodelChamsEffect or 1
-	local isPulse = (effect == 2 or effect == 4)
-	local isChroma = (effect == 3 or effect == 4)
-
-	local rgbColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
-	local pulseOffset = isPulse and ((math.sin(tick() * 4) + 1) / 2 * 0.4) or 0
-	local baseTrans = math.clamp(config.ViewmodelChamsTransparency + pulseOffset, 0, 1)
-
-	local activeTargets = {}
-	local activeParts = {}
+	local baseTrans = math.clamp(config.ViewmodelChamsTransparency, 0, 1)
 
 	local viewModel = camera:FindFirstChild("ViewModel")
-	if bodyEnabled or gunEnabled then
-		if viewModel and viewModel:IsA("Model") then
-			if getgenv().DeltaCachedViewmodelParent ~= viewModel or not getgenv().DeltaCachedActiveTargets then
-				getgenv().DeltaCachedViewmodelParent = viewModel
-				getgenv().ViewmodelDebugCount = 0
-				local tTargets, tParts = {}, {}
-				local function isBodyPart(name)
-					name = string.lower(name)
-					return string.find(name, "arm")
-						or string.find(name, "hand")
-						or string.find(name, "shirt")
-						or string.find(name, "sleeve")
-						or string.find(name, "glove")
-				end
-				for _, desc in ipairs(viewModel:GetChildren()) do
-					local isBody = isBodyPart(desc.Name)
-					if isBody then
-						tTargets[desc] = "Body"
-						if desc:IsA("BasePart") then
-							tParts[desc] = "Body"
-						else
-							for _, sub in ipairs(desc:GetDescendants()) do
-								if sub:IsA("BasePart") then
-									tParts[sub] = "Body"
-								end
-							end
-						end
-					else
-						tTargets[desc] = "Gun"
-						if desc:IsA("BasePart") then
-							tParts[desc] = "Gun"
-						else
-							for _, sub in ipairs(desc:GetDescendants()) do
-								if sub:IsA("BasePart") then
-									tParts[sub] = "Gun"
-								end
-							end
-						end
-					end
-				end
-				getgenv().DeltaCachedActiveTargets = tTargets
-				getgenv().DeltaCachedActiveParts = tParts
+	if not viewModel or not viewModel:IsA("Model") then return end
 
-				if not getgenv().ViewmodelDebugCount or getgenv().ViewmodelDebugCount < 1 then
-					getgenv().ViewmodelDebugCount = (getgenv().ViewmodelDebugCount or 0) + 1
-					getgenv().AddLog("--- DEBUG VIEWMODEL CHAMS ---")
-					getgenv().AddLog("Found ViewModel")
-
-					local gunParts = {}
-					for p, typ in pairs(tParts) do
-						if typ == "Gun" then
-							table.insert(gunParts, p)
-						end
-					end
-					getgenv().AddLog("Gun Parts count: " .. tostring(#gunParts))
-					for _, p in ipairs(gunParts) do
-						local tex = ""
-						if p:IsA("MeshPart") then
-							tex = "MeshTex: " .. tostring(p.TextureID)
-						end
-						local spec = p:FindFirstChildWhichIsA("SpecialMesh")
-						if spec then
-							tex = tex .. " SpecTex: " .. tostring(spec.TextureId)
-						end
-						getgenv().AddLog(
-							"GunPart: "
-								.. p.Name
-								.. " | Trans: "
-								.. tostring(p.Transparency)
-								.. " | Mat: "
-								.. tostring(p.Material)
-								.. " | "
-								.. tex
-						)
-					end
-					local sparkles = viewModel:FindFirstChild("DeltaGunSparkles", true)
-					if sparkles then
-						getgenv().AddLog(
-							"Sparkles found! Parent: "
-								.. (sparkles.Parent and sparkles.Parent.Name or "NONE")
-								.. " Size: "
-								.. tostring(sparkles.Size)
-						)
-					else
-						getgenv().AddLog("No Sparkles found in ViewModel!")
-					end
-					getgenv().AddLog("-----------------------------")
-				end
-			end
-
-			for desc, typ in pairs(getgenv().DeltaCachedActiveTargets) do
-				if typ == "Body" and bodyEnabled then
-					activeTargets[desc] = "Body"
-				elseif typ == "Gun" and gunEnabled then
-					activeTargets[desc] = "Gun"
-				end
-			end
-			for desc, typ in pairs(getgenv().DeltaCachedActiveParts) do
-				if typ == "Body" and bodyEnabled then
-					activeParts[desc] = "Body"
-				elseif typ == "Gun" and gunEnabled then
-					activeParts[desc] = "Gun"
-				end
-			end
-
-			if gunEnabled then
-				local rootPart = nil
-				for p, pType in pairs(activeParts) do
-					if pType == "Gun" then
-						local orig = getgenv().DeltaViewmodelOriginalProps and getgenv().DeltaViewmodelOriginalProps[p]
-						if orig and orig.Transparency < 1 then
-							rootPart = p
-							break
-						end
-					end
-				end
-
-				local sparkles = viewModel:FindFirstChild("DeltaGunSparkles", true)
-				if sparkles and rootPart and sparkles.Parent ~= rootPart then
-					sparkles:Destroy()
-					sparkles = nil
-				end
-
-				if config.EnableGunSparkles and rootPart then
-					if not sparkles then
-						sparkles = Instance.new("ParticleEmitter")
-						sparkles.Name = "DeltaGunSparkles"
-						sparkles.Texture = "rbxassetid://27398118"
-						sparkles.Size = NumberSequence.new({
-							NumberSequenceKeypoint.new(0, 0),
-							NumberSequenceKeypoint.new(0.5, 0.25),
-							NumberSequenceKeypoint.new(1, 0),
-						})
-						sparkles.Rate = 15
-						sparkles.Lifetime = NumberRange.new(0.3, 0.6)
-						sparkles.Speed = NumberRange.new(0.2, 0.5)
-						sparkles.LightEmission = 1
-						sparkles.ZOffset = 1
-						sparkles.Parent = rootPart
-					end
-					if sparkles then
-						local c = isChroma and rgbColor or config.ViewmodelGunFillColor
-						sparkles.Color = ColorSequence.new(c)
-					end
-				elseif sparkles then
-					sparkles:Destroy()
-				end
-			else
-				local sparkles = viewModel:FindFirstChild("DeltaGunSparkles", true)
-				if sparkles then
-					sparkles:Destroy()
-				end
-			end
-		end
-	end
-
+	-- Initialize Caches
 	if not getgenv().DeltaViewmodelOriginalProps then
-		getgenv().DeltaViewmodelOriginalProps = {}
+		getgenv().DeltaViewmodelOriginalProps = setmetatable({}, {__mode = "k"})
 	end
 	if not getgenv().DeltaViewmodelAppliedProps then
-		getgenv().DeltaViewmodelAppliedProps = {}
+		getgenv().DeltaViewmodelAppliedProps = setmetatable({}, {__mode = "k"})
 	end
-	local appliedProps = getgenv().DeltaViewmodelAppliedProps
 
-	if viewModel and viewModel:IsA("Model") then
-		for _, desc in ipairs(viewModel:GetDescendants()) do
+	-- Rebuild Cache if needed
+	local currentDescendantsCount = #viewModel:GetDescendants()
+	if getgenv().DeltaCachedViewmodelParent ~= viewModel or not getgenv().DeltaCachedActiveTargets or getgenv().DeltaCachedViewmodelCount ~= currentDescendantsCount then
+		getgenv().DeltaCachedViewmodelParent = viewModel
+		getgenv().DeltaCachedViewmodelCount = currentDescendantsCount
+		
+		local tTargets, tParts = {}, {}
+		local bPartsArray = {}
+		
+		local function isBodyPart(name)
+			name = string.lower(name)
+			return string.find(name, "arm")
+				or string.find(name, "hand")
+				or string.find(name, "shirt")
+				or string.find(name, "sleeve")
+				or string.find(name, "glove")
+		end
+
+		for _, desc in ipairs(viewModel:GetChildren()) do
+			local isBody = isBodyPart(desc.Name)
+			local targetType = isBody and "Body" or "Gun"
+			tTargets[desc] = targetType
+
 			if desc:IsA("BasePart") then
-				local props = getgenv().DeltaViewmodelOriginalProps[desc]
-				if not props then
-					local specMesh = desc:FindFirstChildWhichIsA("SpecialMesh")
-					props = {
-						Transparency = desc.Transparency,
-						Material = desc.Material,
-						Color = desc.Color,
-						TextureID = desc:IsA("MeshPart") and desc.TextureID or nil,
-						SpecMesh = specMesh,
-						SpecMeshTex = specMesh and specMesh.TextureId or nil,
-					}
-					getgenv().DeltaViewmodelOriginalProps[desc] = props
-				end
-
-				local current = appliedProps[desc]
-				local pType = activeParts[desc]
-				if pType and props.Transparency < 1 then
-					local targetTrans = (pType == "Gun") and math.clamp(baseTrans - config.GunGlowIntensity, 0, 1)
-						or baseTrans
-					local targetColor = isChroma and rgbColor
-						or ((pType == "Body") and config.ViewmodelBodyFillColor or config.ViewmodelGunFillColor)
-
-					if not current or current.T ~= targetTrans or current.C ~= targetColor then
-						desc.Transparency = targetTrans
-						desc.Material = Enum.Material.Neon
-						desc.Color = targetColor
-						if desc:IsA("MeshPart") then
-							desc.TextureID = ""
-						end
-						if props.SpecMesh then
-							props.SpecMesh.TextureId = ""
-						end
-						appliedProps[desc] = { T = targetTrans, C = targetColor }
-					end
-				else
-					if not current or current.T ~= props.Transparency or current.C ~= props.Color then
-						desc.Transparency = props.Transparency
-						desc.Material = props.Material
-						desc.Color = props.Color
-						if desc:IsA("MeshPart") and props.TextureID then
-							desc.TextureID = props.TextureID
-						end
-						if props.SpecMesh and props.SpecMeshTex then
-							props.SpecMesh.TextureId = props.SpecMeshTex
-						end
-						appliedProps[desc] = { T = props.Transparency, C = props.Color }
+				tParts[desc] = targetType
+			else
+				for _, sub in ipairs(desc:GetDescendants()) do
+					if sub:IsA("BasePart") then
+						tParts[sub] = targetType
 					end
 				end
 			end
 		end
+		
+		for _, desc in ipairs(viewModel:GetDescendants()) do
+			if desc:IsA("BasePart") then
+				table.insert(bPartsArray, desc)
+				
+				-- Pre-cache original properties
+				local specMesh = desc:FindFirstChildWhichIsA("SpecialMesh")
+				local surfApp = desc:FindFirstChildWhichIsA("SurfaceAppearance")
+				getgenv().DeltaViewmodelOriginalProps[desc] = {
+					Transparency = desc.Transparency,
+					Material = desc.Material,
+					Color = desc.Color,
+					TextureID = desc:IsA("MeshPart") and desc.TextureID or nil,
+					SpecMesh = specMesh,
+					SpecMeshTex = specMesh and specMesh.TextureId or nil,
+					SurfApp = surfApp,
+				}
+			end
+		end
+		
+		getgenv().DeltaCachedActiveTargets = tTargets
+		getgenv().DeltaCachedActiveParts = tParts
+		getgenv().DeltaCachedBasePartsArray = bPartsArray
 	end
 
-	for obj, data in pairs(getgenv().DeltaViewmodelChamsCache) do
-		local highlight = data.Highlight
-		local hType = data.Type
-		if not activeTargets[obj] or activeTargets[obj] ~= hType then
-			highlight:Destroy()
-			getgenv().DeltaViewmodelChamsCache[obj] = nil
-		end
-	end
+	-- Fast references for render loop
+	local activePartsCache = getgenv().DeltaCachedActiveParts
+	local baseParts = getgenv().DeltaCachedBasePartsArray
+	local origProps = getgenv().DeltaViewmodelOriginalProps
+	local appliedProps = getgenv().DeltaViewmodelAppliedProps
+	
+	local armColor = config.ViewmodelArmColor
+	local gunColor = config.ViewmodelGunColor
+	local armMat = Enum.Material[config.ViewmodelArmMaterial] or Enum.Material.ForceField
+	local gunMat = Enum.Material[config.ViewmodelGunMaterial] or Enum.Material.ForceField
 
-	for obj, hType in pairs(activeTargets) do
-		local data = getgenv().DeltaViewmodelChamsCache[obj]
-		local highlight
-		if not data then
-			highlight = Instance.new("Highlight")
-			highlight.Adornee = obj
-			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-			highlight.Parent = CoreGui
-			getgenv().DeltaViewmodelChamsCache[obj] = { Highlight = highlight, Type = hType }
-		else
-			highlight = data.Highlight
-		end
+	-- Unified Render Pass
+	for _, desc in ipairs(baseParts) do
+		local pType = activePartsCache[desc]
+		local props = origProps[desc]
+		local current = appliedProps[desc]
+		
+		if props then
+			-- 1. Apply Transparency Modifier (HideArms/ADS)
+			local isArm = pType == "Body"
+			if hideArms and isArm then
+				desc.LocalTransparencyModifier = 1
+			else
+				desc.LocalTransparencyModifier = isADS and 1 or 0
+			end
 
-		if isChroma then
-			highlight.FillColor = rgbColor
-			highlight.OutlineColor = rgbColor
-		elseif hType == "Body" then
-			highlight.FillColor = config.ViewmodelBodyFillColor
-			highlight.OutlineColor = config.ViewmodelBodyOutlineColor
-		else
-			highlight.FillColor = config.ViewmodelGunFillColor
-			highlight.OutlineColor = config.ViewmodelGunOutlineColor
-		end
+			-- 2. Apply Chams
+			local chamsActive = (isArm and armEnabled) or (pType == "Gun" and gunEnabled)
+			
+			if chamsActive and props.Transparency < 1 then
+				local targetTrans = baseTrans
+				local targetColor = isArm and armColor or gunColor
+				local targetMaterial = isArm and armMat or gunMat
 
-		highlight.FillTransparency = baseTrans
-		highlight.OutlineTransparency = baseTrans * 0.5
+				if not current or current.T ~= targetTrans or current.C ~= targetColor or current.M ~= targetMaterial then
+					desc.Transparency = targetTrans
+					desc.Material = targetMaterial
+					desc.Color = targetColor
+					
+					if desc:IsA("MeshPart") then desc.TextureID = "" end
+					if props.SpecMesh then props.SpecMesh.TextureId = "" end
+					if props.SurfApp and props.SurfApp.Parent == desc then props.SurfApp.Parent = nil end
+					
+					appliedProps[desc] = { T = targetTrans, C = targetColor, M = targetMaterial }
+				end
+			else
+				-- Restore original properties if Chams disabled
+				if not current or current.T ~= props.Transparency or current.C ~= props.Color or current.M ~= props.Material then
+					desc.Transparency = props.Transparency
+					desc.Material = props.Material
+					desc.Color = props.Color
+					
+					if desc:IsA("MeshPart") and props.TextureID then desc.TextureID = props.TextureID end
+					if props.SpecMesh and props.SpecMeshTex then props.SpecMesh.TextureId = props.SpecMeshTex end
+					if props.SurfApp and props.SurfApp.Parent ~= desc then props.SurfApp.Parent = desc end
+					
+					appliedProps[desc] = { T = props.Transparency, C = props.Color, M = props.Material }
+				end
+			end
+		end
 	end
 end
+
+local function UpdateViewmodelOffset()
+	local camera = Workspace.CurrentCamera
+	if not camera then return end
+
+	local viewModel = camera:FindFirstChild("ViewModel")
+	if not viewModel or not viewModel:IsA("Model") then return end
+
+	local hrp = viewModel:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
+	local config = getgenv().Config.ESP
+	local vec = Vector3.new(config.ViewmodelOffsetX, config.ViewmodelOffsetY, config.ViewmodelOffsetZ)
+
+	if not getgenv().DeltaViewmodelOriginalC0 then
+		getgenv().DeltaViewmodelOriginalC0 = {}
+	end
+	local origC0 = getgenv().DeltaViewmodelOriginalC0
+
+	local joints = {"LeftUpperArm", "RightUpperArm", "ItemRoot", "Motor6D"}
+	for _, jointName in ipairs(joints) do
+		local weld = hrp:FindFirstChild(jointName)
+		if weld and weld:IsA("Motor6D") then
+			-- CACHE BY STRING NAME, NOT BY INSTANCE!
+			-- The game clones the instances which causes instance-based caches to
+			-- absorb the previous offset and slowly float away.
+			if not origC0[jointName] then
+				origC0[jointName] = weld.C0
+			end
+			weld.C0 = origC0[jointName] + vec
+		end
+	end
+end
+
+-- Hook into Camera to apply offset when viewmodel is added, and CLEAR cache when removed
+local function hookCamera(cam)
+	if not cam then return end
+	cam.ChildAdded:Connect(function(child)
+		if child.Name == "ViewModel" or child:IsA("Model") then
+			task.delay(0.1, function() pcall(UpdateViewmodelOffset) end)
+		end
+	end)
+	cam.ChildRemoved:Connect(function(child)
+		if child.Name == "ViewModel" or child:IsA("Model") then
+			-- Clear the C0 cache so the next weapon caches its true original C0!
+			getgenv().DeltaViewmodelOriginalC0 = {}
+		end
+	end)
+end
+hookCamera(Workspace.CurrentCamera)
+Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+	hookCamera(Workspace.CurrentCamera)
+end)
+
+-- Update config and instantly apply when sliders are moved
+getgenv().Options.ViewmodelOffsetX:OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelOffsetX = value
+	pcall(UpdateViewmodelOffset)
+end)
+getgenv().Options.ViewmodelOffsetY:OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelOffsetY = value
+	pcall(UpdateViewmodelOffset)
+end)
+getgenv().Options.ViewmodelOffsetZ:OnChanged(function(value)
+	getgenv().Config.ESP.ViewmodelOffsetZ = value
+	pcall(UpdateViewmodelOffset)
+end)
+
+-- Apply once on load in case the viewmodel is already equipped
+task.spawn(function()
+	pcall(UpdateViewmodelOffset)
+end)
 
 -- ==========================================
 -- ==========================================
@@ -9093,8 +9536,7 @@ end
 
 local forceRenderDebounce = {}
 local renderConnection = RunService.RenderStepped:Connect(function()
-	pcall(UpdateViewmodelTransparency)
-	pcall(UpdateViewmodelChams)
+	pcall(UpdateViewmodelRender)
 	WorldModsManager.Update()
 	ESPManager.Update()
 	CombatManager.Update()
@@ -9908,9 +10350,7 @@ do
 					if CharacterManager.IsVisible(aimPart, characterModel) then
 						local rootPart = characterModel:FindFirstChild("HumanoidRootPart")
 						local hum = characterModel:FindFirstChildOfClass("Humanoid")
-						local health = (rootPart and rootPart:GetAttribute("Health"))
-							or (hum and hum.Health)
-							or 0
+						local health = (rootPart and rootPart:GetAttribute("Health")) or (hum and hum.Health) or 0
 
 						if health > 0 then
 							shouldShoot = true
@@ -9941,22 +10381,56 @@ do
 
 				if getgenv()._TriggerBotLastUIState ~= isUIOpen then
 					getgenv()._TriggerBotLastUIState = isUIOpen
-					if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-					table.insert(getgenv().DebugLogs, string.format("[%s] TriggerBot Debug: UI Open state is now %s (MouseBehavior: %s, MouseIconEnabled: %s)", os.date("%X"), tostring(isUIOpen), tostring(uis.MouseBehavior), tostring(uis.MouseIconEnabled)))
+					if not getgenv().DebugLogs then
+						getgenv().DebugLogs = {}
+					end
+					table.insert(
+						getgenv().DebugLogs,
+						string.format(
+							"[%s] TriggerBot Debug: UI Open state is now %s (MouseBehavior: %s, MouseIconEnabled: %s)",
+							os.date("%X"),
+							tostring(isUIOpen),
+							tostring(uis.MouseBehavior),
+							tostring(uis.MouseIconEnabled)
+						)
+					)
 				end
 
-				local traceName = target.Player and target.Player.Name or (target.Character and target.Character.Name) or "Unknown"
-				if getgenv()._TriggerBotLastShootTarget ~= traceName .. tostring(isUIOpen) .. tostring(uis.MouseBehavior) then
-					getgenv()._TriggerBotLastShootTarget = traceName .. tostring(isUIOpen) .. tostring(uis.MouseBehavior)
-					if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-					table.insert(getgenv().DebugLogs, string.format("[%s] TriggerBot Debug: Target acquired: %s. MouseBehavior: %s, isUIOpen: %s", os.date("%X"), traceName, tostring(uis.MouseBehavior), tostring(isUIOpen)))
+				local traceName = target.Player and target.Player.Name
+					or (target.Character and target.Character.Name)
+					or "Unknown"
+				if
+					getgenv()._TriggerBotLastShootTarget
+					~= traceName .. tostring(isUIOpen) .. tostring(uis.MouseBehavior)
+				then
+					getgenv()._TriggerBotLastShootTarget = traceName
+						.. tostring(isUIOpen)
+						.. tostring(uis.MouseBehavior)
+					if not getgenv().DebugLogs then
+						getgenv().DebugLogs = {}
+					end
+					table.insert(
+						getgenv().DebugLogs,
+						string.format(
+							"[%s] TriggerBot Debug: Target acquired: %s. MouseBehavior: %s, isUIOpen: %s",
+							os.date("%X"),
+							traceName,
+							tostring(uis.MouseBehavior),
+							tostring(isUIOpen)
+						)
+					)
 				end
 
 				if uis.MouseBehavior == Enum.MouseBehavior.LockCenter and not isUIOpen then
 					if not getgenv()._trigger_held then
 						if type(mouse1press) == "function" then
-							if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-							table.insert(getgenv().DebugLogs, string.format("[%s] TriggerBot Debug: Initiated mouse1press", os.date("%X")))
+							if not getgenv().DebugLogs then
+								getgenv().DebugLogs = {}
+							end
+							table.insert(
+								getgenv().DebugLogs,
+								string.format("[%s] TriggerBot Debug: Initiated mouse1press", os.date("%X"))
+							)
 							pcall(mouse1press)
 							getgenv()._trigger_held = true
 							getgenv()._trigger_last_press = now
@@ -9988,8 +10462,16 @@ do
 			else
 				if getgenv()._TriggerBotLastShootTarget ~= "None" then
 					getgenv()._TriggerBotLastShootTarget = "None"
-					if not getgenv().DebugLogs then getgenv().DebugLogs = {} end
-					table.insert(getgenv().DebugLogs, string.format("[%s] TriggerBot Debug: No valid target found. shouldShoot is false.", os.date("%X")))
+					if not getgenv().DebugLogs then
+						getgenv().DebugLogs = {}
+					end
+					table.insert(
+						getgenv().DebugLogs,
+						string.format(
+							"[%s] TriggerBot Debug: No valid target found. shouldShoot is false.",
+							os.date("%X")
+						)
+					)
 				end
 
 				if getgenv()._trigger_held then
@@ -10031,6 +10513,63 @@ do
 	getgenv()._TriggerBotDeactivate = TriggerBotManager.Deactivate
 end
 
+-- Removed SpringV2 hook as it was unoptimized and caused bugs by disabling core spring physics globally.
+
+RunService:BindToRenderStep("DeltaNoScopeEnforcer", 3100, function()
+	if getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.NoScope then
+		-- 1. Handle 2D ScreenEffects Scopes
+		local sEffects = getgenv()._cachedScreenEffects
+		if sEffects then
+			local scopes = sEffects:FindFirstChild("Scopes")
+			if scopes and scopes.Visible then
+				scopes.Visible = false
+				for _, child in ipairs(scopes:GetChildren()) do
+					if child:IsA("GuiObject") and child.Visible then
+						child.Visible = false
+					end
+				end
+			end
+			
+			-- Legacy generic 2D fallback targets
+			local targets = {"Scope", "ScopeFrame", "SightFrame", "Lens", "Reticle", "BlackScreen"}
+			for _, name in ipairs(targets) do
+				local obj = sEffects:FindFirstChild(name)
+				if obj and obj.Visible then obj.Visible = false end
+			end
+		end
+		
+		local mFrame = getgenv()._cachedMainFrame
+		if mFrame then
+			local targets = {"Scope", "ScopeFrame", "SightFrame", "Lens", "Reticle", "BlackScreen"}
+			for _, name in ipairs(targets) do
+				local obj = mFrame:FindFirstChild(name)
+				if obj and obj.Visible then obj.Visible = false end
+			end
+		end
+
+		-- 2. Handle 3D ViewModel PIP Scopes (Optimized)
+		local camera = workspace.CurrentCamera
+		if camera then
+			local vm = camera:FindFirstChild("ViewModel")
+			local item = vm and vm:FindFirstChild("Item")
+			local attachments = item and item:FindFirstChild("Attachments")
+			local sight = attachments and attachments:FindFirstChild("Sight")
+			if sight then
+				for _, child in ipairs(sight:GetChildren()) do
+					if (child:IsA("SurfaceGui") or child:IsA("BillboardGui")) and child.Enabled then
+						child.Enabled = false
+					elseif child.Name == "Reticle" then
+						for _, subchild in ipairs(child:GetChildren()) do
+							if (subchild:IsA("SurfaceGui") or subchild:IsA("BillboardGui")) and subchild.Enabled then
+								subchild.Enabled = false
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end)
 task.delay(1, function()
 	getgenv()._DeltaScriptSilentToggles = false
 end)
