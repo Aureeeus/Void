@@ -52,7 +52,6 @@ getgenv().Config = getgenv().Config
 			ChamsEnabled = false,
 			ChamsFillColor = Color3.fromHex("#7f4a83"),
 			NPCChamsFillColor = Color3.fromHex("#7f4a83"),
-			ChamsOutlineColor = Color3.fromRGB(255, 255, 255),
 			BoundingBox2DEnabled = false,
 			BoundingBox2DStyle = "Default",
 			BoundingBox2DColor = Color3.fromRGB(0, 0, 0),
@@ -121,6 +120,7 @@ getgenv().Config = getgenv().Config
 			CrosshairColor = Color3.fromHex("#7f48a3"),
 			CrosshairSize = 13.6,
 			CrosshairDistance = 6.8,
+			CrosshairRotationSpeed = 3,
 			TriggerBot = false,
 			InstantHit = false,
 			TPKill = false,
@@ -141,10 +141,12 @@ getgenv().Config = getgenv().Config
 			HideViewmodelOnADS = false,
 			RapidFire = false,
 			RapidFireValue = 3,
+			InstantEquip = false,
 			UndergroundDesync = false,
 			UndergroundDesyncKeybind = "U",
 			AntiAim = false,
-			AntiAimMethod = "Orbital Dodge",
+			AntiAimKeybind = "/",
+			AntiAimRadius = 6,
 			SkyPeekKeybind = "T",
 			SkyPeekDistance = 20,
 			SkyPeekDuration = 1.0,
@@ -163,6 +165,8 @@ getgenv().Config = getgenv().Config
 			WalkspeedValue = 16,
 			Fullbright = false,
 			NoFog = false,
+			Gloom = false,
+			NoShadows = false,
 			NoFoliage = false,
 			RemoveGrass = false,
 			NoLandmines = false,
@@ -172,8 +176,11 @@ getgenv().Config = getgenv().Config
 			HitsoundCustomId = "",
 			HitEffects = false,
 			HitEffectsColor = Color3.fromHex("#7f48a3"),
+			WeatherType = "None",
 		},
 		Utilities = {
+			ClipCharacter = false,
+			ClipCharacterKeybind = "F2",
 			ModDetector = false,
 			ModDetectorVolume = 1.0,
 			LockKeybindHUD = false,
@@ -253,7 +260,7 @@ ESPSection:AddSlider("ESPMaxDistance", {
 	Min = 1,
 	Max = 2000,
 	Rounding = 0,
-	Compact = false,
+	Compact = true,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.MaxDistance = value
 end)
@@ -294,7 +301,7 @@ ESPSection:AddSlider("TextSize", {
 	Min = 8,
 	Max = 32,
 	Rounding = 0,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.TextSize:OnChanged(function(value)
 	getgenv().Config.ESP.TextSize = value
@@ -340,17 +347,7 @@ ESPSection:AddLabel("NPC Chams Fill Color"):AddColorPicker("NPCChamsFillColor", 
 	Default = getgenv().Config.ESP.NPCChamsFillColor,
 	Title = "NPC Chams Fill",
 })
-getgenv().Options.NPCChamsFillColor:OnChanged(function(value)
-	getgenv().Config.ESP.NPCChamsFillColor = value
-end)
-
-ESPSection:AddLabel("Chams Outline Color"):AddColorPicker("ChamsOutlineColor", {
-	Default = getgenv().Config.ESP.ChamsOutlineColor,
-	Title = "Chams Outline",
-})
-getgenv().Options.ChamsOutlineColor:OnChanged(function(value)
-	getgenv().Config.ESP.ChamsOutlineColor = value
-end)
+getgenv().Options.NPCChamsFillColor:OnChanged(function(value) end)
 
 ESPSection:AddDivider()
 
@@ -608,7 +605,7 @@ BulletTracersSection:AddSlider("TracerTransparency", {
 	Min = 0,
 	Max = 1,
 	Rounding = 2,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.TracerTransparency:OnChanged(function(value)
 	getgenv().Config.SilentAim.TracerTransparency = value
@@ -649,7 +646,7 @@ InventoryViewerSection:AddSlider("InventoryViewerTextSize", {
 	Min = 8,
 	Max = 20,
 	Rounding = 0,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.InventoryViewerTextSize:OnChanged(function(value)
 	getgenv().Config.ESP.InventoryViewerTextSize = value
@@ -683,7 +680,7 @@ TargetInfoSection:AddSlider("TargetInfoHUDSize", {
 	Min = 0.5,
 	Max = 2.0,
 	Rounding = 2,
-	Compact = false,
+	Compact = true,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.TargetInfoHUDSize = value
 end)
@@ -713,7 +710,7 @@ getgenv().Options.ArmColor:OnChanged(function(value)
 end)
 
 CharacterSection:AddDropdown("ArmMaterial", {
-	Values = {"ForceField", "Neon", "SmoothPlastic", "Glass"},
+	Values = { "ForceField", "Neon", "SmoothPlastic", "Glass" },
 	Default = getgenv().Config.ESP.ViewmodelArmMaterial,
 	Multi = false,
 	Text = "Arm Material",
@@ -740,7 +737,7 @@ getgenv().Options.GunColor:OnChanged(function(value)
 end)
 
 CharacterSection:AddDropdown("GunMaterial", {
-	Values = {"ForceField", "Neon", "SmoothPlastic", "Glass"},
+	Values = { "ForceField", "Neon", "SmoothPlastic", "Glass" },
 	Default = getgenv().Config.ESP.ViewmodelGunMaterial,
 	Multi = false,
 	Text = "Gun Material",
@@ -766,7 +763,10 @@ end)
 CharacterSection:AddSlider("ViewmodelOffsetX", {
 	Text = "Viewmodel X Offset",
 	Default = getgenv().Config.ESP.ViewmodelOffsetX,
-	Min = -5, Max = 5, Rounding = 1, Compact = true,
+	Min = -5,
+	Max = 5,
+	Rounding = 1,
+	Compact = true,
 })
 getgenv().Options.ViewmodelOffsetX:OnChanged(function(value)
 	getgenv().Config.ESP.ViewmodelOffsetX = value
@@ -775,7 +775,10 @@ end)
 CharacterSection:AddSlider("ViewmodelOffsetY", {
 	Text = "Viewmodel Y Offset",
 	Default = getgenv().Config.ESP.ViewmodelOffsetY,
-	Min = -5, Max = 5, Rounding = 1, Compact = true,
+	Min = -5,
+	Max = 5,
+	Rounding = 1,
+	Compact = true,
 })
 getgenv().Options.ViewmodelOffsetY:OnChanged(function(value)
 	getgenv().Config.ESP.ViewmodelOffsetY = value
@@ -784,7 +787,10 @@ end)
 CharacterSection:AddSlider("ViewmodelOffsetZ", {
 	Text = "Viewmodel Z Offset",
 	Default = getgenv().Config.ESP.ViewmodelOffsetZ,
-	Min = -5, Max = 5, Rounding = 1, Compact = true,
+	Min = -5,
+	Max = 5,
+	Rounding = 1,
+	Compact = true,
 })
 getgenv().Options.ViewmodelOffsetZ:OnChanged(function(value)
 	getgenv().Config.ESP.ViewmodelOffsetZ = value
@@ -815,7 +821,7 @@ CombatSection:AddSlider("ADSZoomMultiplier", {
 	Min = 1,
 	Max = 20,
 	Rounding = 1,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.ADSZoomMultiplier:OnChanged(function(value)
 	getgenv().Config.Combat.ADSZoomMultiplier = value
@@ -865,13 +871,16 @@ getgenv().Toggles.TPKill:OnChanged(function(value)
 				getgenv()._TPKillTarget = targetPart
 				getgenv()._TPKillStartTime = tick()
 				getgenv()._TPKillLastClick = 0
+				getgenv()._tpkill_ready = false
+				getgenv()._tpkill_waiting = false
 
-				-- Create Fake Platform
+				-- Invisible anchored platform so the server sees the character
+				-- standing (not falling). Without it the server rejects damage.
 				local platform = Instance.new("Part")
 				platform.Size = Vector3.new(4, 0.5, 4)
 				platform.Anchored = true
 				platform.CanCollide = true
-				platform.CanQuery = false -- Prevent bullet raycasts from hitting it
+				platform.CanQuery = false
 				platform.CastShadow = false
 				platform.Transparency = 1
 				platform.Name = "DeltaTPKillPlatform"
@@ -933,6 +942,7 @@ getgenv().Toggles.TPKill:OnChanged(function(value)
 			getgenv()._TPKillActive = false
 			getgenv()._TPKillOriginalCFrame = nil
 			getgenv()._TPKillTarget = nil
+			getgenv()._TPKillPos = nil
 		end
 	end
 end)
@@ -956,7 +966,7 @@ CombatSection:AddSlider("TPKillHeight", {
 	Min = 5,
 	Max = 300,
 	Rounding = 0,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.TPKillHeight:OnChanged(function(value)
 	getgenv().Config.Combat.TPKillHeight = value
@@ -976,7 +986,7 @@ CombatSection:AddSlider("OriginManipulationDistance", {
 	Min = 1,
 	Max = 15,
 	Rounding = 0,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.OriginManipulationDistance:OnChanged(function(value)
 	getgenv().Config.Combat.OriginManipulationDistance = value
@@ -995,7 +1005,7 @@ CombatSection:AddSlider("LiftHitboxesHeight", {
 	Min = 1,
 	Max = 15,
 	Rounding = 1,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.LiftHitboxesHeight:OnChanged(function(value)
 	getgenv().Config.Combat.LiftHitboxesHeight = value
@@ -1031,7 +1041,7 @@ MovementSection:AddSlider("SkyPeekDistance", {
 	Min = 10,
 	Max = 80,
 	Rounding = 0,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.SkyPeekDistance:OnChanged(function(value)
 	getgenv().Config.Combat.SkyPeekDistance = value
@@ -1043,13 +1053,13 @@ MovementSection:AddSlider("SkyPeekDuration", {
 	Min = 0.1,
 	Max = 2.0,
 	Rounding = 1,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.SkyPeekDuration:OnChanged(function(value)
 	getgenv().Config.Combat.SkyPeekDuration = value
 end)
 
-local AntiAimSection = CombatTab:AddLeftGroupbox("Anti Aim")
+local AntiAimSection = CombatTab:AddLeftGroupbox("Anti-Aim")
 
 AntiAimSection:AddToggle("UndergroundDesync", {
 	Text = "Underground Desync",
@@ -1089,9 +1099,6 @@ getgenv().Toggles.UndergroundDesync:OnChanged(function(value)
 					humanoid:SetAttribute("Crouch", true)
 				end
 				if getgenv().CachedUpdateCrouch then
-					if getgenv().AddLog then
-						getgenv().AddLog("[UGR] Persistent crouch engaged: Fired UpdateCrouch(true)")
-					end
 					getgenv()._IsScriptCrouch = true
 					getgenv().CachedUpdateCrouch:FireServer(true)
 					getgenv()._IsScriptCrouch = false
@@ -1117,9 +1124,6 @@ getgenv().Toggles.UndergroundDesync:OnChanged(function(value)
 					humanoid:SetAttribute("Crouch", false)
 				end
 				if getgenv().CachedUpdateCrouch then
-					if getgenv().AddLog then
-						getgenv().AddLog("[UGR] Persistent crouch released: Fired UpdateCrouch(false)")
-					end
 					getgenv()._IsScriptCrouch = true
 					getgenv().CachedUpdateCrouch:FireServer(false)
 					getgenv()._IsScriptCrouch = false
@@ -1142,17 +1146,39 @@ getgenv().Options.UndergroundDesyncKeybind:OnChanged(function()
 end)
 
 AntiAimSection:AddToggle("AntiAim", {
-	Text = "Anti Aim",
+	Text = "Anti-Aim",
 	Default = false,
-}):OnChanged(function(value)
+}):AddKeyPicker("AntiAimKeybind", {
+	Default = getgenv().Config.Combat.AntiAimKeybind or "/",
+	SyncToggleState = true,
+	Mode = "Toggle",
+	Text = "Anti-Aim",
+})
+getgenv().Toggles.AntiAim:OnChanged(function(value)
+	getgenv().Config.Combat.AntiAim = value
 	getgenv().Config.Combat.AntiAim = value
 	if not getgenv()._DeltaScriptSilentToggles and getgenv().LinoriaLibrary then
 		if value then
-			getgenv().LinoriaLibrary:Notify("Enabled Anti Aim", 3)
+			getgenv().LinoriaLibrary:Notify("Enabled Anti-Aim", 3)
 		else
-			getgenv().LinoriaLibrary:Notify("Disabled Anti Aim", 3)
+			getgenv().LinoriaLibrary:Notify("Disabled Anti-Aim", 3)
 		end
 	end
+end)
+getgenv().Options.AntiAimKeybind:OnChanged(function()
+	getgenv().Config.Combat.AntiAimKeybind = getgenv().Options.AntiAimKeybind.Value
+end)
+
+AntiAimSection:AddSlider("AntiAimRadius", {
+	Text = "Jitter Radius",
+	Default = getgenv().Config.Combat.AntiAimRadius or 5,
+	Min = 2,
+	Max = 5,
+	Rounding = 1,
+	Compact = true,
+})
+getgenv().Options.AntiAimRadius:OnChanged(function(value)
+	getgenv().Config.Combat.AntiAimRadius = value
 end)
 
 local AutopilotSection = CombatTab:AddLeftGroupbox("Autopilot")
@@ -1176,9 +1202,7 @@ AutopilotSection:AddToggle("Autopilot", {
 	if getgenv()._DeltaIsAutoHolding == nil then
 		getgenv()._DeltaIsAutoHolding = false
 	end
-	if getgenv()._DeltaLastAutoPressTime == nil then
-		getgenv()._DeltaLastAutoPressTime = 0
-	end
+	-- Removed unused pulse tracking variables
 
 	if value then
 		if not getgenv()._AutopilotConnection then
@@ -1191,8 +1215,10 @@ AutopilotSection:AddToggle("Autopilot", {
 					)
 				then
 					if getgenv()._DeltaIsAutoHolding then
-						if type(mouse1release) == "function" then
-							pcall(mouse1release)
+						local ctrl = getgenv()._DeltaActiveWeaponTable
+						if type(ctrl) == "table" then
+							rawset(ctrl, "MouseHeld", false)
+							rawset(ctrl, "LeftMouseDown", false)
 						end
 						getgenv()._DeltaIsAutoHolding = false
 					end
@@ -1200,93 +1226,70 @@ AutopilotSection:AddToggle("Autopilot", {
 					return
 				end
 
-				local targetPartName = getgenv().Config.SilentAim.TargetPart or "Head"
-
-				local shouldShoot = false
-				local overrideData = nil
-
-				local hitlistPlayers = getgenv().Config.SilentAim.HitlistPlayers or {}
-				local whitelistPlayers = getgenv().Config.SilentAim.WhitelistPlayers or {}
-				local hasHitlist = next(hitlistPlayers) ~= nil
-				local localPlayer = Players.LocalPlayer
-
-				local activeCharacters = {}
-				local targetType = getgenv().Config.SilentAim.TargetType or "Players"
-
-				if getgenv().CharacterManager then
-					if targetType == "Players" or targetType == "Both" then
-						if getgenv().CharacterManager.GetActiveCharacters then
-							for k, v in pairs(getgenv().CharacterManager.GetActiveCharacters()) do
-								activeCharacters[k] = v
-							end
-						end
-					end
-					if targetType == "NPC" or targetType == "Both" then
-						if getgenv().CharacterManager.GetNPCs then
-							for k, v in pairs(getgenv().CharacterManager.GetNPCs()) do
-								activeCharacters[k] = v
-							end
-						end
-					end
-				end
-
-				local numActive = 0
-				if activeCharacters then
-					for _, _ in pairs(activeCharacters) do
-						numActive = numActive + 1
-					end
-				end
-				if getgenv()._DbgNumActive ~= numActive then
-					getgenv()._DbgNumActive = numActive
-					if not getgenv().DebugLogs then
-						getgenv().DebugLogs = {}
-					end
-					table.insert(
-						getgenv().DebugLogs,
-						string.format("[%s] Autopilot Debug: ActiveCharacters count: %d", os.date("%X"), numActive)
-					)
-				end
-
 				local candidates = {}
 				local cameraPos = game:GetService("Workspace").CurrentCamera.CFrame.Position
+				local localPlayer = Players.LocalPlayer
+				local whitelistPlayers = getgenv().Config.SilentAim.WhitelistPlayers or {}
+				local hitlistPlayers = getgenv().Config.SilentAim.HitlistPlayers or {}
+				local hasHitlist = next(hitlistPlayers) ~= nil
+				local targetPartName = getgenv().Config.SilentAim.TargetPart or "Head"
 
-				for characterModel, data in pairs(activeCharacters) do
-					local player = data.Player
-					if player == localPlayer then
-						continue
+				local function processCharacters(characters)
+					if not characters then
+						return
 					end
-
-					if player then
-						local playerName = player.Name
-						if whitelistPlayers[playerName] then
+					for characterModel, data in pairs(characters) do
+						local player = data.Player
+						if player == localPlayer then
 							continue
 						end
-						if hasHitlist and not hitlistPlayers[playerName] then
-							continue
-						end
-					end
 
-					local char = data.Character
-					if char and char:IsA("Model") then
-						local targetPart = char:FindFirstChild(targetPartName) or data.Head
-						if targetPart then
-							local rootPart = char:FindFirstChild("HumanoidRootPart")
-							local hum = char:FindFirstChildOfClass("Humanoid")
-							local health = (rootPart and rootPart:GetAttribute("Health")) or (hum and hum.Health) or 0
-
-							if health > 0 then
-								local dist = (targetPart.Position - cameraPos).Magnitude
-								table.insert(candidates, {
-									Data = data,
-									Char = char,
-									Part = targetPart,
-									RootPart = rootPart,
-									Humanoid = hum,
-									Dist = dist,
-									Player = player,
-								})
+						if player then
+							local playerName = player.Name
+							if whitelistPlayers[playerName] then
+								continue
+							end
+							if hasHitlist and not hitlistPlayers[playerName] then
+								continue
 							end
 						end
+
+						local char = data.Character
+						if char and char:IsA("Model") then
+							local targetPart = char:FindFirstChild(targetPartName) or data.Head
+							if targetPart then
+								local rootPart = char:FindFirstChild("HumanoidRootPart")
+								local hum = char:FindFirstChildOfClass("Humanoid")
+								local health = (rootPart and rootPart:GetAttribute("Health"))
+									or (hum and hum.Health)
+									or 0
+
+								if health > 0 then
+									table.insert(candidates, {
+										Data = data,
+										Char = char,
+										Part = targetPart,
+										RootPart = rootPart,
+										Humanoid = hum,
+										Dist = (targetPart.Position - cameraPos).Magnitude,
+										Player = player,
+									})
+								end
+							end
+						end
+					end
+				end
+
+				if getgenv().CharacterManager then
+					local targetType = getgenv().Config.SilentAim.TargetType or "Players"
+					if targetType == "Players" or targetType == "Both" then
+						processCharacters(
+							getgenv().CharacterManager.GetActiveCharacters
+								and getgenv().CharacterManager.GetActiveCharacters()
+						)
+					end
+					if targetType == "NPC" or targetType == "Both" then
+						processCharacters(getgenv().CharacterManager.GetNPCs and getgenv().CharacterManager.GetNPCs())
 					end
 				end
 
@@ -1303,27 +1306,13 @@ AutopilotSection:AddToggle("Autopilot", {
 					return a.Dist < b.Dist
 				end)
 
+				local shouldShoot = false
+				local overrideData = nil
+
 				for _, cand in ipairs(candidates) do
 					local isVis = false
 					if getgenv().CharacterManager and getgenv().CharacterManager.IsVisible then
 						isVis = getgenv().CharacterManager.IsVisible(cand.Part, cand.Char)
-					end
-
-					local traceName = cand.Player and cand.Player.Name or cand.Char.Name
-					if getgenv()._DbgLastVisCheck ~= traceName .. tostring(isVis) then
-						getgenv()._DbgLastVisCheck = traceName .. tostring(isVis)
-						if not getgenv().DebugLogs then
-							getgenv().DebugLogs = {}
-						end
-						table.insert(
-							getgenv().DebugLogs,
-							string.format(
-								"[%s] Autopilot Debug: Target %s visibility check: %s",
-								os.date("%X"),
-								traceName,
-								tostring(isVis)
-							)
-						)
 					end
 
 					if isVis then
@@ -1348,17 +1337,6 @@ AutopilotSection:AddToggle("Autopilot", {
 								if os.clock() - tracker.LastHealthTime > 0.3 then
 									getgenv()._AutopilotPenaltyQueue[cand.Char] = os.clock()
 									tracker.LastHealthTime = os.clock()
-									if not getgenv().DebugLogs then
-										getgenv().DebugLogs = {}
-									end
-									table.insert(
-										getgenv().DebugLogs,
-										string.format(
-											"[%s] Autopilot Debug: Target %s unhittable, moved to back of queue",
-											os.date("%X"),
-											traceName
-										)
-									)
 									continue
 								end
 							end
@@ -1379,116 +1357,39 @@ AutopilotSection:AddToggle("Autopilot", {
 
 				if shouldShoot and overrideData then
 					getgenv()._AutopilotTargetOverride = overrideData
-					local uis = game:GetService("UserInputService")
-					local now = os.clock()
+					local ctrl = getgenv()._DeltaActiveWeaponTable
 
-					local isUIOpen = uis.MouseIconEnabled
-						or (Library and Library.Toggled)
-						or getgenv()._LinoriaIsToggled
-						or game:GetService("GuiService").MenuIsOpen
-						or uis:GetFocusedTextBox() ~= nil
-					local activeWeapon = getgenv()._DeltaActiveWeaponTable
-					if type(activeWeapon) == "table" and activeWeapon.CancelTables then
-						for _, uiTable in ipairs(activeWeapon.CancelTables) do
-							if type(uiTable) == "table" and uiTable.Visible == true then
-								isUIOpen = true
-								break
-							end
-						end
-					end
-
-					if getgenv()._DebugLastUIState ~= isUIOpen then
-						getgenv()._DebugLastUIState = isUIOpen
-						if not getgenv().DebugLogs then
-							getgenv().DebugLogs = {}
-						end
-						table.insert(
-							getgenv().DebugLogs,
-							string.format(
-								"[%s] Autopilot Debug: UI Open state is now %s",
-								os.date("%X"),
-								tostring(isUIOpen)
-							)
-						)
-					end
-
-					local traceName = overrideData.Player and overrideData.Player.Name or overrideData.Character.Name
-					if
-						getgenv()._DbgLastShootTarget
-						~= traceName .. tostring(isUIOpen) .. tostring(uis.MouseBehavior)
-					then
-						getgenv()._DbgLastShootTarget = traceName .. tostring(isUIOpen) .. tostring(uis.MouseBehavior)
-						if not getgenv().DebugLogs then
-							getgenv().DebugLogs = {}
-						end
-						table.insert(
-							getgenv().DebugLogs,
-							string.format(
-								"[%s] Autopilot Debug: Target acquired: %s. MouseBehavior: %s, isUIOpen: %s",
-								os.date("%X"),
-								traceName,
-								tostring(uis.MouseBehavior),
-								tostring(isUIOpen)
-							)
-						)
-					end
-
-					if uis.MouseBehavior == Enum.MouseBehavior.LockCenter and not isUIOpen then
+					if type(ctrl) == "table" then
 						if not getgenv()._DeltaIsAutoHolding then
-							if type(mouse1press) == "function" then
-								if not getgenv().DebugLogs then
-									getgenv().DebugLogs = {}
-								end
-								table.insert(
-									getgenv().DebugLogs,
-									string.format("[%s] Autopilot Debug: Initiated mouse1press", os.date("%X"))
-								)
-								pcall(mouse1press)
-								getgenv()._DeltaIsAutoHolding = true
-								getgenv()._DeltaLastAutoPressTime = now
+							if getgenv()._DeltaNativePress then
+								getgenv()._DeltaNativePress(ctrl)
 							end
+							getgenv()._DeltaIsAutoHolding = true
+							getgenv()._DeltaLastAutoPressTime = os.clock()
 						else
-							-- Calculate dynamic pulse delay based on RapidFire
-							local pulseDelay = 0.05
-							if getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.RapidFire then
-								local multiplier = getgenv().Config.Combat.RapidFireValue or 3
-								pulseDelay = math.clamp(0.05 / multiplier, 0.01, 0.05)
-							end
-
-							if now - getgenv()._DeltaLastAutoPressTime > pulseDelay then
-								if type(mouse1release) == "function" then
-									pcall(mouse1release)
+							local rapidFire = getgenv().Config
+								and getgenv().Config.Combat
+								and getgenv().Config.Combat.RapidFire
+							if not rapidFire then
+								if os.clock() - (getgenv()._DeltaLastAutoPressTime or 0) > 0.05 then
+									if getgenv()._DeltaNativeRelease then
+										getgenv()._DeltaNativeRelease(ctrl)
+									end
+									getgenv()._DeltaIsAutoHolding = false
 								end
-								getgenv()._DeltaIsAutoHolding = false
 							end
 						end
 					else
-						-- Release if mouse isn't locked (e.g. inventory open)
 						if getgenv()._DeltaIsAutoHolding then
-							if type(mouse1release) == "function" then
-								pcall(mouse1release)
-							end
 							getgenv()._DeltaIsAutoHolding = false
 						end
 					end
 				else
-					if getgenv()._DbgLastShootTarget ~= "None" then
-						getgenv()._DbgLastShootTarget = "None"
-						if not getgenv().DebugLogs then
-							getgenv().DebugLogs = {}
-						end
-						table.insert(
-							getgenv().DebugLogs,
-							string.format(
-								"[%s] Autopilot Debug: No valid target found. shouldShoot is false.",
-								os.date("%X")
-							)
-						)
-					end
 					getgenv()._AutopilotTargetOverride = nil
 					if getgenv()._DeltaIsAutoHolding then
-						if type(mouse1release) == "function" then
-							pcall(mouse1release)
+						local ctrl = getgenv()._DeltaActiveWeaponTable
+						if type(ctrl) == "table" and getgenv()._DeltaNativeRelease then
+							getgenv()._DeltaNativeRelease(ctrl)
 						end
 						getgenv()._DeltaIsAutoHolding = false
 					end
@@ -1510,8 +1411,9 @@ AutopilotSection:AddToggle("Autopilot", {
 
 		getgenv()._AutopilotTargetOverride = nil
 		if getgenv()._DeltaIsAutoHolding then
-			if type(mouse1release) == "function" then
-				pcall(mouse1release)
+			local ctrl = getgenv()._DeltaActiveWeaponTable
+			if type(ctrl) == "table" and getgenv()._DeltaNativeRelease then
+				getgenv()._DeltaNativeRelease(ctrl)
 			end
 			getgenv()._DeltaIsAutoHolding = false
 		end
@@ -1671,7 +1573,7 @@ SilentAimSection:AddSlider("CrosshairSize", {
 	Min = 1,
 	Max = 50,
 	Rounding = 1,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.CrosshairSize:OnChanged(function(value)
 	getgenv().Config.Combat.CrosshairSize = value
@@ -1683,10 +1585,22 @@ SilentAimSection:AddSlider("CrosshairDistance", {
 	Min = 0,
 	Max = 50,
 	Rounding = 1,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.CrosshairDistance:OnChanged(function(value)
 	getgenv().Config.Combat.CrosshairDistance = value
+end)
+
+SilentAimSection:AddSlider("CrosshairRotationSpeed", {
+	Text = "Crosshair Rotation Speed",
+	Default = getgenv().Config.Combat.CrosshairRotationSpeed,
+	Min = 1,
+	Max = 10,
+	Rounding = 1,
+	Compact = true,
+})
+getgenv().Options.CrosshairRotationSpeed:OnChanged(function(value)
+	getgenv().Config.Combat.CrosshairRotationSpeed = value
 end)
 
 SilentAimSection:AddDivider()
@@ -1746,7 +1660,7 @@ ResolverSection:AddSlider("UndergroundDistance", {
 	Min = 10,
 	Max = 80,
 	Rounding = 0,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.UndergroundDistance:OnChanged(function(value)
 	getgenv().Config.SilentAim.UndergroundDistance = value
@@ -1758,7 +1672,7 @@ ResolverSection:AddSlider("UndergroundDuration", {
 	Min = 0.1,
 	Max = 2.0,
 	Rounding = 1,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.UndergroundDuration:OnChanged(function(value)
 	getgenv().Config.SilentAim.UndergroundDuration = value
@@ -1779,7 +1693,7 @@ SilentAimSection:AddSlider("FOVRadius", {
 	Min = 10,
 	Max = 800,
 	Rounding = 0,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.FOVRadius:OnChanged(function(value)
 	getgenv().Config.SilentAim.FOVRadius = value
@@ -1873,12 +1787,24 @@ local function UpdateWeaponSwayAndBob()
 		local self = getgenv()._DeltaActiveWeaponTable
 		local settings = self.settings
 
-		if not rawget(self, "OrigSprintIdleOffset") then self.OrigSprintIdleOffset = self.sprintIdleOffset end
-		if not rawget(settings, "OrigSprintOffSet") then settings.OrigSprintOffSet = settings.sprintOffSet end
-		if not rawget(settings, "OrigSprintSway") then settings.OrigSprintSway = settings.SprintSwayModifer end
-		if not rawget(settings, "OrigWalkSway") then settings.OrigWalkSway = settings.WalkSwayModifer end
-		if not rawget(settings, "OrigIdleSway") then settings.OrigIdleSway = settings.IdleSwayModifier end
-		if not rawget(settings, "OrigSwayMult") then settings.OrigSwayMult = settings.swayMult end
+		if not rawget(self, "OrigSprintIdleOffset") then
+			self.OrigSprintIdleOffset = self.sprintIdleOffset
+		end
+		if not rawget(settings, "OrigSprintOffSet") then
+			settings.OrigSprintOffSet = settings.sprintOffSet
+		end
+		if not rawget(settings, "OrigSprintSway") then
+			settings.OrigSprintSway = settings.SprintSwayModifer
+		end
+		if not rawget(settings, "OrigWalkSway") then
+			settings.OrigWalkSway = settings.WalkSwayModifer
+		end
+		if not rawget(settings, "OrigIdleSway") then
+			settings.OrigIdleSway = settings.IdleSwayModifier
+		end
+		if not rawget(settings, "OrigSwayMult") then
+			settings.OrigSwayMult = settings.swayMult
+		end
 
 		if getgenv().Config.Combat.NoSway then
 			settings.sprintOffSet = Vector3.zero
@@ -1926,9 +1852,13 @@ local function UpdateWeaponSwayAndBob()
 
 		if type(rawget(self, "springs")) == "table" then
 			for springName, springObj in pairs(self.springs) do
-				if type(springName) == "string" and type(springObj) == "table" and type(rawget(springObj, "update")) == "function" then
+				if
+					type(springName) == "string"
+					and type(springObj) == "table"
+					and type(rawget(springObj, "update")) == "function"
+				then
 					local lName = string.lower(springName)
-					
+
 					if lName == "sway" or lName == "gunsway" then
 						if not rawget(springObj, "__noSwayUpdateHooked") then
 							local oldUpdate = springObj.update
@@ -1941,8 +1871,14 @@ local function UpdateWeaponSwayAndBob()
 							rawset(springObj, "__noSwayUpdateHooked", true)
 						end
 					end
-					
-					if lName == "walkcycle" or lName == "sprintcycle" or lName == "strafetilt" or lName == "jumptilt" or lName == "jumpcameratilt" then
+
+					if
+						lName == "walkcycle"
+						or lName == "sprintcycle"
+						or lName == "strafetilt"
+						or lName == "jumptilt"
+						or lName == "jumpcameratilt"
+					then
 						if not rawget(springObj, "__noBobUpdateHooked") then
 							local oldUpdate = springObj.update
 							springObj.update = function(selfObj, ...)
@@ -1986,6 +1922,13 @@ ModsSection:AddToggle("NoSpread", {
 	Default = getgenv().Config.Combat.NoSpread,
 }):OnChanged(function(value)
 	getgenv().Config.Combat.NoSpread = value
+end)
+
+ModsSection:AddToggle("InstantEquip", {
+	Text = "Instant Equip",
+	Default = getgenv().Config.Combat.InstantEquip,
+}):OnChanged(function(value)
+	getgenv().Config.Combat.InstantEquip = value
 end)
 
 local function applyRapidFireToGC(enabled)
@@ -2153,7 +2096,7 @@ ModsSection:AddSlider("RapidFireMultiplier", {
 	Min = 1,
 	Max = 50,
 	Rounding = 0,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.RapidFireMultiplier:OnChanged(function(value)
 	getgenv().Config.Combat.RapidFireValue = value
@@ -2231,7 +2174,7 @@ HitsoundSection:AddSlider("HitsoundVolume", {
 	Min = 0.0,
 	Max = 2.0,
 	Rounding = 1,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.HitsoundVolume:OnChanged(function(value)
 	getgenv().Config.Mods.HitsoundVolume = value
@@ -2280,7 +2223,7 @@ WorldModsSection:AddSlider("ZoomDistance", {
 	Min = 5,
 	Max = 128,
 	Rounding = 1,
-	Compact = false,
+	Compact = true,
 }):OnChanged(function(value)
 	getgenv().Config.Mods.ZoomDistance = value
 end)
@@ -2486,11 +2429,18 @@ WorldModsSection:AddToggle("NoLandmines", {
 	toggleLandminesAlgorithm(value)
 end)
 
-WorldModsSection:AddToggle("NoVisor", {
-	Text = "No Visor",
-	Default = getgenv().Config.Mods.NoVisor,
+WorldModsSection:AddToggle("Gloom", {
+	Text = "Gloom",
+	Default = getgenv().Config.Mods.Gloom,
 }):OnChanged(function(value)
-	getgenv().Config.Mods.NoVisor = value
+	getgenv().Config.Mods.Gloom = value
+end)
+
+WorldModsSection:AddToggle("NoShadows", {
+	Text = "No Shadows",
+	Default = getgenv().Config.Mods.NoShadows,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.NoShadows = value
 end)
 
 WorldModsSection:AddSlider("FOV", {
@@ -2499,7 +2449,7 @@ WorldModsSection:AddSlider("FOV", {
 	Min = 70,
 	Max = 120,
 	Rounding = 0,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.FOV:OnChanged(function(value)
 	getgenv().Config.Mods.FOV = value
@@ -2511,10 +2461,23 @@ WorldModsSection:AddSlider("WorldTime", {
 	Min = 0,
 	Max = 24,
 	Rounding = 1,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.WorldTime:OnChanged(function(value)
 	getgenv().Config.Mods.WorldTime = value
+end)
+
+WorldModsSection:AddDropdown("WeatherType", {
+	Values = { "None", "Rain", "Snow", "Sakura" },
+	Default = 1,
+	Multi = false,
+	Text = "Weather Effect",
+})
+getgenv().Options.WeatherType:OnChanged(function(value)
+	getgenv().Config.Mods.WeatherType = value
+	if getgenv().ApplyWeatherEffect then
+		getgenv().ApplyWeatherEffect(value)
+	end
 end)
 
 local CharacterModsSection = ModsTab:AddRightGroupbox("Character")
@@ -2524,6 +2487,13 @@ CharacterModsSection:AddToggle("NoFallDamage", {
 	Default = getgenv().Config.Mods.NoFallDamage,
 }):OnChanged(function(value)
 	getgenv().Config.Mods.NoFallDamage = value
+end)
+
+CharacterModsSection:AddToggle("NoVisor", {
+	Text = "No Visor",
+	Default = getgenv().Config.Mods.NoVisor,
+}):OnChanged(function(value)
+	getgenv().Config.Mods.NoVisor = value
 end)
 
 CharacterModsSection:AddToggle("Speedhack", {
@@ -2539,7 +2509,7 @@ CharacterModsSection:AddSlider("WalkspeedValue", {
 	Min = 16,
 	Max = 20,
 	Rounding = 0,
-	Compact = false,
+	Compact = true,
 })
 getgenv().Options.WalkspeedValue:OnChanged(function(value)
 	getgenv().Config.Mods.WalkspeedValue = value
@@ -2636,9 +2606,30 @@ ModDetectorSection:AddSlider("ModDetectorVolume", {
 	Min = 0.5,
 	Max = 5.0,
 	Rounding = 1,
-	Compact = false,
+	Compact = true,
 }):OnChanged(function(value)
 	getgenv().Config.Utilities.ModDetectorVolume = value
+end)
+
+local NoClipSection = UtilitiesTab:AddRightGroupbox("No Clip")
+
+NoClipSection:AddToggle("ClipCharacter", {
+	Text = "Clip Character",
+	Default = getgenv().Config.Utilities.ClipCharacter,
+}):AddKeyPicker("ClipCharacterKeybind", {
+	Default = getgenv().Config.Utilities.ClipCharacterKeybind or "F2",
+	SyncToggleState = true,
+	Mode = "Toggle",
+	Text = "Clip Character",
+	NoUI = false,
+})
+
+getgenv().Toggles.ClipCharacter:OnChanged(function(value)
+	getgenv().Config.Utilities.ClipCharacter = value
+end)
+
+getgenv().Options.ClipCharacterKeybind:OnChanged(function()
+	getgenv().Config.Utilities.ClipCharacterKeybind = getgenv().Options.ClipCharacterKeybind.Value
 end)
 
 -- ==========================================
@@ -2654,80 +2645,62 @@ local function getTargetCharacter()
 	return nil
 end
 
--- ======================================================
--- ANTI-AIM RUNTIME: PIPELINE DESYNC (The "12 Meter Fly")
--- Exploits the Roblox execution pipeline:
--- 1. Stepped (before physics): Applies a 35-stud offset to RootJoint.
---    -> This replicates to the server and enemy clients.
--- 2. RenderStepped (before render): Restores RootJoint to normal.
---    -> Your local screen and camera remain 100% stable.
--- Result: Enemies see you jittering in a 35-stud radius, but your
--- actual RootPart position never changes (no AC flags).
--- ======================================================
-
-local function getRootJoint(Character)
-	if not Character then
-		return nil
-	end
-	-- R15
-	local lowerTorso = Character:FindFirstChild("LowerTorso")
-	if lowerTorso and lowerTorso:FindFirstChild("Root") then
-		return lowerTorso.Root
-	end
-	-- R6
-	local hrp = Character:FindFirstChild("HumanoidRootPart")
-	if hrp and hrp:FindFirstChild("RootJoint") then
-		return hrp.RootJoint
-	end
-	return nil
-end
-
--- [RenderStepped] Fires right before the local frame renders.
--- Restores RootJoint to normal so local view/camera is perfectly clean.
+-- [RenderStepped] Fires right before the local frame renders (priority -1000 = before all camera scripts).
+-- Restores HRP.CFrame to _StoredRealCFrame so the local player's view, FOV, and camera
+-- are NEVER affected by Anti-Aim jitter or Underground Desync offsets. Enemies see the
+-- jittered position; you see nothing. Identical approach to Underground Desync.
 RunService:BindToRenderStep("UndergroundDesync_Restore", -1000, function()
 	local isDesync = getgenv().Config.Combat.UndergroundDesync
 	local isAntiAim = getgenv().Config.Combat.AntiAim
+	local isClipCharacter = getgenv().Config.Utilities.ClipCharacter
+
+	if getgenv()._TPKillActive then
+		isDesync = false
+		isAntiAim = false
+		isClipCharacter = false
+	end
 
 	if isDesync or isAntiAim then
 		local Character = getTargetCharacter()
 		if Character and getgenv()._StoredRealCFrame then
 			local HRP = Character.HumanoidRootPart
-			HRP.CFrame = getgenv()._StoredRealCFrame
+			if not isClipCharacter then
+				HRP.CFrame = getgenv()._StoredRealCFrame
+			end
+
+			-- RenderStepped restores natural movement seamlessly.
 		end
 	else
-		-- Anti-aim turned off: clean up
-		if getgenv()._StoredRealCFrame then
+		-- Anti-aim / Desync turned off: clean up
+		if getgenv()._StoredRealCFrame and not isClipCharacter then
 			local Character = getTargetCharacter()
 			if Character and Character:FindFirstChild("HumanoidRootPart") then
 				Character.HumanoidRootPart.CFrame = getgenv()._StoredRealCFrame
 			end
 			getgenv()._StoredRealCFrame = nil
 		end
-		getgenv()._OrigRootJointC0 = nil
-	end
-
-	-- Layer 1: Restore RootJoint to clean local position BEFORE camera updates
-	if getgenv().Config.Combat.AntiAim and getgenv()._OrigRootJointC0 then
-		local Character = getTargetCharacter()
-		local rootJoint = getRootJoint(Character)
-		if rootJoint then
-			rootJoint.C0 = getgenv()._OrigRootJointC0
-		end
 	end
 end)
 
 -- [Stepped] Fires before physics simulation/network replication.
--- Spoofs RootJoint with a WORLD-SPACE horizontal-only offset so it replicates to enemies.
--- World-space Y=0 means no fly hack regardless of HRP pitch/tilt.
-local _steppedDbgTick = 0
+-- Anti-Aim: Physically teleports HRP to random jitter positions that replicate to enemies.
+-- Underground Desync: Applies underground CFrame offset for server-side crouch desync.
+-- All offsets are wall/ground-checked to avoid noclip/fly detection.
 local steppedRestoreConnection = RunService.Stepped:Connect(function()
 	local isDesync = getgenv().Config.Combat.UndergroundDesync
 	local isAntiAim = getgenv().Config.Combat.AntiAim
+	local isClipCharacter = getgenv().Config.Utilities.ClipCharacter
+
+	if getgenv()._TPKillActive then
+		isDesync = false
+		isAntiAim = false
+		isClipCharacter = false
+	end
 
 	local Character = getTargetCharacter()
 	local HRP = Character and Character:FindFirstChild("HumanoidRootPart")
 
-	if (isDesync or isAntiAim) and getgenv()._StoredRealCFrame and HRP then
+	if (isDesync or isAntiAim or isClipCharacter) and getgenv()._StoredRealCFrame and HRP then
 		local prevPos = HRP.CFrame.Position
 		-- If the server rubberbands the player drastically (e.g., > 15 studs),
 		-- accept the server's position to prevent an infinite fight and a Noclip kick.
@@ -2739,75 +2712,30 @@ local steppedRestoreConnection = RunService.Stepped:Connect(function()
 		then
 			getgenv()._StoredRealCFrame = HRP.CFrame
 		end
-		HRP.CFrame = getgenv()._StoredRealCFrame
-		-- Debug: log every 30 Stepped ticks when UGR or SkyPeek just deactivated
-		_steppedDbgTick = _steppedDbgTick + 1
-		if _steppedDbgTick >= 30 then
-			_steppedDbgTick = 0
-			if getgenv().AddLog then
-				local stored = getgenv()._StoredRealCFrame.Position
-				getgenv().AddLog(
-					string.format(
-						"[Stepped] HRP %.2f,%.2f,%.2f ΓåÆ Stored %.2f,%.2f,%.2f | UGR=%s SPeek=%s",
-						prevPos.X,
-						prevPos.Y,
-						prevPos.Z,
-						stored.X,
-						stored.Y,
-						stored.Z,
-						tostring(getgenv()._UndergroundResolverActive == true),
-						tostring(getgenv()._SkyPeekActive == true)
+
+		local cframeToSet = getgenv()._StoredRealCFrame
+		if isAntiAim then
+			local rx = getgenv()._realVelocity and getgenv()._realVelocity.X or 0
+			local rz = getgenv()._realVelocity and getgenv()._realVelocity.Z or 0
+			if math.abs(rx) < 0.1 and math.abs(rz) < 0.1 then
+				getgenv()._sleepDesyncToggle = not getgenv()._sleepDesyncToggle
+				cframeToSet = cframeToSet
+					* CFrame.new(
+						getgenv()._sleepDesyncToggle and 0.05 or -0.05,
+						0,
+						getgenv()._sleepDesyncToggle and 0.05 or -0.05
 					)
-				)
 			end
 		end
-	end
 
-	-- Layer 1: Spoof RootJoint for physics replication
-	if isAntiAim and Character and HRP then
-		local rootJoint = getRootJoint(Character)
-		if rootJoint then
-			if not getgenv()._OrigRootJointC0 then
-				getgenv()._OrigRootJointC0 = rootJoint.C0
-			end
+		if isClipCharacter then
+			local clipOffset = CFrame.new(0, 0, -3.8) * CFrame.Angles(math.rad(135), 0, 0)
+			cframeToSet = cframeToSet * clipOffset
+		end
 
-			-- Generate a WORLD-SPACE horizontal direction (Y=0 in world regardless of HRP rotation)
-			-- This is the critical fix: local-space Y=0 becomes non-zero world Y when HRP has pitch
-			local angle = math.random() * math.pi * 2
-			local dist = math.random(20, 35)
-			local worldOffset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
-
-			local origin = HRP.CFrame.Position
-
-			-- Raycast parameters to ignore the local character
-			local raycastParams = RaycastParams.new()
-			raycastParams.FilterDescendantsInstances = { Character }
-			raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-			raycastParams.IgnoreWater = true
-			raycastParams.RespectCanCollide = true
-
-			-- Horizontal raycast: don't clip through walls
-			local wallHit = workspace:Raycast(origin, worldOffset, raycastParams)
-			if wallHit then
-				local safeLen = math.max(0, (wallHit.Position - origin).Magnitude - 1)
-				worldOffset = worldOffset.Unit * safeLen
-			end
-
-			-- Downward raycast: ensure there is ground below the offset position
-			-- Without this, body parts appear to float over ledges ΓåÆ fly hack detected
-			local offsetPos = origin + worldOffset
-			local groundHit = workspace:Raycast(offsetPos + Vector3.new(0, 3, 0), Vector3.new(0, -20, 0), raycastParams)
-			if not groundHit then
-				-- No ground at offset position ΓÇö collapse offset to zero to avoid fly detection
-				worldOffset = Vector3.zero
-			end
-
-			-- Convert the final world-space offset to HRP local space for C0 application
-			local localOffset = HRP.CFrame:VectorToObjectSpace(worldOffset)
-
-			-- Apply ONLY a positional offset ΓÇö NO CFrame.Angles rotation on the joint.
-			-- Random joint rotation changes the head's Y position ΓåÆ fly hack detected.
-			rootJoint.C0 = getgenv()._OrigRootJointC0 * CFrame.new(localOffset)
+		HRP.CFrame = cframeToSet
+		if getgenv()._realVelocity then
+			HRP.AssemblyLinearVelocity = getgenv()._realVelocity
 		end
 	end
 end)
@@ -2827,12 +2755,26 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 	local isDesync = getgenv().Config.Combat.UndergroundDesync
 	local isAntiAim = getgenv().Config.Combat.AntiAim
 	local isUGR = getgenv()._UndergroundResolverActive
+	local isClipCharacter = getgenv().Config.Utilities.ClipCharacter
 
-	if isDesync or isUGR or isAntiAim then
+	if getgenv()._TPKillActive then
+		isDesync = false
+		isAntiAim = false
+		isUGR = false
+		isClipCharacter = false
+	end
+
+	if isDesync or isUGR or isAntiAim or isClipCharacter then
 		local guardBlocked = getgenv()._UndergroundResolverActive or getgenv()._SkyPeekActive
 		if not guardBlocked then
 			-- Capture real position — log when something looks wrong (Y too low = inside terrain)
 			local captured = HRP.CFrame
+
+			if isClipCharacter then
+				local clipOffset = CFrame.new(0, 0, -3.8) * CFrame.Angles(math.rad(135), 0, 0)
+				captured = captured * clipOffset:Inverse()
+			end
+
 			local dy = 0
 			if getgenv()._StoredRealCFrame then
 				local prev = getgenv()._StoredRealCFrame.Position
@@ -2840,17 +2782,6 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 				dy = cur.Y - prev.Y
 
 				-- Flag sudden downward jumps > 1 stud between frames (sign of geometry push-through)
-				if dy < -1 and getgenv().AddLog then
-					getgenv().AddLog(
-						string.format(
-							"[HB WARN] _StoredRealCFrame dropped %.2f studs! prev=%.2f cur=%.2f | HRP actual Y=%.2f",
-							dy,
-							prev.Y,
-							cur.Y,
-							HRP.CFrame.Position.Y
-						)
-					)
-				end
 			end
 
 			-- ── VOID-FALL SAFETY NET ──────────────────────────────────────────────────
@@ -2899,16 +2830,6 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 						Vector3.new(pos.X, safeY, pos.Z),
 						Vector3.new(pos.X + flatLook.X, safeY, pos.Z + flatLook.Z)
 					)
-					if getgenv().AddLog then
-						getgenv().AddLog(
-							string.format(
-								"[VOID RECOVERY] Upcast hit %s at Y=%.2f → snapping to safeY=%.2f",
-								upHit.Instance and upHit.Instance.Name or "?",
-								upHit.Position.Y,
-								safeY
-							)
-						)
-					end
 				else
 					-- No surface found above — cast downward as fallback
 					local downHit = workspace:Raycast(pos, Vector3.new(0, -500, 0), rayParams)
@@ -2930,20 +2851,7 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 							Vector3.new(pos.X, safeY, pos.Z),
 							Vector3.new(pos.X + flatLook.X, safeY, pos.Z + flatLook.Z)
 						)
-						if getgenv().AddLog then
-							getgenv().AddLog(
-								string.format(
-									"[VOID RECOVERY] Downcast hit %s at Y=%.2f → snapping to safeY=%.2f",
-									downHit.Instance and downHit.Instance.Name or "?",
-									downHit.Position.Y,
-									safeY
-								)
-							)
-						end
 					else
-						if getgenv().AddLog then
-							getgenv().AddLog("[VOID RECOVERY] No surface found in either direction — skip")
-						end
 					end
 				end
 
@@ -2956,9 +2864,6 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 					getgenv()._DesyncOffsetSuppressed = true
 					task.delay(0.5, function()
 						getgenv()._DesyncOffsetSuppressed = false
-						if getgenv().AddLog then
-							getgenv().AddLog("[VOID RECOVERY] Desync offset re-enabled after recovery")
-						end
 					end)
 				end
 
@@ -2968,44 +2873,34 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 
 			getgenv()._StoredRealCFrame = captured
 		else
-			-- Guard is active: log every 60 ticks to confirm we're not leaking
+			-- Guard is active
 			desyncTick = desyncTick + 1
-			if desyncTick >= 60 and getgenv().AddLog then
+			if desyncTick >= 60 then
 				desyncTick = 0
-				local stored = getgenv()._StoredRealCFrame
-				getgenv().AddLog(
-					string.format(
-						"[HB GUARD] UGR=%s SPeek=%s | Stored=%.2f,%.2f,%.2f | HRP=%.2f,%.2f,%.2f",
-						tostring(isUGR),
-						tostring(getgenv()._SkyPeekActive == true),
-						stored and stored.Position.X or 0,
-						stored and stored.Position.Y or 0,
-						stored and stored.Position.Z or 0,
-						HRP.CFrame.Position.X,
-						HRP.CFrame.Position.Y,
-						HRP.CFrame.Position.Z
-					)
-				)
 			end
 		end
 		getgenv()._realVelocity = HRP.AssemblyLinearVelocity
 		getgenv()._realRotVelocity = HRP.AssemblyAngularVelocity
 
+		local targetCFrame = getgenv()._StoredRealCFrame
 		if isDesync then
 			-- If returning from UGR or SkyPeek, DO NOT apply the deep underground offset.
 			-- Let the character cleanly return to the surface first so the server doesn't flag noclip.
 			-- _DesyncOffsetSuppressed is set by the UGR snap-back handler for a brief landing window:
 			-- without it, the offset pushes the HRP underground immediately after snap, which causes
-			-- physics to freefall and feed back into _StoredRealCFrame ΓåÆ void-fall loop.
-			if not guardBlocked then
-				if getgenv()._DesyncOffsetSuppressed then
-					HRP.CFrame = getgenv()._StoredRealCFrame
-				else
-					HRP.CFrame = getgenv()._StoredRealCFrame * undergroundDesyncOffset
-				end
-			else
-				HRP.CFrame = getgenv()._StoredRealCFrame
+			-- physics to freefall and feed back into _StoredRealCFrame — void-fall loop.
+			if not guardBlocked and not getgenv()._DesyncOffsetSuppressed then
+				targetCFrame = targetCFrame * undergroundDesyncOffset
 			end
+		end
+
+		if isClipCharacter then
+			local clipOffset = CFrame.new(0, 0, -3.8) * CFrame.Angles(math.rad(135), 0, 0)
+			targetCFrame = targetCFrame * clipOffset
+		end
+
+		if isDesync or isClipCharacter then
+			HRP.CFrame = targetCFrame
 		end
 
 		if not guardBlocked then
@@ -3022,26 +2917,71 @@ local heartbeatConnection = RunService.Heartbeat:Connect(function()
 			hum.AutoRotate = false
 		end
 
-		-- CRITICAL: Restore RootJoint HERE in Heartbeat (after physics, before render).
-		-- Physics commits Motor6D positions during its step. Setting C0 in Heartbeat
-		-- immediately repositions parts before the frame draws ΓÇö fixing local camera jitter.
-		-- RenderStepped alone is too late because physics already committed the positions.
-		if getgenv()._OrigRootJointC0 then
-			local rootJoint = getRootJoint(Character)
-			if rootJoint then
-				rootJoint.C0 = getgenv()._OrigRootJointC0
-			end
-		end
+		-- Apply jitter HERE in Heartbeat (after physics), NOT in Stepped (before physics).
+		-- This is the same timing as Underground Desync: physics commits the real position,
+		-- then we move the HRP post-physics. RenderStepped at -1000 restores it before any
+		-- camera or render script runs — local view and FOV are completely unaffected.
+		if
+			not getgenv()._TPKillActive
+			and getgenv()._StoredRealCFrame
+			and not (getgenv()._UndergroundResolverActive or getgenv()._SkyPeekActive)
+		then
+			-- Ultimate Ground-Hugging Anti-Aim (Physics Safe)
+			-- Bypasses Fly/Speedhack checks by ensuring every jitter point is precisely snapped
+			-- to the exact floor level, preventing the physics engine from applying Y-axis gravity
+			-- drops or wall-ejection forces that trigger the Anti-Cheat.
 
-		if isAntiAim and not isDesync and getgenv().AddLog then
-			getgenv()._DebugTick = (getgenv()._DebugTick or 0) + 1
-			if getgenv()._DebugTick >= 60 then
-				getgenv()._DebugTick = 0
-				getgenv().AddLog(
-					"[AntiAim] L1 RootJoint Desync Active | L2 Tilt:"
-						.. string.format("%.2f", math.sin(os.clock() * 40) * 0.8)
-				)
+			local radius = getgenv().Config.Combat.AntiAimRadius or 5
+			local angle = math.random() * math.pi * 2
+			local dist = math.random() * radius
+
+			local flatOffset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
+			local origin = getgenv()._StoredRealCFrame.Position
+			local jitterPos = origin
+
+			-- Safety: raycast to ensure we don't clip into walls
+			local raycastParams = RaycastParams.new()
+			raycastParams.FilterDescendantsInstances = { Character }
+			raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+			raycastParams.IgnoreWater = true
+			raycastParams.RespectCanCollide = true
+
+			local wallHit = workspace:Raycast(origin, flatOffset, raycastParams)
+			if not wallHit then
+				-- Jitter path is clear of walls. Now find the exact floor height.
+				local checkPos = origin + flatOffset
+				-- Cast from 3 studs above down to 10 studs below
+				local groundHit =
+					workspace:Raycast(checkPos + Vector3.new(0, 3, 0), Vector3.new(0, -10, 0), raycastParams)
+
+				if groundHit then
+					local humanoid = Character:FindFirstChildOfClass("Humanoid")
+					local hipHeight = 2
+					if humanoid and humanoid.RigType == Enum.HumanoidRigType.R15 then
+						hipHeight = humanoid.HipHeight
+					end
+					local rootHeight = hipHeight + (HRP.Size.Y / 2)
+
+					-- Snap perfectly to the floor geometry
+					jitterPos = Vector3.new(checkPos.X, groundHit.Position.Y + rootHeight, checkPos.Z)
+				end
 			end
+
+			-- Absolute Safety Net: If the calculated jitter position differs in height by more than
+			-- 2.5 studs (e.g., trying to jitter up a steep cliff or down a hole), abort the jitter
+			-- to prevent Flyhack detection from extreme vertical changes.
+			if math.abs(jitterPos.Y - origin.Y) > 2.5 then
+				jitterPos = origin
+			end
+
+			local randomRot = CFrame.Angles(0, math.random() * math.pi * 2, 0)
+
+			HRP.CFrame = CFrame.new(jitterPos) * randomRot
+
+			-- Scramble angular velocity heavily for resolver breaking, but keep linear velocity real
+			-- so the server's momentum calculations stay stable.
+			HRP.AssemblyAngularVelocity =
+				Vector3.new(math.random(-250, 250), math.random(-250, 250), math.random(-250, 250))
 		end
 	end
 end)
@@ -3100,6 +3040,21 @@ if not getgenv().DesyncHooked then
 		"__index",
 		newcclosure(function(self, key)
 			if not checkcaller() then
+				if key == "Length" and typeof(self) == "Instance" and self:IsA("AnimationTrack") then
+					local w = getgenv()._DeltaActiveWeaponTable
+					if w and type(w) == "table" and type(rawget(w, "clientAnimationTracks")) == "table" then
+						if getgenv().Config and getgenv().Config.Combat then
+							if getgenv().Config.Combat.InstantEquip then
+								local c = w.clientAnimationTracks
+								local s = rawget(w, "serverAnimationTracks")
+								if self == c.Equip or (s and type(s) == "table" and self == s.Equip) then
+									return 0.01
+								end
+							end
+						end
+					end
+				end
+
 				if
 					getgenv().Config.Mods.ThirdPerson
 					and key == "CFrame"
@@ -3168,21 +3123,6 @@ if not getgenv().DesyncHooked then
 									local relative = realHRP:ToObjectSpace(realSelf)
 									local fakeSelf = baseCFrame * relative
 
-									if getgenv().AddLog and (self.Name == "HeadTopHitbox" or self.Name == "Head") then
-										getgenv()._IndexDebugTick = (getgenv()._IndexDebugTick or 0) + 1
-										if getgenv()._IndexDebugTick >= 60 then
-											getgenv()._IndexDebugTick = 0
-											local dist = (fakeSelf.Position - realSelf.Position).Magnitude
-											getgenv().AddLog(
-												"[AntiAim __index] Spoofed "
-													.. self.Name
-													.. " | Spoof Distance: "
-													.. math.floor(dist)
-													.. " studs"
-											)
-										end
-									end
-
 									return key == "CFrame" and fakeSelf or fakeSelf.Position
 								end
 							end
@@ -3234,16 +3174,32 @@ if not getgenv().DesyncHooked then
 					-- ===================================================
 					-- LAYER 2: UpdateTilt Pitch Oscillation (Torso Spin)
 					-- Intercepts UpdateTilt:FireServer() and replaces the pitch
-					-- argument with a 40Hz sine oscillation at 0.8 rad amplitude.
-					-- 0.8 rad ≈ 46° is within anatomical limits so the server
-					-- animation engine won't clamp or crash it (no NaN, no π).
-					-- At 40Hz, torso vibrates 40 times/sec — no aimbot can track it.
 					-- ===================================================
-					if getgenv().Config.Combat.AntiAim and remoteName == "UpdateTilt" then
-						local args = { ... }
-						args[1] = math.sin(os.clock() * 40) * 0.8
-						setnamecallmethod(method)
-						return oldNamecall(self, table.unpack(args))
+					if remoteName == "UpdateTilt" then
+						if getgenv()._TPKillActive and getgenv()._TPKillPos and getgenv()._TPKillTarget then
+							local args = table.pack(...)
+							local targetAimPart = getgenv()._TPKillTarget.Parent
+									and getgenv()._TPKillTarget.Parent:FindFirstChild("Head")
+								or getgenv()._TPKillTarget
+							local aimPos = targetAimPart.Position
+							local basePos = getgenv()._TPKillPos
+							local serverOrigin = basePos + Vector3.new(0, 1.6, 0)
+							local perfectDir = (aimPos - serverOrigin).Unit
+							local clampedY = math.clamp(perfectDir.Y, -1, 1)
+							local pitch = math.asin(clampedY)
+							pitch = math.clamp(pitch, -1.55, 1.55) -- prevent exact -90/90 gimbal lock
+							args[1] = pitch
+							args[2] = 0
+							args.n = math.max(args.n, 2)
+							setnamecallmethod(method)
+							return oldNamecall(self, table.unpack(args, 1, args.n))
+						elseif getgenv().Config.Combat.AntiAim then
+							local args = table.pack(...)
+							args[1] = math.sin(os.clock() * 40) * 0.8
+							args.n = math.max(args.n, 1)
+							setnamecallmethod(method)
+							return oldNamecall(self, table.unpack(args, 1, args.n))
+						end
 					end
 
 					if getgenv()._IH_Interceptor then
@@ -3301,29 +3257,6 @@ if not getgenv()._LinoriaToggleListener then
 		end
 	end)
 end
-
-local DebugSection = SettingsTab:AddLeftGroupbox("Debugging")
-
-DebugSection:AddButton({
-	Text = "Copy Debug Logs",
-	Func = function()
-		if setclipboard then
-			setclipboard(table.concat(getgenv().DebugLogs or {}, "\n"))
-			Library:Notify("Successfully copied debug logs to clipboard.")
-		end
-	end,
-	DoubleClick = false,
-})
-
-
-DebugSection:AddButton({
-	Text = "Clear Debug Logs",
-	Func = function()
-		table.clear(getgenv().DebugLogs or {})
-		Library:Notify("Debug log buffer has been cleared.")
-	end,
-	DoubleClick = false,
-})
 
 -- Custom Config Manager
 local ConfigFolder = "Retro/config"
@@ -3478,7 +3411,6 @@ local function applyLoadedConfig(data)
 		safeSetToggle("Chams", data.ESP.ChamsEnabled)
 		safeSetColorPicker("ChamsFillColor", parseColor(data.ESP.ChamsFillColor))
 		safeSetColorPicker("NPCChamsFillColor", parseColor(data.ESP.NPCChamsFillColor))
-		safeSetColorPicker("ChamsOutlineColor", parseColor(data.ESP.ChamsOutlineColor))
 
 		if data.ESP.BoundingBox2DEnabled ~= nil then
 			safeSetToggle("2DBoundingBox", data.ESP.BoundingBox2DEnabled)
@@ -3584,6 +3516,9 @@ local function applyLoadedConfig(data)
 		if data.Combat.CrosshairDistance then
 			safeSetOption("CrosshairDistance", data.Combat.CrosshairDistance)
 		end
+		if data.Combat.CrosshairRotationSpeed then
+			safeSetOption("CrosshairRotationSpeed", data.Combat.CrosshairRotationSpeed)
+		end
 		safeSetToggle("TriggerBot", data.Combat.TriggerBot)
 		safeSetToggle("InstantHit", data.Combat.InstantHit)
 
@@ -3609,7 +3544,11 @@ local function applyLoadedConfig(data)
 		safeSetToggle("UndergroundDesync", false)
 		safeSetKeyPicker("UndergroundDesyncKeybind", data.Combat.UndergroundDesyncKeybind, "Toggle")
 
-		safeSetToggle("AntiAim", data.Combat.AntiAim)
+		safeSetToggle("AntiAim", false)
+		safeSetKeyPicker("AntiAimKeybind", data.Combat.AntiAimKeybind, "Toggle")
+		if data.Combat.AntiAimRadius then
+			safeSetOption("AntiAimRadius", data.Combat.AntiAimRadius)
+		end
 		safeSetToggle("InstantADS", data.Combat.InstantADS)
 		safeSetOption("ADSZoomMultiplier", data.Combat.ADSZoomMultiplier)
 		safeSetToggle("HideViewmodelOnADS", data.Combat.HideViewmodelOnADS)
@@ -3629,6 +3568,9 @@ local function applyLoadedConfig(data)
 		safeSetToggle("NoSpread", data.Combat.NoSpread)
 		safeSetToggle("RapidFire", data.Combat.RapidFire)
 		safeSetOption("RapidFireMultiplier", data.Combat.RapidFireValue)
+		if data.Combat.InstantEquip ~= nil then
+			safeSetToggle("InstantEquip", data.Combat.InstantEquip)
+		end
 	end
 
 	if data.Mods then
@@ -3651,14 +3593,25 @@ local function applyLoadedConfig(data)
 		safeSetToggle("RemoveGrass", data.Mods.RemoveGrass)
 		safeSetToggle("NoLandmines", data.Mods.NoLandmines)
 		safeSetToggle("NoVisor", data.Mods.NoVisor)
+		if data.Mods.Gloom ~= nil then
+			safeSetToggle("Gloom", data.Mods.Gloom)
+		end
+		if data.Mods.NoShadows ~= nil then
+			safeSetToggle("NoShadows", data.Mods.NoShadows)
+		end
 		safeSetToggle("NoFallDamage", data.Mods.NoFallDamage)
 		safeSetToggle("Speedhack", data.Mods.Speedhack)
 		safeSetOption("WalkspeedValue", data.Mods.WalkspeedValue)
 		safeSetOption("FOV", data.Mods.FOV)
 		safeSetOption("WorldTime", data.Mods.WorldTime)
+		if data.Mods.WeatherType then
+			safeSetOption("WeatherType", data.Mods.WeatherType)
+		end
 	end
 
 	if data.Utilities then
+		safeSetToggle("ClipCharacter", false)
+		safeSetKeyPicker("ClipCharacterKeybind", data.Utilities.ClipCharacterKeybind, "Toggle")
 		safeSetToggle("ModDetector", data.Utilities.ModDetector)
 		safeSetOption("ModDetectorVolume", data.Utilities.ModDetectorVolume)
 		safeSetToggle("LockKeybindHUD", data.Utilities.LockKeybindHUD)
@@ -3914,7 +3867,11 @@ table.insert(
 							local pilots = child:FindFirstChild("Pilots")
 							if pilots then
 								for _, pilot in ipairs(pilots:GetChildren()) do
-									if pilot:IsA("Model") and pilot:FindFirstChild("Head") then
+									if
+										pilot:IsA("Model")
+										and pilot:FindFirstChild("Head")
+										and pilot.Name == "Pilot"
+									then
 										local root = pilot:FindFirstChild("HumanoidRootPart")
 											or pilot.PrimaryPart
 											or pilot:FindFirstChild("Head")
@@ -4049,10 +4006,12 @@ function CharacterManager.GetManipulatedOrigin(base_pos, target_pos, targetRoot,
 	if not getgenv().Config or not getgenv().Config.Combat or not getgenv().Config.Combat.OriginManipulation then
 		return nil
 	end
-	
+
 	if getgenv().TargetManager and getgenv().TargetManager.CurrentTarget then
 		local currentTarget = getgenv().TargetManager.CurrentTarget
-		local currentTargetRoot = currentTarget.RootPart or (currentTarget.Character and currentTarget.Character:FindFirstChild("HumanoidRootPart")) or currentTarget.Head
+		local currentTargetRoot = currentTarget.RootPart
+			or (currentTarget.Character and currentTarget.Character:FindFirstChild("HumanoidRootPart"))
+			or currentTarget.Head
 		if currentTargetRoot ~= targetRoot then
 			return nil -- Only manipulate origin for the current Silent Aim target
 		end
@@ -4333,6 +4292,8 @@ CombatManager.Snapline.Transparency = 1
 local math_cos = math.cos
 local math_sin = math.sin
 local math_random = math.random
+local math_min = math.min
+local math_pi_half = math.pi / 2
 local os_clock = os.clock
 local Vector2_new = Vector2.new
 local Color3_fromRGB = Color3.fromRGB
@@ -4415,25 +4376,30 @@ function CombatManager.Update()
 
 	-- Update Snapline
 	TargetManager.CurrentTarget = TargetManager.GetClosestTargetToMouse()
+	local currentTarget = TargetManager.CurrentTarget
 
-	if config.ShowSnapline and TargetManager.CurrentTarget then
+	local targetScreenPosition = nil
+	local targetIsVisible = false
+	local targetAimPart = nil
+
+	if currentTarget then
 		local targetPartName = config.TargetPart or "Head"
-		local aimPart = (
-			TargetManager.CurrentTarget.Character
-			and TargetManager.CurrentTarget.Character:FindFirstChild(targetPartName)
-		) or TargetManager.CurrentTarget.Head
-		local headPosition = aimPart.Position
-		local screenPosition, isVisible = Camera:WorldToViewportPoint(headPosition)
+		targetAimPart = (currentTarget.Character and currentTarget.Character:FindFirstChild(targetPartName))
+			or currentTarget.Head
+		if targetAimPart then
+			targetScreenPosition, targetIsVisible = Camera:WorldToViewportPoint(targetAimPart.Position)
+		end
+	end
 
-		if isVisible and screenPosition.Z > 0 then
+	if config.ShowSnapline and targetScreenPosition then
+		if targetIsVisible and targetScreenPosition.Z > 0 then
 			local isVisible3D = config.VisibleCheck
 				and CharacterManager.IsVisible(
-					aimPart,
-					TargetManager.CurrentTarget.Player and TargetManager.CurrentTarget.Player.Character
-						or TargetManager.CurrentTarget.Head.Parent
+					targetAimPart,
+					currentTarget.Player and currentTarget.Player.Character or currentTarget.Head.Parent
 				)
 			CombatManager.Snapline.From = mouseLocation
-			CombatManager.Snapline.To = Vector2.new(screenPosition.X, screenPosition.Y)
+			CombatManager.Snapline.To = Vector2_new(targetScreenPosition.X, targetScreenPosition.Y)
 			CombatManager.Snapline.Color = isVisible3D and config.VisibleColor or config.SnaplineColor
 			CombatManager.Snapline.Visible = true
 		else
@@ -4444,22 +4410,28 @@ function CombatManager.Update()
 	end
 
 	-- Update Crosshair
-	if getgenv().Config.Combat.ShowCrosshair then
+	local combatConfig = getgenv().Config.Combat
+	if combatConfig.ShowCrosshair then
 		local camera = Workspace.CurrentCamera
 		if camera then
-			local center = camera.ViewportSize / 2
-			local cType = getgenv().Config.Combat.CrosshairType
-			local cColor = getgenv().Config.Combat.CrosshairColor or Color3.fromHex("#7f48a3")
-			local time = os.clock()
+			local center = mouseLocation
+
+			if targetScreenPosition and targetIsVisible and targetScreenPosition.Z > 0 then
+				center = Vector2_new(targetScreenPosition.X, targetScreenPosition.Y)
+			end
+
+			local cType = combatConfig.CrosshairType
+			local cColor = combatConfig.CrosshairColor or Color3_fromRGB(127, 72, 163)
+			local time = os_clock()
 
 			if cType == "Default" then
-				local size = getgenv().Config.Combat.CrosshairSize or 13.6
-				local gap = getgenv().Config.Combat.CrosshairDistance or 6.8
+				local size = combatConfig.CrosshairSize or 13.6
+				local gap = combatConfig.CrosshairDistance or 6.8
 				for i = 1, 4 do
 					local line = CombatManager.CrosshairLines[i]
 					local glows = CombatManager.CrosshairGlows[i]
-					local angle = (i - 1) * (math.pi / 2)
-					local dir = Vector2.new(math.cos(angle), math.sin(angle))
+					local angle = (i - 1) * math_pi_half
+					local dir = Vector2_new(math_cos(angle), math_sin(angle))
 
 					line.From = center + dir * gap
 					line.To = center + dir * (gap + size)
@@ -4468,7 +4440,7 @@ function CombatManager.Update()
 
 					for g = 1, 8 do
 						local glow = glows[g]
-						local inset = math.min(glow.Thickness * 0.4, size * 0.45)
+						local inset = math_min(glow.Thickness * 0.4, size * 0.45)
 						glow.From = center + dir * (gap + inset)
 						glow.To = center + dir * (gap + size - inset)
 						glow.Color = cColor
@@ -4484,14 +4456,15 @@ function CombatManager.Update()
 					end
 				end
 			elseif cType == "Rotation" then
-				local size = getgenv().Config.Combat.CrosshairSize or 17
-				local gap = getgenv().Config.Combat.CrosshairDistance or 8.5
-				local spin = time * 3
+				local size = combatConfig.CrosshairSize or 17
+				local gap = combatConfig.CrosshairDistance or 8.5
+				local speed = combatConfig.CrosshairRotationSpeed or 3
+				local spin = time * speed
 				for i = 1, 4 do
 					local line = CombatManager.CrosshairLines[i]
 					local glows = CombatManager.CrosshairGlows[i]
-					local angle = (i - 1) * (math.pi / 2) + spin
-					local dir = Vector2.new(math.cos(angle), math.sin(angle))
+					local angle = (i - 1) * math_pi_half + spin
+					local dir = Vector2_new(math_cos(angle), math_sin(angle))
 
 					line.From = center + dir * gap
 					line.To = center + dir * (gap + size)
@@ -4500,7 +4473,7 @@ function CombatManager.Update()
 
 					for g = 1, 8 do
 						local glow = glows[g]
-						local inset = math.min(glow.Thickness * 0.4, size * 0.45)
+						local inset = math_min(glow.Thickness * 0.4, size * 0.45)
 						glow.From = center + dir * (gap + inset)
 						glow.To = center + dir * (gap + size - inset)
 						glow.Color = cColor
@@ -4516,9 +4489,10 @@ function CombatManager.Update()
 					end
 				end
 			elseif cType == "Nazi" then
-				local size = getgenv().Config.Combat.CrosshairSize or 17
-				local gap = getgenv().Config.Combat.CrosshairDistance or 0
-				local spin = time * 2
+				local size = combatConfig.CrosshairSize or 17
+				local gap = combatConfig.CrosshairDistance or 0
+				local speed = combatConfig.CrosshairRotationSpeed or 3
+				local spin = time * speed
 				for i = 1, 4 do
 					local idx1 = (i - 1) * 2 + 1
 					local idx2 = (i - 1) * 2 + 2
@@ -4528,10 +4502,10 @@ function CombatManager.Update()
 					local glows1 = CombatManager.CrosshairGlows[idx1]
 					local glows2 = CombatManager.CrosshairGlows[idx2]
 
-					local angle1 = (i - 1) * (math.pi / 2) + spin
-					local angle2 = angle1 + (math.pi / 2)
-					local dir1 = Vector2.new(math.cos(angle1), math.sin(angle1))
-					local dir2 = Vector2.new(math.cos(angle2), math.sin(angle2))
+					local angle1 = (i - 1) * math_pi_half + spin
+					local angle2 = angle1 + math_pi_half
+					local dir1 = Vector2_new(math_cos(angle1), math_sin(angle1))
+					local dir2 = Vector2_new(math_cos(angle2), math_sin(angle2))
 					local startPoint = center + dir1 * gap
 					local midPoint = startPoint + dir1 * size
 
@@ -4547,7 +4521,7 @@ function CombatManager.Update()
 
 					for g = 1, 8 do
 						local glow1 = glows1[g]
-						local inset = math.min(glow1.Thickness * 0.4, size * 0.45)
+						local inset = math_min(glow1.Thickness * 0.4, size * 0.45)
 						glow1.From = startPoint + dir1 * inset
 						glow1.To = midPoint - dir1 * inset
 						glow1.Color = cColor
@@ -4946,6 +4920,9 @@ function KeybindHUDManager.Update()
 end
 
 KeybindHUDManager.Init()
+getgenv().DeltaChamsOriginalCache = getgenv().DeltaChamsOriginalCache or {}
+getgenv().DeltaChamsCache = getgenv().DeltaChamsCache or {}
+getgenv().DeltaChamsStateCache = getgenv().DeltaChamsStateCache or {}
 
 -- ==========================================
 -- ESPManager
@@ -4954,6 +4931,7 @@ local ESPManager = {
 	Cache = {},
 	CorpseCache = {},
 	ExitCache = {},
+	RestorePart = function(part: any, originalData: any) end,
 }
 getgenv().ESPManager = ESPManager
 
@@ -5043,7 +5021,7 @@ local espOffsetHead = Vector3.new(0, 1.5, 0)
 
 local function DrawEntity(character, data, config, config_sa, camPos, worldToViewportPoint)
 	local distStuds = (camPos - data.Head.Position).Magnitude
-	local distMeters = math.floor(distStuds * 0.28)
+	local distMeters = math.floor(distStuds * 0.33)
 	if distMeters > (config.MaxDistance or 1500) then
 		ESPManager.RemoveDrawing(character)
 		local highlight = getgenv().DeltaChamsCache and getgenv().DeltaChamsCache[character]
@@ -5405,27 +5383,216 @@ local function DrawEntity(character, data, config, config_sa, camPos, worldToVie
 		end
 	end
 
+	-- Pin.Reta Exact 1:1 Engine (Direct Material Overwrite + SUNC Optimization)
 	if shouldDrawChams then
+		local fillCol = data.IsNPC and config.NPCChamsFillColor or config.ChamsFillColor
+		local drawColor = (config.VisibleCheck and isVisible3D) and config.VisibleColor or fillCol
+		local outlineColor = config.VisibleCheck and config.VisibleColor or fillCol
+		local shouldHighlightBeEnabled = not isVisible3D
+		local targetMaterial = Enum.Material.Neon
+
+		-- SUNC: Retrieve or Initialize State Tracking
+		local state = getgenv().DeltaChamsStateCache[character]
+		if not state then
+			state = {
+				fillColor = nil,
+				outlineColor = nil,
+				highlightEnabled = nil,
+				bodyColor = nil,
+				bodyMaterial = nil,
+			}
+			getgenv().DeltaChamsStateCache[character] = state
+		end
+
+		-- Highlight ESP (Wallhacks)
 		local highlight = getgenv().DeltaChamsCache[character]
 		if not highlight then
 			highlight = Instance.new("Highlight")
 			highlight.Parent = CoreGui
-			highlight.Adornee = character
+			-- SUNC: Use cloneref to bypass GC leaks
+			highlight.Adornee = cloneref and cloneref(character) or character
 			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			highlight.FillTransparency = 0.5
+			highlight.OutlineTransparency = 0
 			getgenv().DeltaChamsCache[character] = highlight
 		end
 
-		local fillCol = data.IsNPC and config.NPCChamsFillColor or config.ChamsFillColor
-		highlight.FillColor = isVisible3D and config.VisibleColor or fillCol
-		highlight.OutlineColor = config.ChamsOutlineColor
+		-- SUNC: State-Based Highlight Update
+		if state.fillColor ~= drawColor then
+			highlight.FillColor = drawColor
+			state.fillColor = drawColor
+		end
+		if state.outlineColor ~= outlineColor then
+			highlight.OutlineColor = outlineColor
+			state.outlineColor = outlineColor
+		end
+		if state.highlightEnabled ~= shouldHighlightBeEnabled then
+			highlight.Enabled = shouldHighlightBeEnabled
+			state.highlightEnabled = shouldHighlightBeEnabled
+		end
+
+		-- Direct Body Overwrite (Forces Roblox to calculate bloom natively)
+		local originalCache = getgenv().DeltaChamsOriginalCache[character]
+		if not originalCache then
+			originalCache = {}
+
+			local function processPart(part)
+				if part:IsA("BasePart") then
+					if part.Name == "HumanoidRootPart" or string.find(string.lower(part.Name), "hitbox") then
+						return
+					end
+					-- SUNC: Use cloneref for part caching to prevent hard memory leaks
+					local safePart = cloneref and cloneref(part) or part
+					if not originalCache[safePart] then
+						local cacheData = {
+							Material = safePart.Material,
+							Color = safePart.Color,
+							Transparency = safePart.Transparency,
+							SpecMeshes = {},
+							Decals = {},
+						}
+
+						if safePart:IsA("MeshPart") then
+							pcall(function()
+								cacheData.TextureID = safePart.TextureID
+								cacheData.UsePartColor = safePart.UsePartColor
+								safePart.TextureID = ""
+								safePart.UsePartColor = true
+							end)
+						end
+
+						for _, child in ipairs(safePart:GetChildren()) do
+							if child:IsA("SpecialMesh") then
+								local specData = { Mesh = child }
+								pcall(function()
+									specData.TextureId = child.TextureId
+									specData.VertexColor = child.VertexColor
+									child.TextureId = ""
+									child.VertexColor = Vector3.new(1, 1, 1)
+								end)
+								table.insert(cacheData.SpecMeshes, specData)
+							elseif child:IsA("SurfaceAppearance") then
+								child:Destroy()
+							elseif child:IsA("Decal") or child:IsA("Texture") then
+								table.insert(cacheData.Decals, { Decal = child, Trans = child.Transparency })
+								pcall(function()
+									child.Transparency = 1
+								end)
+							end
+						end
+
+						originalCache[safePart] = cacheData
+						if
+							safePart.Transparency < 1
+							or safePart:IsA("MeshPart")
+							or safePart:FindFirstChildWhichIsA("SpecialMesh")
+						then
+							safePart.Transparency = 0
+						end
+
+						-- SUNC: Apply current active state to newly attached parts
+						local currState = getgenv().DeltaChamsStateCache[character]
+						if currState and currState.bodyMaterial then
+							safePart.Material = currState.bodyMaterial
+							safePart.Color = currState.bodyColor
+						end
+					end
+				elseif part:IsA("SurfaceAppearance") then
+					part:Destroy()
+				end
+			end
+
+			for _, part in ipairs(character:GetDescendants()) do
+				processPart(part)
+			end
+
+			-- SUNC: Dynamic listener for mid-game clothing changes (Zero loop overhead)
+			state.connection = character.DescendantAdded:Connect(processPart)
+			getgenv().DeltaChamsOriginalCache[character] = originalCache
+		end
+
+		-- SUNC: State-Based Material & Color Sync (Eliminates FPS drain)
+		if state.bodyColor ~= drawColor or state.bodyMaterial ~= targetMaterial then
+			for part, _ in pairs(originalCache) do
+				if part.Parent then
+					part.Color = drawColor
+					part.Material = targetMaterial
+				end
+			end
+			state.bodyColor = drawColor
+			state.bodyMaterial = targetMaterial
+		end
 	else
+		-- Cleanup Highlight
 		local highlight = getgenv().DeltaChamsCache and getgenv().DeltaChamsCache[character]
 		if highlight then
 			highlight:Destroy()
 			getgenv().DeltaChamsCache[character] = nil
 		end
+
+		-- Restore Original Body (Best Effort)
+		local originalCache = getgenv().DeltaChamsOriginalCache and getgenv().DeltaChamsOriginalCache[character]
+		if originalCache then
+			for part, originalData in pairs(originalCache) do
+				ESPManager.RestorePart(part, originalData)
+			end
+			getgenv().DeltaChamsOriginalCache[character] = nil
+		end
+
+		-- Clear State
+		local stateToClear = getgenv().DeltaChamsStateCache[character]
+		if stateToClear and stateToClear.connection then
+			stateToClear.connection:Disconnect()
+		end
+		getgenv().DeltaChamsStateCache[character] = nil
 	end
 end
+
+function ESPManager.RestorePart(part, originalData)
+	if not part or not part.Parent then
+		return
+	end
+	part.Material = originalData.Material
+	part.Color = originalData.Color
+	part.Transparency = originalData.Transparency
+
+	if part:IsA("MeshPart") then
+		if originalData.TextureID ~= nil then
+			pcall(function()
+				part.TextureID = originalData.TextureID
+			end)
+		end
+		if originalData.UsePartColor ~= nil then
+			pcall(function()
+				part.UsePartColor = originalData.UsePartColor
+			end)
+		end
+	end
+
+	if originalData.SpecMeshes then
+		for i = 1, #originalData.SpecMeshes do
+			local data = originalData.SpecMeshes[i]
+			if data.Mesh and data.Mesh.Parent then
+				pcall(function()
+					data.Mesh.TextureId = data.TextureId or ""
+					data.Mesh.VertexColor = data.VertexColor or Vector3.new(1, 1, 1)
+				end)
+			end
+		end
+	end
+
+	if originalData.Decals then
+		for i = 1, #originalData.Decals do
+			local data = originalData.Decals[i]
+			if data.Decal and data.Decal.Parent then
+				pcall(function()
+					data.Decal.Transparency = data.Trans
+				end)
+			end
+		end
+	end
+end
+
 function ESPManager.Update()
 	local config_sa = getgenv().Config.SilentAim
 	local config = getgenv().Config.ESP
@@ -5457,6 +5624,18 @@ function ESPManager.Update()
 			highlight:Destroy()
 		end
 		table.clear(getgenv().DeltaChamsCache)
+		for _, originalCache in pairs(getgenv().DeltaChamsOriginalCache) do
+			for part, originalData in pairs(originalCache) do
+				ESPManager.RestorePart(part, originalData)
+			end
+		end
+		table.clear(getgenv().DeltaChamsOriginalCache)
+		for _, state in pairs(getgenv().DeltaChamsStateCache) do
+			if type(state) == "table" and state.connection then
+				state.connection:Disconnect()
+			end
+		end
+		table.clear(getgenv().DeltaChamsStateCache)
 		return
 	end
 
@@ -5479,7 +5658,7 @@ function ESPManager.Update()
 		end
 	end
 
-	-- Chams ESP Cleanup
+	-- Highlight & Original Body Restoration
 	for cachedCharacter, highlight in pairs(getgenv().DeltaChamsCache) do
 		local isStale = not activeCharacters[cachedCharacter]
 			and not activeNPCs[cachedCharacter]
@@ -5497,6 +5676,20 @@ function ESPManager.Update()
 		if shouldRemove then
 			highlight:Destroy()
 			getgenv().DeltaChamsCache[cachedCharacter] = nil
+
+			local originalCache = getgenv().DeltaChamsOriginalCache[cachedCharacter]
+			if originalCache then
+				for part, originalData in pairs(originalCache) do
+					ESPManager.RestorePart(part, originalData)
+				end
+				getgenv().DeltaChamsOriginalCache[cachedCharacter] = nil
+			end
+
+			local stateToClear = getgenv().DeltaChamsStateCache[cachedCharacter]
+			if stateToClear and stateToClear.connection then
+				stateToClear.connection:Disconnect()
+			end
+			getgenv().DeltaChamsStateCache[cachedCharacter] = nil
 		end
 	end
 
@@ -5563,17 +5756,21 @@ end
 BulletTracerManager.InstanceCache = {
 	Beams = {},
 	Attachments = {},
-	Parts = {}
+	Parts = {},
 }
 
 function BulletTracerManager.GetAttachment()
 	local cache = BulletTracerManager.InstanceCache.Attachments
-	if #cache > 0 then return table.remove(cache) end
+	if #cache > 0 then
+		return table.remove(cache)
+	end
 	return Instance.new("Attachment")
 end
 
 function BulletTracerManager.ReleaseAttachment(att)
-	if not att then return end
+	if not att then
+		return
+	end
 	att.Parent = nil
 	if #BulletTracerManager.InstanceCache.Attachments < 500 then
 		table.insert(BulletTracerManager.InstanceCache.Attachments, att)
@@ -5584,12 +5781,16 @@ end
 
 function BulletTracerManager.GetBeam()
 	local cache = BulletTracerManager.InstanceCache.Beams
-	if #cache > 0 then return table.remove(cache) end
+	if #cache > 0 then
+		return table.remove(cache)
+	end
 	return Instance.new("Beam")
 end
 
 function BulletTracerManager.ReleaseBeam(beam)
-	if not beam then return end
+	if not beam then
+		return
+	end
 	beam.Parent = nil
 	if #BulletTracerManager.InstanceCache.Beams < 500 then
 		table.insert(BulletTracerManager.InstanceCache.Beams, beam)
@@ -5600,12 +5801,16 @@ end
 
 function BulletTracerManager.GetPart()
 	local cache = BulletTracerManager.InstanceCache.Parts
-	if #cache > 0 then return table.remove(cache) end
+	if #cache > 0 then
+		return table.remove(cache)
+	end
 	return Instance.new("Part")
 end
 
 function BulletTracerManager.ReleasePart(part)
-	if not part then return end
+	if not part then
+		return
+	end
 	part.Parent = nil
 	if #BulletTracerManager.InstanceCache.Parts < 500 then
 		table.insert(BulletTracerManager.InstanceCache.Parts, part)
@@ -5619,7 +5824,7 @@ function BulletTracerManager.CreateFOVLayeredGlowBeam(a0, a1, cColor, cTrans)
 	for j = 1, 4 do
 		local opacity = math.clamp(0.8 / (j ^ 1.2), 0.02, 0.8) * (1 - cTrans)
 		local widthScale = 1 + (j * 0.4)
-		
+
 		local gb = BulletTracerManager.GetBeam()
 		gb.Attachment0 = a0
 		gb.Attachment1 = a1
@@ -5641,7 +5846,7 @@ function BulletTracerManager.CreateFOVLayeredGlowPart(basePart, segmentDist, cCo
 	for j = 1, 4 do
 		local opacity = math.clamp(0.8 / (j ^ 1.2), 0.02, 0.8) * (1 - cTrans)
 		local widthScale = 1 + (j * 0.4)
-		
+
 		local glowPart = BulletTracerManager.GetPart()
 		glowPart.Anchored = true
 		glowPart.CanCollide = false
@@ -5682,7 +5887,9 @@ function BulletTracerManager.CreateLightning(origin, hitPos, config)
 
 	local cColor = BulletTracerManager.ParseColor(config.TracerColor)
 	local cTrans = config.TracerTransparency
-	if type(cTrans) ~= "number" then cTrans = 0.5 end
+	if type(cTrans) ~= "number" then
+		cTrans = 0.5
+	end
 
 	local points = { origin }
 	for i = 1, numSegments - 1 do
@@ -5719,7 +5926,7 @@ function BulletTracerManager.CreateLightning(origin, hitPos, config)
 		if config.TracerGlowEffect then
 			glowBeams = BulletTracerManager.CreateFOVLayeredGlowBeam(a0, a1, cColor, cTrans)
 		end
-		
+
 		strandInfo.Beams[#strandInfo.Beams].Glows = glowBeams
 	end
 
@@ -5748,7 +5955,9 @@ function BulletTracerManager.CreateHeartbeat(origin, hitPos, config)
 
 	local cColor = BulletTracerManager.ParseColor(config.TracerColor)
 	local cTrans = config.TracerTransparency
-	if type(cTrans) ~= "number" then cTrans = 0.5 end
+	if type(cTrans) ~= "number" then
+		cTrans = 0.5
+	end
 
 	local points = { origin }
 	for i = 1, numSegments - 1 do
@@ -5786,7 +5995,7 @@ function BulletTracerManager.CreateHeartbeat(origin, hitPos, config)
 		if config.TracerGlowEffect then
 			glowBeams = BulletTracerManager.CreateFOVLayeredGlowBeam(a0, a1, cColor, cTrans)
 		end
-		
+
 		strandInfo.Beams[#strandInfo.Beams].Glows = glowBeams
 	end
 
@@ -5801,7 +6010,7 @@ function BulletTracerManager.CreateRetroLaser(origin, hitPos, config)
 	local gapLength = 8
 	local totalSpacing = segmentLength + gapLength
 	local numSegments = math.min(30, math.ceil(distance / totalSpacing))
-	
+
 	if numSegments == 30 then
 		totalSpacing = distance / numSegments
 		segmentLength = totalSpacing * (12 / 20)
@@ -5809,17 +6018,19 @@ function BulletTracerManager.CreateRetroLaser(origin, hitPos, config)
 
 	local cColor = BulletTracerManager.ParseColor(config.TracerColor)
 	local cTrans = config.TracerTransparency
-	if type(cTrans) ~= "number" then cTrans = 0.5 end
+	if type(cTrans) ~= "number" then
+		cTrans = 0.5
+	end
 
 	local beams = {}
 
 	for i = 1, numSegments do
 		local a0 = BulletTracerManager.GetAttachment()
 		a0.Parent = Workspace.Terrain
-		
+
 		local a1 = BulletTracerManager.GetAttachment()
 		a1.Parent = Workspace.Terrain
-		
+
 		local beam = BulletTracerManager.GetBeam()
 		beam.Attachment0 = a0
 		beam.Attachment1 = a1
@@ -5831,7 +6042,7 @@ function BulletTracerManager.CreateRetroLaser(origin, hitPos, config)
 		beam.LightEmission = 1
 		beam.LightInfluence = 0
 		beam.Parent = Workspace.Terrain
-		
+
 		local glowBeams = {}
 		if config.TracerGlowEffect then
 			glowBeams = BulletTracerManager.CreateFOVLayeredGlowBeam(a0, a1, cColor, cTrans)
@@ -5877,7 +6088,7 @@ function BulletTracerManager.AddTracer(origin, hitPos)
 
 		local partsTable = {}
 		local glowPartsTable = {}
-		
+
 		local cColor = BulletTracerManager.ParseColor(config.TracerColor)
 
 		for i = 1, numParts do
@@ -5942,42 +6153,68 @@ function BulletTracerManager.Update()
 	for i = #BulletTracerManager.Tracers, 1, -1 do
 		local tracer = BulletTracerManager.Tracers[i]
 		if now > tracer.ExpireTime or not config.BulletTracers then
-			if tracer.Beam then BulletTracerManager.ReleaseBeam(tracer.Beam) end
-			if tracer.GlowBeam then BulletTracerManager.ReleaseBeam(tracer.GlowBeam) end
+			if tracer.Beam then
+				BulletTracerManager.ReleaseBeam(tracer.Beam)
+			end
+			if tracer.GlowBeam then
+				BulletTracerManager.ReleaseBeam(tracer.GlowBeam)
+			end
 			if tracer.Parts then
-				for _, p in ipairs(tracer.Parts) do BulletTracerManager.ReleasePart(p) end
+				for _, p in ipairs(tracer.Parts) do
+					BulletTracerManager.ReleasePart(p)
+				end
 			end
 			if tracer.GlowParts then
-				for _, gp in ipairs(tracer.GlowParts) do BulletTracerManager.ReleasePart(gp) end
+				for _, gp in ipairs(tracer.GlowParts) do
+					BulletTracerManager.ReleasePart(gp)
+				end
 			end
-			if tracer.A0 then BulletTracerManager.ReleaseAttachment(tracer.A0) end
-			if tracer.A1 then BulletTracerManager.ReleaseAttachment(tracer.A1) end
+			if tracer.A0 then
+				BulletTracerManager.ReleaseAttachment(tracer.A0)
+			end
+			if tracer.A1 then
+				BulletTracerManager.ReleaseAttachment(tracer.A1)
+			end
 			if tracer.Beams then
 				for _, b in pairs(tracer.Beams) do
-					if b.Beam then BulletTracerManager.ReleaseBeam(b.Beam) end
-					if b.Glow then BulletTracerManager.ReleaseBeam(b.Glow) end
-					if b.Glows then
-						for _, gb in ipairs(b.Glows) do BulletTracerManager.ReleaseBeam(gb) end
+					if b.Beam then
+						BulletTracerManager.ReleaseBeam(b.Beam)
 					end
-					if b.A0 then BulletTracerManager.ReleaseAttachment(b.A0) end
-					if b.A1 then BulletTracerManager.ReleaseAttachment(b.A1) end
+					if b.Glow then
+						BulletTracerManager.ReleaseBeam(b.Glow)
+					end
+					if b.Glows then
+						for _, gb in ipairs(b.Glows) do
+							BulletTracerManager.ReleaseBeam(gb)
+						end
+					end
+					if b.A0 then
+						BulletTracerManager.ReleaseAttachment(b.A0)
+					end
+					if b.A1 then
+						BulletTracerManager.ReleaseAttachment(b.A1)
+					end
 				end
 			end
 			if tracer.Segments then
 				for _, seg in ipairs(tracer.Segments) do
-					if seg.Part then BulletTracerManager.ReleasePart(seg.Part) end
-					if seg.Glow then BulletTracerManager.ReleaseBeam(seg.Glow) end
+					if seg.Part then
+						BulletTracerManager.ReleasePart(seg.Part)
+					end
+					if seg.Glow then
+						BulletTracerManager.ReleaseBeam(seg.Glow)
+					end
 				end
 			end
 			table.remove(BulletTracerManager.Tracers, i)
 		else
 			local colorChanged = (tracer.LastColor ~= cColor)
 			local transChanged = (tracer.LastTrans ~= cTrans)
-			
+
 			if colorChanged or transChanged then
 				tracer.LastColor = cColor
 				tracer.LastTrans = cTrans
-				
+
 				if tracer.Beam and not tracer.IsLightning then
 					tracer.Beam.Color = cachedColor
 					tracer.Beam.Transparency = cachedTransparency
@@ -6013,7 +6250,7 @@ function BulletTracerManager.Update()
 					end
 				end
 			end
-			
+
 			if tracer.IsLightning and tracer.Beams and shouldFlicker then
 				local flicker = math.random() * 0.3
 				local flickerTransparency = NumberSequence.new(math.clamp(flicker, 0, 1))
@@ -6024,27 +6261,27 @@ function BulletTracerManager.Update()
 					end
 				end
 			end
-			
+
 			if tracer.IsRetroLaser and tracer.Beams then
 				local scrollSpeed = 200
 				local offsetDist = (now - tracer.CreationTime) * scrollSpeed
-				
+
 				for _, b in ipairs(tracer.Beams) do
 					local currentDist = (offsetDist + (b.BaseIndex * tracer.TotalSpacing)) % tracer.Distance
-					
+
 					local actualLength = tracer.SegmentLength
 					if currentDist + actualLength > tracer.Distance then
 						actualLength = math.max(0.01, tracer.Distance - currentDist)
 					end
-					
+
 					local pos0 = tracer.Origin + tracer.Direction * currentDist
 					local pos1 = tracer.Origin + tracer.Direction * (currentDist + actualLength)
-					
+
 					if b.A0 and b.A1 then
 						b.A0.WorldPosition = pos0
 						b.A1.WorldPosition = pos1
 					end
-					
+
 					if colorChanged or transChanged then
 						if b.Beam then
 							b.Beam.Color = cachedColor
@@ -6162,7 +6399,11 @@ if BulletMod then
 					end
 
 					local serverOrigin = realOrigin
-					if isUnderground then
+					if getgenv()._TPKillActive and getgenv()._TPKillPos then
+						local basePos = getgenv()._TPKillPos
+						serverOrigin =
+							getgenv().CachedFunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer, basePos)
+					elseif isUnderground then
 						local localOffset = getgenv()._StoredRealCFrame:PointToObjectSpace(realOrigin)
 						local undergroundDesyncOffset = CFrame.new(0, -3.8, 0) * CFrame.Angles(math.rad(-90), 0, 0)
 						local undergroundHRP_CFrame = getgenv()._StoredRealCFrame * undergroundDesyncOffset
@@ -6171,7 +6412,7 @@ if BulletMod then
 
 					local aimPos
 
-					if getgenv().Config.Combat.InstantHit then
+					if getgenv().Config.Combat.InstantHit and not getgenv()._TPKillActive then
 						aimPos = targetAimPart.Position
 						TargetManager.PredictedPosition = aimPos
 						local perfectDir = (aimPos - realOrigin).Unit
@@ -6220,7 +6461,7 @@ if BulletMod then
 					elseif typeof(args[5]) == "CFrame" then
 						trueMuzzleOrigin = args[5].Position
 					end
-					
+
 					local viewmodelOffset = Vector3.new(
 						getgenv().Config.ESP.ViewmodelOffsetX or 0,
 						getgenv().Config.ESP.ViewmodelOffsetY or 0,
@@ -6228,10 +6469,13 @@ if BulletMod then
 					)
 					trueMuzzleOrigin = trueMuzzleOrigin + Camera.CFrame:VectorToWorldSpace(viewmodelOffset)
 
-					if type(args[5]) == "table" then
-						args[5].CFrame = CFrame.lookAt(origin, origin + clientAimDirection * 100)
+					local aimCFrame = CFrame.lookAt(origin, origin + clientAimDirection * 100)
+					if typeof(args[5]) == "Instance" then
+						args[5] = { CFrame = aimCFrame }
+					elseif type(args[5]) == "table" then
+						args[5].CFrame = aimCFrame
 					else
-						args[5] = { CFrame = CFrame.lookAt(origin, origin + clientAimDirection * 100) }
+						args[5] = { CFrame = aimCFrame }
 					end
 
 					if getgenv().Config.SilentAim.BulletTracers then
@@ -6241,10 +6485,13 @@ if BulletMod then
 					if getgenv().Config.Combat.NoRecoil then
 						local origin = workspace.CurrentCamera.CFrame.Position
 						local lookVector = workspace.CurrentCamera.CFrame.LookVector
-						if type(args[5]) == "table" then
-							args[5].CFrame = CFrame.lookAt(origin, origin + lookVector * 1000)
+						local aimCFrame = CFrame.lookAt(origin, origin + lookVector * 1000)
+						if typeof(args[5]) == "Instance" then
+							args[5] = { CFrame = aimCFrame }
+						elseif type(args[5]) == "table" then
+							args[5].CFrame = aimCFrame
 						else
-							args[5] = { CFrame = CFrame.lookAt(origin, origin + lookVector * 1000) }
+							args[5] = { CFrame = aimCFrame }
 						end
 					end
 					if getgenv().Config.SilentAim.BulletTracers then
@@ -6263,14 +6510,14 @@ if BulletMod then
 									getgenv().CachedFunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
 							end)
 						end
-						
+
 						local trueMuzzleOrigin = origin
 						if type(args[5]) == "table" and args[5].CFrame then
 							trueMuzzleOrigin = args[5].CFrame.Position
 						elseif typeof(args[5]) == "CFrame" then
 							trueMuzzleOrigin = args[5].Position
 						end
-						
+
 						local viewmodelOffset = Vector3.new(
 							getgenv().Config.ESP.ViewmodelOffsetX or 0,
 							getgenv().Config.ESP.ViewmodelOffsetY or 0,
@@ -6478,6 +6725,48 @@ table.insert(
 											end
 										end
 
+										if not rawget(self, "OrigReloadLength") and rawget(self, "ReloadLength") then
+											rawset(self, "OrigReloadLength", self.ReloadLength)
+										end
+										if
+											not rawget(self, "OrigReloadChamberLength")
+											and rawget(self, "ReloadChamberLength")
+										then
+											rawset(self, "OrigReloadChamberLength", self.ReloadChamberLength)
+										end
+										if
+											not rawget(self, "OrigReloadNoMagLength")
+											and rawget(self, "ReloadNoMagLength")
+										then
+											rawset(self, "OrigReloadNoMagLength", self.ReloadNoMagLength)
+										end
+										if not rawget(self, "OrigEquipTValue") and rawget(self, "EquipTValue") then
+											rawset(self, "OrigEquipTValue", self.EquipTValue)
+										end
+
+										if getgenv().Config.Combat.InstantEquip then
+											if rawget(self, "EquipTValue") then
+												self.EquipTValue = 0
+											end
+											if
+												type(rawget(self, "settings")) == "table"
+												and rawget(self.settings, "EquipTValue")
+											then
+												self.settings.EquipTValue = 0
+											end
+										else
+											if rawget(self, "OrigEquipTValue") then
+												self.EquipTValue = self.OrigEquipTValue
+											end
+											if
+												type(rawget(self, "settings")) == "table"
+												and rawget(self.settings, "EquipTValue")
+												and rawget(self, "OrigEquipTValue")
+											then
+												self.settings.EquipTValue = self.OrigEquipTValue
+											end
+										end
+
 										if type(rawget(self, "springs")) == "table" then
 											for springName, springObj in pairs(self.springs) do
 												if type(springName) == "string" then
@@ -6566,6 +6855,39 @@ table.insert(
 								end
 							end
 
+							if not rawget(v, "OrigReloadLength") and rawget(v, "ReloadLength") then
+								rawset(v, "OrigReloadLength", v.ReloadLength)
+							end
+							if not rawget(v, "OrigReloadChamberLength") and rawget(v, "ReloadChamberLength") then
+								rawset(v, "OrigReloadChamberLength", v.ReloadChamberLength)
+							end
+							if not rawget(v, "OrigReloadNoMagLength") and rawget(v, "ReloadNoMagLength") then
+								rawset(v, "OrigReloadNoMagLength", v.ReloadNoMagLength)
+							end
+							if not rawget(v, "OrigEquipTValue") and rawget(v, "EquipTValue") then
+								rawset(v, "OrigEquipTValue", v.EquipTValue)
+							end
+
+							if getgenv().Config.Combat.InstantEquip then
+								if rawget(v, "EquipTValue") then
+									v.EquipTValue = 0
+								end
+								if type(rawget(v, "settings")) == "table" and rawget(v.settings, "EquipTValue") then
+									v.settings.EquipTValue = 0
+								end
+							else
+								if rawget(v, "OrigEquipTValue") then
+									v.EquipTValue = v.OrigEquipTValue
+								end
+								if
+									type(rawget(v, "settings")) == "table"
+									and rawget(v.settings, "EquipTValue")
+									and rawget(v, "OrigEquipTValue")
+								then
+									v.settings.EquipTValue = v.OrigEquipTValue
+								end
+							end
+
 							if type(rawget(v, "springs")) == "table" then
 								for springName, springObj in pairs(v.springs) do
 									if type(springName) == "string" then
@@ -6645,6 +6967,53 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 	local method = getnamecallmethod()
 	local args = { ... }
 
+	if getgenv()._TPKillActive and (method == "FireServer" or method == "InvokeServer") then
+		local selfName = typeof(self) == "Instance" and self.Name or tostring(self)
+
+		local argStr = ""
+		for i, v in ipairs(args) do
+			local argVal = tostring(v)
+			if typeof(v) == "Instance" then
+				argVal = v.GetFullName and v:GetFullName() or v.Name
+			end
+			argStr = argStr .. type(v) .. "(" .. argVal .. ")"
+			if i < #args then
+				argStr = argStr .. ", "
+			end
+		end
+
+		local logMsg = string.format("[TPKILL SPY] %s: %s | Args: %s", method, selfName, argStr)
+		print(logMsg)
+		if getgenv().AddLog then
+			getgenv().AddLog(logMsg)
+		end
+	end
+
+	if method == "Play" and typeof(self) == "Instance" and self:IsA("AnimationTrack") then
+		local w = getgenv()._DeltaActiveWeaponTable
+		if w and type(w) == "table" and type(rawget(w, "clientAnimationTracks")) == "table" then
+			if getgenv().Config and getgenv().Config.Combat then
+				if getgenv().Config.Combat.InstantEquip then
+					if self == w.clientAnimationTracks.Equip then
+						local ret = oldNamecall(self, ...)
+						self:AdjustSpeed(99999)
+						return ret
+					end
+				end
+			end
+		end
+	end
+
+	if method == "GetAttribute" and typeof(self) == "Instance" then
+		if getgenv().Config and getgenv().Config.Combat then
+			if getgenv().Config.Combat.InstantEquip then
+				if args[1] == "EquipTValue" then
+					return 0
+				end
+			end
+		end
+	end
+
 	if method == "TakeDamage" and typeof(self) == "Instance" and self:IsA("Humanoid") then
 		local lp = game:GetService("Players").LocalPlayer
 		if lp and lp.Character and self:IsDescendantOf(lp.Character) then
@@ -6660,18 +7029,12 @@ getgenv().DeltaNamecallHook = newcclosure(function(self, ...)
 		if selfName == "UpdateCrouch" then
 			if not checkcaller() and not getgenv()._IsScriptCrouch then
 				local isCrouching = args[1]
-				if getgenv().AddLog then
-					getgenv().AddLog(string.format("[Client] Manual UpdateCrouch(%s)", tostring(isCrouching)))
-				end
 
 				-- BLOCK uncrouch packets while UGR is active to maintain our persistent crouch state.
 				-- The game's native character controller constantly tries to uncrouch the player
 				-- when they walk/jump, which overwrites our persistent crouch and ruins hit registration.
 				local isUnderground = getgenv().Config.Combat.UndergroundDesync or getgenv()._UndergroundResolverActive
 				if isUnderground and not isCrouching then
-					if getgenv().AddLog then
-						getgenv().AddLog("[UGR] Blocked native UpdateCrouch(false) to maintain persistent crouch")
-					end
 					return
 				end
 			end
@@ -7095,15 +7458,6 @@ local function scanForModules(root, shouldLog)
 		if desc:IsA("ModuleScript") and desc.Name == "SettingsModule" and desc.Parent then
 			if not cachedSettingsModules[desc] then
 				cachedSettingsModules[desc] = true
-				if shouldLog and getgenv().AddLog then
-					getgenv().AddLog(
-						string.format(
-							"[RapidFire] Found new SettingsModule in %s (Parent: %s)",
-							root.Name,
-							desc.Parent.Name
-						)
-					)
-				end
 			end
 		end
 	end
@@ -7147,17 +7501,6 @@ table.insert(
 						local newRate = originalFireRates[desc] / multiplier
 
 						if stats.FireRate ~= newRate then
-							if getgenv().AddLog then
-								getgenv().AddLog(
-									string.format(
-										"[RapidFire] Modified %s (Parent: %s) FireRate: %f -> %f",
-										desc.Name,
-										desc.Parent and desc.Parent.Name or "Unknown",
-										stats.FireRate,
-										newRate
-									)
-								)
-							end
 							stats.FireRate = newRate
 						end
 
@@ -7177,16 +7520,6 @@ table.insert(
 						end
 					else
 						if stats.FireRate ~= originalFireRates[desc] then
-							if getgenv().AddLog then
-								getgenv().AddLog(
-									string.format(
-										"[RapidFire] Restored %s (Parent: %s) FireRate: %f",
-										desc.Name,
-										desc.Parent and desc.Parent.Name or "Unknown",
-										originalFireRates[desc]
-									)
-								)
-							end
 							stats.FireRate = originalFireRates[desc]
 							-- ==========================================
 							-- InventoryViewer Manager
@@ -7263,9 +7596,264 @@ local function TriggerNoFallDamageRobust(hrp, humanoid)
 	end)
 end
 
+local WeatherParticleManager = {
+	Part = nil,
+	Emitter = nil,
+	CurrentWeather = "None",
+	ActiveLeaves = {},
+	LeafPool = {},
+	CachedEmitters = nil :: any,
+	LastLeafSpawn = 0,
+	LastLeafUpdate = 0,
+}
+
+function WeatherParticleManager.Init()
+	local Lighting = safeGetService("Lighting")
+	local weatherStatus = Lighting:FindFirstChild("WeatherStatus")
+	WeatherParticleManager.WeatherEffects = weatherStatus and weatherStatus:FindFirstChild("WeatherEffects")
+
+	local noCollision = Workspace:FindFirstChild("NoCollision")
+	WeatherParticleManager.WeatherEffectArea = noCollision and noCollision:FindFirstChild("WeatherEffectArea")
+
+	if WeatherParticleManager.WeatherEffectArea then
+		WeatherParticleManager.TopAttachment =
+			WeatherParticleManager.WeatherEffectArea:FindFirstChild("TopEffectAttachment")
+	end
+
+	if WeatherParticleManager.TopAttachment and WeatherParticleManager.TopAttachment:FindFirstChild("HeavySnow") then
+		local hs = WeatherParticleManager.TopAttachment.HeavySnow
+		WeatherParticleManager.OriginalHeavySnow = {
+			Texture = hs.Texture,
+			Color = hs.Color,
+			Size = hs.Size,
+			Transparency = hs.Transparency,
+		}
+	end
+
+	if not WeatherParticleManager.CachedEmitters then
+		WeatherParticleManager.CachedEmitters = {}
+		if WeatherParticleManager.WeatherEffects and WeatherParticleManager.TopAttachment then
+			for _, effectName in ipairs({ "HeavyRain", "LightRain", "HeavySnow", "LightSnow" }) do
+				local folder = WeatherParticleManager.WeatherEffects:FindFirstChild(effectName)
+				local emitter = WeatherParticleManager.TopAttachment:FindFirstChild(effectName)
+				if folder and folder:FindFirstChild("Rate") and folder:FindFirstChild("Speed") and emitter then
+					local backgroundEmitter =
+						WeatherParticleManager.WeatherEffectArea:FindFirstChild(effectName .. "_Background")
+					if not backgroundEmitter then
+						backgroundEmitter = emitter:Clone()
+						backgroundEmitter.Name = effectName .. "_Background"
+						backgroundEmitter.Parent = WeatherParticleManager.WeatherEffectArea
+					end
+					WeatherParticleManager.CachedEmitters[effectName] = {
+						folder = folder,
+						emitter = emitter,
+						backgroundEmitter = backgroundEmitter,
+					}
+				end
+			end
+		end
+	end
+
+	WeatherParticleManager.Initialized = true
+end
+
+function WeatherParticleManager.Apply(weatherType)
+	if not WeatherParticleManager.Initialized then
+		WeatherParticleManager.Init()
+	end
+
+	WeatherParticleManager.CurrentWeather = weatherType
+
+	if
+		WeatherParticleManager.TopAttachment
+		and WeatherParticleManager.TopAttachment:FindFirstChild("HeavySnow")
+		and WeatherParticleManager.OriginalHeavySnow
+	then
+		local hs = WeatherParticleManager.TopAttachment.HeavySnow
+		if weatherType == "Snow" then
+			hs.Texture = WeatherParticleManager.OriginalHeavySnow.Texture
+			hs.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+			hs.Size = NumberSequence.new(0.5, 0.8)
+		else
+			hs.Texture = WeatherParticleManager.OriginalHeavySnow.Texture
+			hs.Color = WeatherParticleManager.OriginalHeavySnow.Color
+			hs.Size = WeatherParticleManager.OriginalHeavySnow.Size
+			hs.Transparency = WeatherParticleManager.OriginalHeavySnow.Transparency
+		end
+	end
+end
+
+function WeatherParticleManager.Update()
+	if not WeatherParticleManager.Initialized then
+		return
+	end
+	if not WeatherParticleManager.WeatherEffects then
+		return
+	end
+
+	if WeatherParticleManager.WeatherEffectArea and WeatherParticleManager.WeatherEffectArea.Size.X ~= 600 then
+		WeatherParticleManager.WeatherEffectArea.Size = Vector3.new(600, 1, 600)
+		WeatherParticleManager.WeatherEffectArea.Transparency = 1
+	end
+
+	local currentTick = tick()
+	local dt = currentTick - WeatherParticleManager.LastLeafUpdate
+	WeatherParticleManager.LastLeafUpdate = currentTick
+
+	local math_random = math.random
+	local cframe_new = CFrame.new
+	local cframe_angles = CFrame.Angles
+	local vector3_new = Vector3.new
+
+	if WeatherParticleManager.CurrentWeather == "Sakura" then
+		if currentTick - WeatherParticleManager.LastLeafSpawn > 0.05 then
+			WeatherParticleManager.LastLeafSpawn = currentTick
+			local camera = workspace.CurrentCamera
+			if camera then
+				local camPos = camera.CFrame.Position
+				for _ = 1, 3 do
+					local leaf
+					if #WeatherParticleManager.LeafPool > 0 then
+						leaf = table.remove(WeatherParticleManager.LeafPool)
+					else
+						leaf = Instance.new("Part")
+						leaf.Name = "SakuraLeafModel"
+						leaf.Size = vector3_new(2.0, 0.1, 1.4)
+						leaf.Color = Color3.fromRGB(255, 183, 197)
+						leaf.Material = Enum.Material.SmoothPlastic
+						leaf.CanCollide = false
+						leaf.CanTouch = false
+						leaf.CanQuery = false
+						leaf.CastShadow = false
+						leaf.Anchored = true
+
+						local mesh = Instance.new("SpecialMesh")
+						mesh.MeshType = Enum.MeshType.FileMesh
+						mesh.MeshId = "rbxassetid://48100239"
+						mesh.Scale = vector3_new(2.5, 2.5, 2.5)
+						mesh.Parent = leaf
+
+						leaf.Parent = workspace
+					end
+
+					local pos = camPos
+						+ vector3_new(math_random(-150, 150), math_random(60, 120), math_random(-150, 150))
+					local initialCFrame = cframe_new(pos) * cframe_angles(math_random(), math_random(), math_random())
+					leaf.CFrame = initialCFrame
+
+					table.insert(WeatherParticleManager.ActiveLeaves, {
+						part = leaf,
+						pos = pos,
+						rotBase = initialCFrame - pos,
+						vel = vector3_new(math_random(-10, 10), math_random(-25, -15), math_random(-10, 10)),
+						rotVel = vector3_new(math_random(-5, 5), math_random(-5, 5), math_random(-5, 5)),
+						spawnTime = currentTick,
+					})
+				end
+			end
+		end
+	end
+
+	local partsToMove = {}
+	local cframesToMove = {}
+
+	for i = #WeatherParticleManager.ActiveLeaves, 1, -1 do
+		local data = WeatherParticleManager.ActiveLeaves[i]
+		if currentTick - data.spawnTime > 15 then
+			table.insert(partsToMove, data.part)
+			table.insert(cframesToMove, cframe_new(0, -99999, 0))
+			table.insert(WeatherParticleManager.LeafPool, data.part)
+			table.remove(WeatherParticleManager.ActiveLeaves, i)
+		else
+			data.pos = data.pos + data.vel * dt
+			data.rotBase = data.rotBase * cframe_angles(data.rotVel.X * dt, data.rotVel.Y * dt, data.rotVel.Z * dt)
+			local newCFrame = cframe_new(data.pos) * data.rotBase
+
+			table.insert(partsToMove, data.part)
+			table.insert(cframesToMove, newCFrame)
+		end
+	end
+
+	if #partsToMove > 0 then
+		safeGetService("Workspace"):BulkMoveTo(partsToMove, cframesToMove, Enum.BulkMoveMode.FireCFrameChanged)
+	end
+
+	if WeatherParticleManager.CachedEmitters then
+		for effectName, cached in pairs(WeatherParticleManager.CachedEmitters) do
+			local folder = cached.folder
+			local emitter = cached.emitter
+			local backgroundEmitter = cached.backgroundEmitter
+
+			if effectName == "HeavySnow" then
+				backgroundEmitter.Texture = emitter.Texture
+				backgroundEmitter.Color = emitter.Color
+				backgroundEmitter.Size = emitter.Size
+			end
+
+			if WeatherParticleManager.CurrentWeather == "Rain" and effectName == "HeavyRain" then
+				folder.Rate.Value = 100
+				folder.Speed.Value = 100
+				emitter.Enabled = false
+				backgroundEmitter.Enabled = true
+				backgroundEmitter.Rate = 15000
+				backgroundEmitter.Size = NumberSequence.new(0.6, 1.2)
+				backgroundEmitter.Speed = NumberRange.new(100, 120)
+				backgroundEmitter.Lifetime = NumberRange.new(5, 7)
+
+				backgroundEmitter.Rotation = NumberRange.new(0)
+				backgroundEmitter.RotSpeed = NumberRange.new(0)
+				backgroundEmitter.Acceleration = Vector3.new(0, 0, 0)
+				backgroundEmitter.SpreadAngle = Vector2.new(0, 0)
+				pcall(function()
+					backgroundEmitter.Drag = 0
+					backgroundEmitter.Orientation = Enum.ParticleOrientation.FacingCamera
+				end)
+
+				emitter.Size = NumberSequence.new(0.6, 1.2)
+			elseif WeatherParticleManager.CurrentWeather == "Snow" and effectName == "HeavySnow" then
+				folder.Rate.Value = 100
+				folder.Speed.Value = 20
+				emitter.Enabled = false
+				backgroundEmitter.Enabled = true
+				backgroundEmitter.Rate = 6000
+				backgroundEmitter.Speed = NumberRange.new(20, 30)
+				backgroundEmitter.Lifetime = NumberRange.new(15, 20)
+
+				backgroundEmitter.Rotation = NumberRange.new(0, 360)
+				backgroundEmitter.RotSpeed = NumberRange.new(-30, 30)
+				backgroundEmitter.Acceleration = Vector3.new(0, 0, 0)
+				backgroundEmitter.SpreadAngle = Vector2.new(10, 10)
+				pcall(function()
+					backgroundEmitter.Drag = 0
+					backgroundEmitter.Orientation = Enum.ParticleOrientation.FacingCamera
+				end)
+			elseif WeatherParticleManager.CurrentWeather == "Sakura" and effectName == "HeavySnow" then
+				folder.Rate.Value = 0
+				folder.Speed.Value = 15
+				emitter.Enabled = false
+				backgroundEmitter.Enabled = false
+			else
+				folder.Rate.Value = 0
+				emitter.Enabled = false
+				backgroundEmitter.Enabled = false
+			end
+		end
+	end
+end
+
+getgenv().ApplyWeatherEffect = WeatherParticleManager.Apply
+if getgenv().Config.Mods.WeatherType then
+	WeatherParticleManager.Apply(getgenv().Config.Mods.WeatherType)
+end
+
 local WorldModsManager = {}
 
+local cachedTerrain = workspace:FindFirstChildOfClass("Terrain")
+local cachedClouds = cachedTerrain and cachedTerrain:FindFirstChildOfClass("Clouds")
+local cachedAtmosphere = _Lighting:FindFirstChildOfClass("Atmosphere")
+
 function WorldModsManager.Update()
+	WeatherParticleManager.Update()
 	if getgenv().Config.Mods.ThirdPerson then
 		local UIS = game:GetService("UserInputService")
 		if UIS.MouseBehavior ~= Enum.MouseBehavior.LockCenter then
@@ -7288,19 +7876,44 @@ function WorldModsManager.Update()
 			_Lighting.ClockTime = 14
 			_Lighting.GlobalShadows = false
 		end
+	elseif getgenv().Config.Mods.NoShadows then
+		if _Lighting.GlobalShadows then
+			_Lighting.GlobalShadows = false
+		end
 	end
 
-	if getgenv().Config.Mods.WorldTime then
-		_Lighting.ClockTime = getgenv().Config.Mods.WorldTime
+	if getgenv().Config.Mods.Gloom then
+		if _Lighting.ClockTime ~= 0 then
+			_Lighting.ClockTime = 0
+		end
+		if _Lighting.GeographicLatitude ~= 45 then
+			_Lighting.GeographicLatitude = 45
+		end
+
+		if cachedClouds and cachedClouds.Enabled then
+			cachedClouds.Enabled = false
+		end
+
+		if cachedAtmosphere then
+			if cachedAtmosphere.Haze ~= 0 then
+				cachedAtmosphere.Haze = 0
+			end
+			if cachedAtmosphere.Density ~= 0 then
+				cachedAtmosphere.Density = 0
+			end
+		end
+	elseif getgenv().Config.Mods.WorldTime then
+		if _Lighting.ClockTime ~= getgenv().Config.Mods.WorldTime then
+			_Lighting.ClockTime = getgenv().Config.Mods.WorldTime
+		end
 	end
 
 	if getgenv().Config.Mods.NoFog then
 		if _Lighting.FogEnd ~= 100000 then
 			_Lighting.FogEnd = 100000
 		end
-		local atmosphere = _Lighting:FindFirstChildOfClass("Atmosphere")
-		if atmosphere and atmosphere.Density ~= 0 then
-			atmosphere.Density = 0
+		if cachedAtmosphere and cachedAtmosphere.Density ~= 0 then
+			cachedAtmosphere.Density = 0
 		end
 	end
 
@@ -7314,7 +7927,6 @@ function WorldModsManager.Update()
 		getgenv()._cachedScreenEffects = sEffects
 		getgenv()._cachedMainFrame = mFrame
 	end
-
 
 	if sEffects then
 		if getgenv().Config.Mods.NoVisor then
@@ -8716,6 +9328,7 @@ function InstantHitManager.Activate()
 		if
 			not getgenv().Config.Combat.InstantHit
 			and not getgenv().Config.SilentAim.Enabled
+			and not getgenv()._TPKillActive
 			and not (getgenv()._AutopilotTargetOverride and getgenv()._DeltaIsAutoHolding)
 		then
 			return false
@@ -8731,6 +9344,8 @@ function InstantHitManager.Activate()
 			local bulletId = args[2]
 			local fireTimestamp = args[3]
 
+			-- TPKill diagnostic: confirm FireProjectile is being intercepted at all
+
 			local target = nil
 			if getgenv()._AutopilotTargetOverride and getgenv()._DeltaIsAutoHolding then
 				target = getgenv()._AutopilotTargetOverride
@@ -8738,38 +9353,51 @@ function InstantHitManager.Activate()
 				target = TargetManager and TargetManager.CurrentTarget
 			end
 
-			if target then
-				local targetPartName = getgenv().Config.SilentAim and getgenv().Config.SilentAim.TargetPart or "Head"
-				local targetAimPart = (target.Character and target.Character:FindFirstChild(targetPartName))
-					or target.Head
+			local targetAimPart = nil
 
-				if targetAimPart then
-					local origin = workspace.CurrentCamera.CFrame.Position
-					local isUnderground = getgenv().Config.Combat.UndergroundDesync
+			if getgenv()._TPKillActive and getgenv()._TPKillTarget then
+				-- If TPKill is active, we MUST shoot at the locked TPKill target.
+				local char = getgenv()._TPKillTarget.Parent
+				targetAimPart = char and char:FindFirstChild("Head") or getgenv()._TPKillTarget
+			elseif target then
+				local targetPartName = getgenv().Config.SilentAim and getgenv().Config.SilentAim.TargetPart or "Head"
+				targetAimPart = (target.Character and target.Character:FindFirstChild(targetPartName))
+					or (target.Character and target.Character:FindFirstChild("Head"))
+					or (target.Character and target.Character.PrimaryPart)
+			end
+
+			if targetAimPart then
+				local serverOrigin
+				local isUnderground = false
+
+				local realOrigin = workspace.CurrentCamera.CFrame.Position
+				if not getgenv().CachedFunctionLibraryExtension then
+					pcall(function()
+						getgenv().CachedFunctionLibraryExtension = require(
+							ReplicatedStorage:WaitForChild("Modules", 2):WaitForChild("FunctionLibraryExtension", 2)
+						)
+					end)
+				end
+				if getgenv().CachedFunctionLibraryExtension then
+					pcall(function()
+						realOrigin = getgenv().CachedFunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
+					end)
+				end
+
+				if getgenv()._TPKillActive and getgenv()._TPKillPos then
+					local basePos = getgenv()._TPKillPos
+					serverOrigin = basePos + Vector3.new(0, 1.6, 0)
+				else
+					isUnderground = getgenv().Config.Combat.UndergroundDesync
 						and getgenv()._StoredRealCFrame
 						and not getgenv()._TPKillActive
 
-					local realOrigin = origin
-					if not getgenv().CachedFunctionLibraryExtension then
-						pcall(function()
-							getgenv().CachedFunctionLibraryExtension = require(
-								ReplicatedStorage:WaitForChild("Modules", 2):WaitForChild("FunctionLibraryExtension", 2)
-							)
-						end)
-					end
-					if getgenv().CachedFunctionLibraryExtension then
-						pcall(function()
-							realOrigin =
-								getgenv().CachedFunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
-						end)
-					end
-
-					local serverOrigin = realOrigin
+					serverOrigin = realOrigin
 					local found_origin = nil
 
 					if getgenv().Config.Combat.OriginManipulation then
-						local targetRoot = target.RootPart
-							or (target.Character and target.Character:FindFirstChild("HumanoidRootPart"))
+						local targetRoot = (target and target.RootPart)
+							or (target and target.Character and target.Character:FindFirstChild("HumanoidRootPart"))
 							or targetAimPart
 						found_origin = getgenv().CharacterManager
 							and getgenv().CharacterManager.GetManipulatedOrigin
@@ -8789,74 +9417,135 @@ function InstantHitManager.Activate()
 					elseif found_origin then
 						serverOrigin = found_origin
 					end
-
-					local ammoName = getgenv().LastFiredAmmoName or ""
-					local v = (getgenv().DeltaVelocityCache and getgenv().DeltaVelocityCache[ammoName]) or 2500
-
-					local distance = (targetAimPart.Position - serverOrigin).Magnitude
-					local perfectDirection = (targetAimPart.Position - serverOrigin).Unit
-
-					-- ALWAYS apply the 15% safety margin.
-					-- Without this, strict mathematically perfect timing fails due to minor network jitter
-					local safeVelocity = v * 0.85
-					local expectedFlightTime = distance / safeVelocity
-
-					if getgenv().AddLog then
-						getgenv().AddLog(
-							string.format(
-								"[InstantHit Calc] Dist: %.2f | V: %.2f | SafeV: %.2f | FlightTime: %.4f | UGR: %s",
-								distance,
-								v,
-								safeVelocity,
-								expectedFlightTime,
-								tostring(isUnderground and true or false)
-							)
-						)
-					end
-
-					args[1] = perfectDirection
-
-					-- 2. Timestamp Backdating:
-					-- We make the server believe the bullet was fired in the past.
-					local spoofedFireTimestamp = fireTimestamp - expectedFlightTime
-
-					local hitWorldPos = targetAimPart.Position
-					local bulletWorldCFrame = CFrame.lookAt(hitWorldPos, hitWorldPos + perfectDirection)
-					local hitCFrame = targetAimPart.CFrame:ToObjectSpace(bulletWorldCFrame)
-
-					-- Overwrite the outbound FireProjectile timestamp with our aged timestamp
-					args[3] = spoofedFireTimestamp
-
-					-- Silence the game's natural physics packets so we don't spam the server and get kicked
-					forgedBullets[bulletId] = true
-
-					-- 1 FRAME DELAY: Crouch first, wait 1 frame, then send the damage packet
-					task.defer(function()
-						local inflict = getInflictRemote()
-						if inflict then
-							passedBullets[bulletId] = true
-
-							local isUnderground = (
-								getgenv().Config.Combat.UndergroundDesync or getgenv()._UndergroundResolverActive
-							) and not getgenv()._TPKillActive
-
-							if isUnderground then
-								-- Persistent crouch is already held server-side by the UGR toggle.
-								-- Just wait 1 frame so the server is guaranteed to have acknowledged
-								-- the crouching state before processing ProjectileInflict.
-								task.wait()
-							end
-
-							inflict:FireServer(targetAimPart, hitCFrame, bulletId, fireTimestamp)
-						end
-					end)
-
-					return false, function() end, args
 				end
+
+				local predictedPos = getgenv().Config.SilentAim.Prediction
+						and getgenv().Config.SilentAim.Enabled
+						and typeof(getgenv().PredictionPoint) == "Vector3"
+						and getgenv().PredictionPoint
+					or targetAimPart.Position
+
+				local distance
+				if getgenv()._TPKillActive and getgenv()._TPKillPos then
+					distance = (predictedPos - serverOrigin).Magnitude
+				else
+					local trueDistance = (predictedPos - realOrigin).Magnitude
+					local tpDistance = (predictedPos - serverOrigin).Magnitude
+					distance = math.max(trueDistance, tpDistance)
+				end
+
+				local ammoName = getgenv().LastFiredAmmoName or ""
+				local v = (getgenv().DeltaVelocityCache and getgenv().DeltaVelocityCache[ammoName]) or 2500
+
+				local safeVelocity = v * 0.85
+				local expectedFlightTime = distance / safeVelocity
+
+				local perfectDirection = (predictedPos - serverOrigin).Unit
+
+				if getgenv().AddLog then
+					getgenv().AddLog(
+						string.format(
+							"[InstantHit Calc] Dist: %.2f | V: %.2f | SafeV: %.2f | FlightTime: %.4f | UGR: %s",
+							distance,
+							v,
+							safeVelocity,
+							expectedFlightTime,
+							tostring(isUnderground and true or false)
+						)
+					)
+				end
+
+				args[1] = perfectDirection
+
+				-- Standard InstantHit: Backdate FireProjectile so it arrives instantly.
+				-- Since TPKill waits for ping before firing, the server already knows we are in the sky,
+				-- so we can safely backdate the shot without causing an invalid origin reject.
+				local spoofedFireTimestamp = fireTimestamp - expectedFlightTime
+				local inflictDelay = 0
+
+				local inflictTimestamp = fireTimestamp
+
+				local hitWorldPos
+				local rayParams = RaycastParams.new()
+				rayParams.FilterType = Enum.RaycastFilterType.Include
+				if targetAimPart.Parent then
+					rayParams.FilterDescendantsInstances = { targetAimPart.Parent }
+				else
+					rayParams.FilterDescendantsInstances = { targetAimPart }
+				end
+
+				local rayResult = workspace:Raycast(serverOrigin, perfectDirection * (distance + 10), rayParams)
+				if rayResult then
+					hitWorldPos = rayResult.Position
+				else
+					hitWorldPos = targetAimPart.Position - (perfectDirection * 0.55)
+				end
+
+				hitWorldPos = hitWorldPos
+					+ Vector3.new(math.random(-5, 5) / 1000, math.random(-5, 5) / 1000, math.random(-5, 5) / 1000)
+
+				-- Mathematically precise hit CFrame (position only, identity rotation like native script)
+				local bulletWorldCFrame = CFrame.new(hitWorldPos)
+				local hitCFrame = targetAimPart.CFrame:ToObjectSpace(bulletWorldCFrame)
+
+				args[3] = spoofedFireTimestamp
+				forgedBullets[bulletId] = true
+
+				local function sendInflict()
+					local inflict = getInflictRemote()
+					if inflict then
+						passedBullets[bulletId] = true
+
+						local isUnderground = (
+							getgenv().Config.Combat.UndergroundDesync or getgenv()._UndergroundResolverActive
+						) and not getgenv()._TPKillActive
+						if isUnderground then
+							task.wait()
+						end
+
+						if getgenv()._TPKillActive then
+							local debugMsg = string.format(
+								"[TPKILL EXPLICIT] BulletId: %s | Target: %s | SentDir: %.3f,%.3f,%.3f | OrigCFrame: %.1f,%.1f,%.1f | TargetPos: %.1f,%.1f,%.1f | HitCFrame.Z: %.3f | Inflict Timestamp: %s",
+								tostring(bulletId),
+								tostring(targetAimPart),
+								args[1].X,
+								args[1].Y,
+								args[1].Z,
+								getgenv()._TPKillOriginalCFrame and getgenv()._TPKillOriginalCFrame.Position.X or 0,
+								getgenv()._TPKillOriginalCFrame and getgenv()._TPKillOriginalCFrame.Position.Y or 0,
+								getgenv()._TPKillOriginalCFrame and getgenv()._TPKillOriginalCFrame.Position.Z or 0,
+								targetAimPart.Position.X,
+								targetAimPart.Position.Y,
+								targetAimPart.Position.Z,
+								hitCFrame.ZVector.Z,
+								tostring(inflictTimestamp)
+							)
+							print(debugMsg)
+							if getgenv().AddLog then
+								getgenv().AddLog(debugMsg)
+							end
+						end
+
+						inflict:FireServer(targetAimPart, hitCFrame, bulletId, inflictTimestamp)
+					end
+				end
+
+				if inflictDelay > 0 then
+					task.spawn(function()
+						task.wait(inflictDelay)
+						sendInflict()
+					end)
+				else
+					task.defer(sendInflict)
+				end
+
+				return false, function() end, args
 			end
 			return false
 		elseif method == "FireServer" and remoteName == "ProjectileInflict" then
-			if not getgenv().Config.Combat.InstantHit then
+			-- Gate: only run forged/natural packet management when InstantHit OR TPKill
+			-- is the feature responsible.
+			if not getgenv().Config.Combat.InstantHit and not getgenv()._TPKillActive then
 				return false
 			end
 			local bulletId = args[3]
@@ -8903,7 +9592,9 @@ table.insert(
 
 local function UpdateViewmodelRender()
 	local camera = Workspace.CurrentCamera
-	if not camera then return end
+	if not camera then
+		return
+	end
 
 	local isADS = false
 	local configCombat = getgenv().Config.Combat
@@ -8921,25 +9612,46 @@ local function UpdateViewmodelRender()
 	local baseTrans = math.clamp(config.ViewmodelChamsTransparency, 0, 1)
 
 	local viewModel = camera:FindFirstChild("ViewModel")
-	if not viewModel or not viewModel:IsA("Model") then return end
+	if not viewModel or not viewModel:IsA("Model") then
+		return
+	end
 
 	-- Initialize Caches
 	if not getgenv().DeltaViewmodelOriginalProps then
-		getgenv().DeltaViewmodelOriginalProps = setmetatable({}, {__mode = "k"})
+		getgenv().DeltaViewmodelOriginalProps = setmetatable({}, { __mode = "k" })
 	end
 	if not getgenv().DeltaViewmodelAppliedProps then
-		getgenv().DeltaViewmodelAppliedProps = setmetatable({}, {__mode = "k"})
+		getgenv().DeltaViewmodelAppliedProps = setmetatable({}, { __mode = "k" })
 	end
 
 	-- Rebuild Cache if needed
 	local currentDescendantsCount = #viewModel:GetDescendants()
-	if getgenv().DeltaCachedViewmodelParent ~= viewModel or not getgenv().DeltaCachedActiveTargets or getgenv().DeltaCachedViewmodelCount ~= currentDescendantsCount then
+	local cacheValid = true
+
+	if
+		getgenv().DeltaCachedViewmodelParent ~= viewModel
+		or not getgenv().DeltaCachedActiveTargets
+		or getgenv().DeltaCachedViewmodelCount ~= currentDescendantsCount
+	then
+		cacheValid = false
+	end
+
+	if cacheValid and getgenv().DeltaCachedActiveParts then
+		for _, desc in ipairs(viewModel:GetDescendants()) do
+			if desc:IsA("BasePart") and not getgenv().DeltaCachedActiveParts[desc] then
+				cacheValid = false
+				break
+			end
+		end
+	end
+
+	if not cacheValid then
 		getgenv().DeltaCachedViewmodelParent = viewModel
 		getgenv().DeltaCachedViewmodelCount = currentDescendantsCount
-		
+
 		local tTargets, tParts = {}, {}
 		local bPartsArray = {}
-		
+
 		local function isBodyPart(name)
 			name = string.lower(name)
 			return string.find(name, "arm")
@@ -8964,11 +9676,11 @@ local function UpdateViewmodelRender()
 				end
 			end
 		end
-		
+
 		for _, desc in ipairs(viewModel:GetDescendants()) do
 			if desc:IsA("BasePart") then
 				table.insert(bPartsArray, desc)
-				
+
 				-- Pre-cache original properties
 				local specMesh = desc:FindFirstChildWhichIsA("SpecialMesh")
 				local surfApp = desc:FindFirstChildWhichIsA("SurfaceAppearance")
@@ -8983,7 +9695,7 @@ local function UpdateViewmodelRender()
 				}
 			end
 		end
-		
+
 		getgenv().DeltaCachedActiveTargets = tTargets
 		getgenv().DeltaCachedActiveParts = tParts
 		getgenv().DeltaCachedBasePartsArray = bPartsArray
@@ -8994,7 +9706,7 @@ local function UpdateViewmodelRender()
 	local baseParts = getgenv().DeltaCachedBasePartsArray
 	local origProps = getgenv().DeltaViewmodelOriginalProps
 	local appliedProps = getgenv().DeltaViewmodelAppliedProps
-	
+
 	local armColor = config.ViewmodelArmColor
 	local gunColor = config.ViewmodelGunColor
 	local armMat = Enum.Material[config.ViewmodelArmMaterial] or Enum.Material.ForceField
@@ -9005,7 +9717,7 @@ local function UpdateViewmodelRender()
 		local pType = activePartsCache[desc]
 		local props = origProps[desc]
 		local current = appliedProps[desc]
-		
+
 		if props then
 			-- 1. Apply Transparency Modifier (HideArms/ADS)
 			local isArm = pType == "Body"
@@ -9017,34 +9729,56 @@ local function UpdateViewmodelRender()
 
 			-- 2. Apply Chams
 			local chamsActive = (isArm and armEnabled) or (pType == "Gun" and gunEnabled)
-			
+
 			if chamsActive and props.Transparency < 1 then
 				local targetTrans = baseTrans
 				local targetColor = isArm and armColor or gunColor
 				local targetMaterial = isArm and armMat or gunMat
 
-				if not current or current.T ~= targetTrans or current.C ~= targetColor or current.M ~= targetMaterial then
+				if
+					not current
+					or current.T ~= targetTrans
+					or current.C ~= targetColor
+					or current.M ~= targetMaterial
+				then
 					desc.Transparency = targetTrans
 					desc.Material = targetMaterial
 					desc.Color = targetColor
-					
-					if desc:IsA("MeshPart") then desc.TextureID = "" end
-					if props.SpecMesh then props.SpecMesh.TextureId = "" end
-					if props.SurfApp and props.SurfApp.Parent == desc then props.SurfApp.Parent = nil end
-					
+
+					if desc:IsA("MeshPart") then
+						desc.TextureID = ""
+					end
+					if props.SpecMesh then
+						props.SpecMesh.TextureId = ""
+					end
+					if props.SurfApp and props.SurfApp.Parent == desc then
+						props.SurfApp.Parent = nil
+					end
+
 					appliedProps[desc] = { T = targetTrans, C = targetColor, M = targetMaterial }
 				end
 			else
 				-- Restore original properties if Chams disabled
-				if not current or current.T ~= props.Transparency or current.C ~= props.Color or current.M ~= props.Material then
+				if
+					not current
+					or current.T ~= props.Transparency
+					or current.C ~= props.Color
+					or current.M ~= props.Material
+				then
 					desc.Transparency = props.Transparency
 					desc.Material = props.Material
 					desc.Color = props.Color
-					
-					if desc:IsA("MeshPart") and props.TextureID then desc.TextureID = props.TextureID end
-					if props.SpecMesh and props.SpecMeshTex then props.SpecMesh.TextureId = props.SpecMeshTex end
-					if props.SurfApp and props.SurfApp.Parent ~= desc then props.SurfApp.Parent = desc end
-					
+
+					if desc:IsA("MeshPart") and props.TextureID then
+						desc.TextureID = props.TextureID
+					end
+					if props.SpecMesh and props.SpecMeshTex then
+						props.SpecMesh.TextureId = props.SpecMeshTex
+					end
+					if props.SurfApp and props.SurfApp.Parent ~= desc then
+						props.SurfApp.Parent = desc
+					end
+
 					appliedProps[desc] = { T = props.Transparency, C = props.Color, M = props.Material }
 				end
 			end
@@ -9054,13 +9788,19 @@ end
 
 local function UpdateViewmodelOffset()
 	local camera = Workspace.CurrentCamera
-	if not camera then return end
+	if not camera then
+		return
+	end
 
 	local viewModel = camera:FindFirstChild("ViewModel")
-	if not viewModel or not viewModel:IsA("Model") then return end
+	if not viewModel or not viewModel:IsA("Model") then
+		return
+	end
 
 	local hrp = viewModel:FindFirstChild("HumanoidRootPart")
-	if not hrp then return end
+	if not hrp then
+		return
+	end
 
 	local config = getgenv().Config.ESP
 	local vec = Vector3.new(config.ViewmodelOffsetX, config.ViewmodelOffsetY, config.ViewmodelOffsetZ)
@@ -9070,7 +9810,7 @@ local function UpdateViewmodelOffset()
 	end
 	local origC0 = getgenv().DeltaViewmodelOriginalC0
 
-	local joints = {"LeftUpperArm", "RightUpperArm", "ItemRoot", "Motor6D"}
+	local joints = { "LeftUpperArm", "RightUpperArm", "ItemRoot", "Motor6D" }
 	for _, jointName in ipairs(joints) do
 		local weld = hrp:FindFirstChild(jointName)
 		if weld and weld:IsA("Motor6D") then
@@ -9087,10 +9827,14 @@ end
 
 -- Hook into Camera to apply offset when viewmodel is added, and CLEAR cache when removed
 local function hookCamera(cam)
-	if not cam then return end
+	if not cam then
+		return
+	end
 	cam.ChildAdded:Connect(function(child)
 		if child.Name == "ViewModel" or child:IsA("Model") then
-			task.delay(0.1, function() pcall(UpdateViewmodelOffset) end)
+			task.delay(0.1, function()
+				pcall(UpdateViewmodelOffset)
+			end)
 		end
 	end)
 	cam.ChildRemoved:Connect(function(child)
@@ -9580,53 +10324,102 @@ local renderConnection = RunService.RenderStepped:Connect(function()
 
 	if getgenv()._TPKillActive and getgenv().Config.Combat.TPKill then
 		local tpTarget = getgenv()._TPKillTarget
-		if tpTarget and tpTarget.Parent and tick() - getgenv()._TPKillStartTime < 1.5 then
+		if tpTarget and tpTarget.Parent and tick() - getgenv()._TPKillStartTime < 3 then
 			local char = LocalPlayer.Character
 			local hrp = char and (char.PrimaryPart or char:FindFirstChild("HumanoidRootPart"))
 			if hrp then
 				local height = getgenv().Config.Combat.TPKillHeight or 200
 				local tpType = getgenv().Config.Combat.TPKillType
 				local newPos
+
 				if tpType == 2 or tpType == "Below" then
 					local undergroundDist = math.min(80, height)
 					local safeY = tpTarget.Position.Y - undergroundDist
 					if safeY <= -3 then
 						safeY = -3 + 5
 					end
-					newPos = Vector3.new(tpTarget.Position.X, safeY, tpTarget.Position.Z)
+					newPos = tpTarget.Position + Vector3.new(0, safeY - tpTarget.Position.Y, 0)
 				else
 					newPos = tpTarget.Position + Vector3.new(0, height, 0)
 				end
+				getgenv()._TPKillPos = newPos
 
-				hrp.CFrame = CFrame.new(newPos) * hrp.CFrame.Rotation
+				local lookTargetPos = tpTarget.Position
+				if tpTarget.Parent and tpTarget.Parent:FindFirstChild("Head") then
+					lookTargetPos = tpTarget.Parent.Head.Position
+				end
+				-- Only look horizontally, let UpdateTilt handle vertical aiming
+				local horizontalTarget = Vector3.new(lookTargetPos.X, newPos.Y, lookTargetPos.Z)
+				if (horizontalTarget - newPos).Magnitude < 0.001 then
+					horizontalTarget = newPos + Vector3.new(1, 0, 0)
+				end
+				hrp.CFrame = CFrame.lookAt(newPos, horizontalTarget)
+				hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+				hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
 
 				if getgenv()._TPKillPlatform then
 					getgenv()._TPKillPlatform.CFrame = CFrame.new(newPos - Vector3.new(0, 3, 0))
 				end
 
-				local cam = workspace.CurrentCamera
-				if cam then
-					cam.CFrame = CFrame.new(cam.CFrame.Position, tpTarget.Position)
-				end
+				-- Wait for the player's position to replicate to the server based on ping
+				if not getgenv()._tpkill_ready then
+					if not getgenv()._tpkill_waiting then
+						getgenv()._tpkill_waiting = true
+						task.spawn(function()
+							local stats = game:GetService("Stats")
+							local network = stats:FindFirstChild("Network")
+							local ping = 0.05
+							if network then
+								local serverStatsItem = network:FindFirstChild("ServerStatsItem")
+								if serverStatsItem then
+									local dataPing = serverStatsItem:FindFirstChild("Data Ping")
+									if dataPing then
+										ping = dataPing:GetValue() / 1000
+									end
+								end
+							end
 
-				if not getgenv()._trigger_held then
-					getgenv()._trigger_held = true
-					if type(mouse1press) == "function" then
-						pcall(mouse1press)
+							-- Wait strictly for physics replication to arrive on the server.
+							-- Polling LastVerifiedPos takes too long (2s delay), causing the target to move and the shot to miss.
+							task.wait(math.clamp(ping, 0.05, 0.2) + 0.03)
+
+							getgenv()._tpkill_ready = true
+							getgenv()._tpkill_waiting = false
+						end)
+					end
+				else
+					-- Ensure we are still active and target still exists after the wait
+					if getgenv()._TPKillActive and getgenv()._TPKillTarget and getgenv()._TPKillTarget.Parent then
+						-- Fire AFTER teleporting and waiting so FireProjectile is dispatched from the sky
+						if not getgenv()._trigger_held then
+							getgenv()._trigger_held = true
+							if getgenv()._DeltaNativePress then
+								getgenv()._DeltaNativePress(getgenv()._DeltaActiveWeaponTable)
+							end
+						end
 					end
 				end
 			end
 		elseif getgenv()._TPKillActive then
 			-- Timeout or target lost, deactivate
 			if getgenv().AddLog then
-				getgenv().AddLog("[TPKill] Deactivated (Target lost or 1.5s timeout reached)")
+				getgenv().AddLog("[TPKill] Deactivated (Target lost or 3s timeout reached)")
 			end
 
 			if getgenv()._trigger_held then
 				getgenv()._trigger_held = false
-				if type(mouse1release) == "function" then
-					pcall(mouse1release)
+				if getgenv()._DeltaNativeRelease then
+					getgenv()._DeltaNativeRelease(getgenv()._DeltaActiveWeaponTable)
 				end
+			end
+
+			-- Safely and immediately restore position to prevent Noclip detected
+			local char = LocalPlayer.Character
+			local hrp = char and (char.PrimaryPart or char:FindFirstChild("HumanoidRootPart"))
+			if hrp and getgenv()._TPKillOriginalCFrame then
+				hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+				hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+				hrp.CFrame = getgenv()._TPKillOriginalCFrame + Vector3.new(0, 2, 0)
 			end
 
 			if getgenv().Toggles and getgenv().Toggles.TPKill then
@@ -9637,8 +10430,27 @@ local renderConnection = RunService.RenderStepped:Connect(function()
 end)
 table.insert(ConnectionList, renderConnection)
 
--- High priority camera and character override for 3rd person
+-- High priority camera and character overrides for TPKill
+RunService:BindToRenderStep("DeltaTPKillCameraLock", 201, function()
+	local cam = Workspace.CurrentCamera
+	if getgenv()._TPKillActive and getgenv()._TPKillTarget then
+		if cam then
+			local tpTarget = getgenv()._TPKillTarget
+			local lookTargetPos = tpTarget.Position
+			if tpTarget.Parent and tpTarget.Parent:FindFirstChild("Head") then
+				lookTargetPos = tpTarget.Parent.Head.Position
+			end
+			cam.CFrame = CFrame.lookAt(cam.CFrame.Position, lookTargetPos)
+		end
+	end
+end)
+
+-- Extreme priority camera and character overrides for ThirdPersonMod
 RunService:BindToRenderStep("DeltaThirdPersonMod", 10000, function()
+	if getgenv()._TPKillActive then
+		return
+	end -- Do not run ThirdPersonMod when TPKill is active
+
 	if getgenv().Config.Mods.ThirdPerson then
 		local char = Workspace:FindFirstChild(LocalPlayer.Name)
 		local cam = Workspace.CurrentCamera
@@ -9646,8 +10458,6 @@ RunService:BindToRenderStep("DeltaThirdPersonMod", 10000, function()
 			local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("RootPart") or char.PrimaryPart
 			local head = char:FindFirstChild("Head")
 			local zoomDist = getgenv().Config.Mods.ZoomDistance or 15
-
-			-- (Removed legacy BindToRenderStep logging)
 
 			if root then
 				local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -9716,7 +10526,7 @@ table.insert(
 
 			local distance = silentAimConfig.UndergroundDistance or 20
 
-			if getgenv().Config.Combat.UndergroundDesync then
+			if getgenv().Config.Combat.UndergroundDesync and game.PlaceId ~= 97143334217269 then
 				local preferredTargetY = startCFrame.Position.Y - distance
 				local hardcodedTerrainY = -3
 
@@ -9724,16 +10534,6 @@ table.insert(
 				-- stop 5 studs above it to avoid void-falling.
 				if preferredTargetY <= hardcodedTerrainY then
 					distance = startCFrame.Position.Y - (hardcodedTerrainY + 5)
-					if getgenv().AddLog then
-						getgenv().AddLog(
-							string.format(
-								"[UGR] Hardcoded Terrain Check: Target adjusted. Preferred Y=%.2f, Terrain Y=%.2f. New Distance=%.2f",
-								preferredTargetY,
-								hardcodedTerrainY,
-								distance
-							)
-						)
-					end
 				end
 			end
 
@@ -9792,25 +10592,6 @@ table.insert(
 				humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
 			end
 
-			if getgenv().AddLog then
-				local sp = startCFrame.Position
-				local tp = targetCFrame.Position
-				getgenv().AddLog(
-					string.format(
-						"[UGR START] Velocity Frozen Drop startCF=%.2f,%.2f,%.2f targetCF=%.2f,%.2f,%.2f dist=%.1f dur=%.2f | Desync=%s",
-						sp.X,
-						sp.Y,
-						sp.Z,
-						tp.X,
-						tp.Y,
-						tp.Z,
-						distance,
-						duration,
-						tostring(getgenv().Config.Combat.UndergroundDesync == true)
-					)
-				)
-			end
-
 			tweenDown:Play()
 			tweenDown.Completed:Connect(function()
 				-- Destroy BEFORE Disconnect: prevents a ghost .Changed firing with an underground
@@ -9820,25 +10601,6 @@ table.insert(
 				if velocityConn then
 					velocityConn:Disconnect()
 					velocityConn = nil
-				end
-
-				local hrpPosNow = hrp.CFrame.Position
-				local storedNow = getgenv()._StoredRealCFrame and getgenv()._StoredRealCFrame.Position
-				if getgenv().AddLog then
-					getgenv().AddLog(
-						string.format(
-							"[UGR COMPLETE] HRP now=%.2f,%.2f,%.2f | Stored=%.2f,%.2f,%.2f | startCF=%.2f,%.2f,%.2f",
-							hrpPosNow.X,
-							hrpPosNow.Y,
-							hrpPosNow.Z,
-							storedNow and storedNow.X or 0,
-							storedNow and storedNow.Y or 0,
-							storedNow and storedNow.Z or 0,
-							startCFrame.Position.X,
-							startCFrame.Position.Y,
-							startCFrame.Position.Z
-						)
-					)
 				end
 
 				-- Raycast downward from startCFrame to find the true terrain surface.
@@ -9864,18 +10626,6 @@ table.insert(
 					local safeY = surfaceY + rootHeight
 					local p = startCFrame.Position
 
-					if getgenv().AddLog then
-						getgenv().AddLog(
-							string.format(
-								"[UGR RAY HIT] inst=%s surfY=%.2f safeY=%.2f startY=%.2f",
-								rayResult.Instance and rayResult.Instance.Name or "?",
-								surfaceY,
-								safeY,
-								p.Y
-							)
-						)
-					end
-
 					-- Remove any pitch/roll that might clip corners into the terrain
 					local look = startCFrame.LookVector
 					local flatLook = Vector3.new(look.X, 0, look.Z).Unit
@@ -9887,29 +10637,6 @@ table.insert(
 						Vector3.new(p.X + flatLook.X, safeY, p.Z + flatLook.Z)
 					)
 				else
-					if getgenv().AddLog then
-						getgenv().AddLog(
-							string.format(
-								"[UGR RAY MISS] No terrain found below startCF %.2f,%.2f,%.2f ΓÇö using startCFrame as-is",
-								startCFrame.Position.X,
-								startCFrame.Position.Y,
-								startCFrame.Position.Z
-							)
-						)
-					end
-				end
-
-				local finalPos = safeReturnCFrame.Position
-				if getgenv().AddLog then
-					getgenv().AddLog(
-						string.format(
-							"[UGR SNAP] Snapping HRP to %.2f,%.2f,%.2f | deltaY from startCF=%.3f",
-							finalPos.X,
-							finalPos.Y,
-							finalPos.Z,
-							finalPos.Y - startCFrame.Position.Y
-						)
-					)
 				end
 
 				if getgenv().Config.Combat.UndergroundDesync then
@@ -9933,9 +10660,6 @@ table.insert(
 					end)
 
 					getgenv()._DesyncOffsetSuppressed = true
-					if getgenv().AddLog then
-						getgenv().AddLog("[UGR] Tweening back up to surface...")
-					end
 
 					tweenUp:Play()
 					tweenUp.Completed:Connect(function()
@@ -9960,16 +10684,10 @@ table.insert(
 
 						getgenv()._UndergroundResolverActive = false
 						getgenv()._LastGuardDeactivate = tick()
-						if getgenv().AddLog then
-							getgenv().AddLog("[UGR FLAG] _UndergroundResolverActive released → false")
-						end
 
 						-- Give physics 0.3s to land on the surface cleanly before applying the deep offset
 						task.delay(0.3, function()
 							getgenv()._DesyncOffsetSuppressed = false
-							if getgenv().AddLog then
-								getgenv().AddLog("[UGR] Desync offset re-enabled")
-							end
 						end)
 					end)
 				else
@@ -10004,9 +10722,6 @@ table.insert(
 						end
 						getgenv()._UndergroundResolverActive = false
 						getgenv()._LastGuardDeactivate = tick()
-						if getgenv().AddLog then
-							getgenv().AddLog("[UGR FLAG] _UndergroundResolverActive released → false")
-						end
 					end)
 				end
 			end)
@@ -10077,25 +10792,6 @@ table.insert(
 				humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
 			end
 
-			if getgenv().AddLog then
-				local sp = startCFrame.Position
-				local tp = targetCFrame.Position
-				getgenv().AddLog(
-					string.format(
-						"[SKYPEEK START] Velocity Frozen Drop startCF=%.2f,%.2f,%.2f targetCF=%.2f,%.2f,%.2f dist=%.1f dur=%.2f | Desync=%s",
-						sp.X,
-						sp.Y,
-						sp.Z,
-						tp.X,
-						tp.Y,
-						tp.Z,
-						distance,
-						duration,
-						tostring(getgenv().Config.Combat.UndergroundDesync == true)
-					)
-				)
-			end
-
 			tweenUp:Play()
 			tweenUp.Completed:Connect(function()
 				cfValue:Destroy()
@@ -10103,25 +10799,6 @@ table.insert(
 				if velocityConn then
 					velocityConn:Disconnect()
 					velocityConn = nil
-				end
-
-				local hrpPosNow = hrp.CFrame.Position
-				local storedNow = getgenv()._StoredRealCFrame and getgenv()._StoredRealCFrame.Position
-				if getgenv().AddLog then
-					getgenv().AddLog(
-						string.format(
-							"[SKYPEEK COMPLETE] HRP now=%.2f,%.2f,%.2f | Stored=%.2f,%.2f,%.2f | startCF=%.2f,%.2f,%.2f",
-							hrpPosNow.X,
-							hrpPosNow.Y,
-							hrpPosNow.Z,
-							storedNow and storedNow.X or 0,
-							storedNow and storedNow.Y or 0,
-							storedNow and storedNow.Z or 0,
-							startCFrame.Position.X,
-							startCFrame.Position.Y,
-							startCFrame.Position.Z
-						)
-					)
 				end
 
 				-- Raycast downward from startCFrame to find the true terrain surface.
@@ -10147,18 +10824,6 @@ table.insert(
 					local safeY = surfaceY + rootHeight
 					local p = startCFrame.Position
 
-					if getgenv().AddLog then
-						getgenv().AddLog(
-							string.format(
-								"[SKYPEEK RAY HIT] inst=%s surfY=%.2f safeY=%.2f startY=%.2f | adjusting=true",
-								rayResult.Instance and rayResult.Instance.Name or "?",
-								surfaceY,
-								safeY,
-								p.Y
-							)
-						)
-					end
-
 					-- Remove any pitch/roll that might clip corners into the terrain
 					local look = startCFrame.LookVector
 					local flatLook = Vector3.new(look.X, 0, look.Z).Unit
@@ -10170,29 +10835,6 @@ table.insert(
 						Vector3.new(p.X + flatLook.X, safeY, p.Z + flatLook.Z)
 					)
 				else
-					if getgenv().AddLog then
-						getgenv().AddLog(
-							string.format(
-								"[SKYPEEK RAY MISS] No terrain found below startCF %.2f,%.2f,%.2f — using startCFrame as-is",
-								startCFrame.Position.X,
-								startCFrame.Position.Y,
-								startCFrame.Position.Z
-							)
-						)
-					end
-				end
-
-				local finalPos = safeReturnCFrame.Position
-				if getgenv().AddLog then
-					getgenv().AddLog(
-						string.format(
-							"[SKYPEEK SNAP] Snapping HRP to %.2f,%.2f,%.2f | deltaY from startCF=%.3f",
-							finalPos.X,
-							finalPos.Y,
-							finalPos.Z,
-							finalPos.Y - startCFrame.Position.Y
-						)
-					)
 				end
 
 				-- Apply snap atomically: hrp.CFrame and _StoredRealCFrame must match
@@ -10302,15 +10944,35 @@ table.insert(
 )
 
 -- ==========================================
--- TriggerBot Manager (Packet-Based, Mouse-Free)
+-- TriggerBot Manager (Native Weapon Flag, Mouse-Free)
 -- ==========================================
 local TriggerBotManager = {}
 do
 	local tbConnection = nil
-	-- Global trigger state so TPKill can also read/write it if necessary.
 	if getgenv()._trigger_held == nil then
 		getgenv()._trigger_held = false
 	end
+
+	-- SUNC: Centralized native shoot helper.
+	-- Writes directly to the weapon controller's fire flags, bypassing all mouse input.
+	-- RapidFire forces FireMode to Auto on all weapons, so we only need to hold MouseHeld.
+	local function nativePress(ctrl)
+		if not ctrl then
+			return
+		end
+		rawset(ctrl, "MouseHeld", true)
+		rawset(ctrl, "LeftMouseDown", true)
+	end
+	local function nativeRelease(ctrl)
+		if not ctrl then
+			return
+		end
+		rawset(ctrl, "MouseHeld", false)
+		rawset(ctrl, "LeftMouseDown", false)
+	end
+	-- Expose for TPKill / other subsystems
+	getgenv()._DeltaNativePress = nativePress
+	getgenv()._DeltaNativeRelease = nativeRelease
 
 	function TriggerBotManager.Activate()
 		if tbConnection then
@@ -10318,24 +10980,18 @@ do
 		end
 
 		tbConnection = RunService.RenderStepped:Connect(function()
-			-- Note: TPKill now has its own hold state logic in its loop, so this
-			-- only governs standard TriggerBot behavior.
 			if not getgenv().Config.Combat.TriggerBot then
 				if getgenv()._trigger_held and not getgenv()._TPKillActive then
 					getgenv()._trigger_held = false
-					if type(mouse1release) == "function" then
-						pcall(mouse1release)
-					end
+					nativeRelease(getgenv()._DeltaActiveWeaponTable)
 				end
 				return
 			end
 
-			-- If TPKill is currently active, yield control of the mouse to it.
 			if getgenv()._TPKillActive then
 				return
 			end
 
-			-- Resolve target and aim part.
 			local config = getgenv().Config.SilentAim
 			local target = TargetManager.CurrentTarget
 			local shouldShoot = false
@@ -10345,13 +11001,11 @@ do
 				local aimPart = (target.Character and target.Character:FindFirstChild(targetPartName)) or target.Head
 
 				if aimPart then
-					-- Visibility gate: only fire when we have line-of-sight.
 					local characterModel = (target.Player and target.Player.Character) or target.Head.Parent
 					if CharacterManager.IsVisible(aimPart, characterModel) then
 						local rootPart = characterModel:FindFirstChild("HumanoidRootPart")
 						local hum = characterModel:FindFirstChildOfClass("Humanoid")
 						local health = (rootPart and rootPart:GetAttribute("Health")) or (hum and hum.Health) or 0
-
 						if health > 0 then
 							shouldShoot = true
 						end
@@ -10359,125 +11013,27 @@ do
 				end
 			end
 
-			if shouldShoot then
-				local uis = game:GetService("UserInputService")
-				local now = os.clock()
+			local ctrl = getgenv()._DeltaActiveWeaponTable
 
-				local isUIOpen = uis.MouseIconEnabled
-					or (Library and Library.Toggled)
-					or getgenv()._LinoriaIsToggled
-					or game:GetService("GuiService").MenuIsOpen
-					or uis:GetFocusedTextBox() ~= nil
+			local canShoot = shouldShoot and type(ctrl) == "table"
 
-				local activeWeapon = getgenv()._DeltaActiveWeaponTable
-				if type(activeWeapon) == "table" and activeWeapon.CancelTables then
-					for _, uiTable in ipairs(activeWeapon.CancelTables) do
-						if type(uiTable) == "table" and uiTable.Visible == true then
-							isUIOpen = true
-							break
-						end
-					end
-				end
-
-				if getgenv()._TriggerBotLastUIState ~= isUIOpen then
-					getgenv()._TriggerBotLastUIState = isUIOpen
-					if not getgenv().DebugLogs then
-						getgenv().DebugLogs = {}
-					end
-					table.insert(
-						getgenv().DebugLogs,
-						string.format(
-							"[%s] TriggerBot Debug: UI Open state is now %s (MouseBehavior: %s, MouseIconEnabled: %s)",
-							os.date("%X"),
-							tostring(isUIOpen),
-							tostring(uis.MouseBehavior),
-							tostring(uis.MouseIconEnabled)
-						)
-					)
-				end
-
-				local traceName = target.Player and target.Player.Name
-					or (target.Character and target.Character.Name)
-					or "Unknown"
-				if
-					getgenv()._TriggerBotLastShootTarget
-					~= traceName .. tostring(isUIOpen) .. tostring(uis.MouseBehavior)
-				then
-					getgenv()._TriggerBotLastShootTarget = traceName
-						.. tostring(isUIOpen)
-						.. tostring(uis.MouseBehavior)
-					if not getgenv().DebugLogs then
-						getgenv().DebugLogs = {}
-					end
-					table.insert(
-						getgenv().DebugLogs,
-						string.format(
-							"[%s] TriggerBot Debug: Target acquired: %s. MouseBehavior: %s, isUIOpen: %s",
-							os.date("%X"),
-							traceName,
-							tostring(uis.MouseBehavior),
-							tostring(isUIOpen)
-						)
-					)
-				end
-
-				if uis.MouseBehavior == Enum.MouseBehavior.LockCenter and not isUIOpen then
-					if not getgenv()._trigger_held then
-						if type(mouse1press) == "function" then
-							if not getgenv().DebugLogs then
-								getgenv().DebugLogs = {}
-							end
-							table.insert(
-								getgenv().DebugLogs,
-								string.format("[%s] TriggerBot Debug: Initiated mouse1press", os.date("%X"))
-							)
-							pcall(mouse1press)
-							getgenv()._trigger_held = true
-							getgenv()._trigger_last_press = now
-						end
-					else
-						-- Calculate dynamic pulse delay based on RapidFire
-						local pulseDelay = 0.05
-						if getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.RapidFire then
-							local multiplier = getgenv().Config.Combat.RapidFireValue or 3
-							pulseDelay = math.clamp(0.05 / multiplier, 0.01, 0.05)
-						end
-
-						if now - (getgenv()._trigger_last_press or 0) > pulseDelay then
-							if type(mouse1release) == "function" then
-								pcall(mouse1release)
-							end
+			if canShoot then
+				if not getgenv()._trigger_held then
+					nativePress(ctrl)
+					getgenv()._trigger_held = true
+					getgenv()._trigger_last_press = os.clock()
+				else
+					local rapidFire = getgenv().Config and getgenv().Config.Combat and getgenv().Config.Combat.RapidFire
+					if not rapidFire then
+						if os.clock() - (getgenv()._trigger_last_press or 0) > 0.05 then
+							nativeRelease(ctrl)
 							getgenv()._trigger_held = false
 						end
 					end
-				else
-					-- Release if mouse isn't locked (e.g. inventory open)
-					if getgenv()._trigger_held then
-						if type(mouse1release) == "function" then
-							pcall(mouse1release)
-						end
-						getgenv()._trigger_held = false
-					end
 				end
 			else
-				if getgenv()._TriggerBotLastShootTarget ~= "None" then
-					getgenv()._TriggerBotLastShootTarget = "None"
-					if not getgenv().DebugLogs then
-						getgenv().DebugLogs = {}
-					end
-					table.insert(
-						getgenv().DebugLogs,
-						string.format(
-							"[%s] TriggerBot Debug: No valid target found. shouldShoot is false.",
-							os.date("%X")
-						)
-					)
-				end
-
 				if getgenv()._trigger_held then
-					if type(mouse1release) == "function" then
-						pcall(mouse1release)
-					end
+					nativeRelease(ctrl)
 					getgenv()._trigger_held = false
 				end
 			end
@@ -10493,9 +11049,7 @@ do
 		end
 		if getgenv()._trigger_held then
 			getgenv()._trigger_held = false
-			if type(mouse1release) == "function" then
-				pcall(mouse1release)
-			end
+			nativeRelease(getgenv()._DeltaActiveWeaponTable)
 		end
 	end
 
@@ -10529,21 +11083,25 @@ RunService:BindToRenderStep("DeltaNoScopeEnforcer", 3100, function()
 					end
 				end
 			end
-			
+
 			-- Legacy generic 2D fallback targets
-			local targets = {"Scope", "ScopeFrame", "SightFrame", "Lens", "Reticle", "BlackScreen"}
+			local targets = { "Scope", "ScopeFrame", "SightFrame", "Lens", "Reticle", "BlackScreen" }
 			for _, name in ipairs(targets) do
 				local obj = sEffects:FindFirstChild(name)
-				if obj and obj.Visible then obj.Visible = false end
+				if obj and obj.Visible then
+					obj.Visible = false
+				end
 			end
 		end
-		
+
 		local mFrame = getgenv()._cachedMainFrame
 		if mFrame then
-			local targets = {"Scope", "ScopeFrame", "SightFrame", "Lens", "Reticle", "BlackScreen"}
+			local targets = { "Scope", "ScopeFrame", "SightFrame", "Lens", "Reticle", "BlackScreen" }
 			for _, name in ipairs(targets) do
 				local obj = mFrame:FindFirstChild(name)
-				if obj and obj.Visible then obj.Visible = false end
+				if obj and obj.Visible then
+					obj.Visible = false
+				end
 			end
 		end
 
@@ -10570,6 +11128,7 @@ RunService:BindToRenderStep("DeltaNoScopeEnforcer", 3100, function()
 		end
 	end
 end)
+
 task.delay(1, function()
 	getgenv()._DeltaScriptSilentToggles = false
 end)
