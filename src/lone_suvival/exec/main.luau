@@ -39,6 +39,9 @@ getgenv().Config = getgenv().Config
 			VisibleCheckColor = Color3.fromRGB(0, 255, 0),
 			VisibleChamsFillColor = Color3.fromRGB(255, 255, 255),
 			VisibleChamsOutlineColor = Color3.fromRGB(255, 255, 255),
+			CorpseESP = false,
+			CorpseChams = false,
+			CorpseColor = Color3.fromRGB(150, 150, 150),
 		},
 		SilentAim = {
 			Enabled = false,
@@ -222,10 +225,26 @@ function ESPManager:Update()
 		end
 
 		-- Check filters
-		local isPlayer = model == LocalPlayer.Character
-		local showBox = not isPlayer and (cache.IsNPC and espConfig.NPCESP or not cache.IsNPC and espConfig.PlayerESP)
-		local showChams = not isPlayer
+		local isLocalPlayer = false
+		local isCorpse = model.Name == "Sleeper"
+		
+		if LocalPlayer.Character and model == LocalPlayer.Character then
+			isLocalPlayer = true
+		elseif model.Name == tostring(LocalPlayer.UserId) then
+			isLocalPlayer = true
+		elseif isCorpse and model.Parent and model.Parent.Name == tostring(LocalPlayer.UserId) then
+			isLocalPlayer = true
+		end
+		
+		local showBox = not isLocalPlayer and (cache.IsNPC and espConfig.NPCESP or not cache.IsNPC and espConfig.PlayerESP)
+		local showChams = not isLocalPlayer
 			and (cache.IsNPC and espConfig.NPCChams or not cache.IsNPC and espConfig.PlayerChams)
+			
+		-- Override for corpses
+		if isCorpse and not isLocalPlayer then
+			showBox = espConfig.CorpseESP
+			showChams = espConfig.CorpseChams
+		end
 
 		if not showBox and not showChams then
 			for _, drawing in pairs(drawings) do
@@ -249,7 +268,7 @@ function ESPManager:Update()
 		end
 
 		local isVisible = false
-		if espConfig.VisibleCheck then
+		if espConfig.VisibleCheck and not isCorpse then
 			if not ignoreList then
 				ignoreList = { Camera, LocalPlayer.Character }
 				for m, c in pairs(self.Cache) do
@@ -263,9 +282,14 @@ function ESPManager:Update()
 		end
 
 		if showChams and cache.Highlight then
-			cache.Highlight.FillColor = isVisible and espConfig.VisibleChamsFillColor or espConfig.ChamsFillColor
-			cache.Highlight.OutlineColor = isVisible and espConfig.VisibleChamsOutlineColor
-				or espConfig.ChamsOutlineColor
+			if isCorpse then
+				cache.Highlight.FillColor = espConfig.CorpseColor
+				cache.Highlight.OutlineColor = espConfig.CorpseColor
+			else
+				cache.Highlight.FillColor = isVisible and espConfig.VisibleChamsFillColor or espConfig.ChamsFillColor
+				cache.Highlight.OutlineColor = isVisible and espConfig.VisibleChamsOutlineColor
+					or espConfig.ChamsOutlineColor
+			end
 			cache.Highlight.FillTransparency = espConfig.ChamsFillTransparency
 			cache.Highlight.OutlineTransparency = espConfig.ChamsOutlineTransparency
 			cache.Highlight.Enabled = true
@@ -292,7 +316,7 @@ function ESPManager:Update()
 
 			drawings.Box.Position = boxTopLeft
 			drawings.Box.Size = boxSize
-			drawings.Box.Color = espConfig.BoxColor
+			drawings.Box.Color = isCorpse and espConfig.CorpseColor or espConfig.BoxColor
 			drawings.Box.Transparency = espConfig.BoxTransparency
 			drawings.Box.Visible = true
 
@@ -301,23 +325,23 @@ function ESPManager:Update()
 
 			drawings.HealthOutline.Position = Vector2.new(boxTopLeft.X - 6, boxTopLeft.Y - 1)
 			drawings.HealthOutline.Size = Vector2.new(4, boxHeight + 2)
-			drawings.HealthOutline.Visible = true
+			drawings.HealthOutline.Visible = not isCorpse
 
 			drawings.HealthFill.Position = Vector2.new(boxTopLeft.X - 5, boxTopLeft.Y + (boxHeight - healthBarHeight))
 			drawings.HealthFill.Size = Vector2.new(2, healthBarHeight)
 			drawings.HealthFill.Color = Color3.new(1 - healthPercent, healthPercent, 0)
-			drawings.HealthFill.Visible = true
+			drawings.HealthFill.Visible = not isCorpse
 
-			drawings.Name.Text = model.Name
+			drawings.Name.Text = isCorpse and "Corpse" or model.Name
 			drawings.Name.Position = Vector2.new(pos.X, boxTopLeft.Y - drawings.Name.Size - 2)
 			drawings.Name.Size = espConfig.TextSize
-			drawings.Name.Color = isVisible and espConfig.VisibleCheckColor or espConfig.TextColor
+			drawings.Name.Color = isCorpse and espConfig.CorpseColor or (isVisible and espConfig.VisibleCheckColor or espConfig.TextColor)
 			drawings.Name.Visible = true
 
 			drawings.Distance.Text = string.format("[%d m]", math.floor(distanceMeters))
 			drawings.Distance.Position = Vector2.new(pos.X, boxTopLeft.Y + boxHeight + 2)
 			drawings.Distance.Size = espConfig.TextSize
-			drawings.Distance.Color = isVisible and espConfig.VisibleCheckColor or espConfig.TextColor
+			drawings.Distance.Color = isCorpse and espConfig.CorpseColor or (isVisible and espConfig.VisibleCheckColor or espConfig.TextColor)
 			drawings.Distance.Visible = true
 		else
 			for _, drawing in pairs(drawings) do
@@ -331,15 +355,21 @@ end
 -- Track Folders
 -- ==========================================
 local function SetupFolderTracking()
-	-- The live game uses 'OfflinePlayers' for physical player models, and 'AI' for NPCs.
 	local aiFolder = Workspace:FindFirstChild("AI")
-
 	local offlinePlayersFolder = Workspace:FindFirstChild("OfflinePlayers")
+	local activePlayersFolder = Workspace:FindFirstChild("Players")
 
 	local function onChildAdded(child, isNPC)
 		task.wait(0.1) -- small yield to let character build
 		if child:IsA("Model") then
-			ESPManager:AddESP(child, isNPC)
+			local targetModel = child
+			if not isNPC then
+				local sleeper = child:FindFirstChild("Sleeper")
+				if sleeper and sleeper:IsA("Model") then
+					targetModel = sleeper
+				end
+			end
+			ESPManager:AddESP(targetModel, isNPC)
 		end
 	end
 
@@ -347,13 +377,38 @@ local function SetupFolderTracking()
 	if offlinePlayersFolder then
 		for _, child in pairs(offlinePlayersFolder:GetChildren()) do
 			if child:IsA("Model") then
-				ESPManager:AddESP(child, false)
+				local targetModel = child
+				local sleeper = child:FindFirstChild("Sleeper")
+				if sleeper and sleeper:IsA("Model") then
+					targetModel = sleeper
+				end
+				ESPManager:AddESP(targetModel, false)
 			end
 		end
 		table.insert(ESPManager.Connections, offlinePlayersFolder.ChildAdded:Connect(function(child)
 			onChildAdded(child, false)
 		end))
 		table.insert(ESPManager.Connections, offlinePlayersFolder.ChildRemoved:Connect(function(child)
+			local targetModel = child
+			local sleeper = child:FindFirstChild("Sleeper")
+			if sleeper and sleeper:IsA("Model") then
+				targetModel = sleeper
+			end
+			ESPManager:RemoveESP(targetModel)
+		end))
+	end
+	
+	-- Track active moving players (stored in Workspace.Players in this specific game)
+	if activePlayersFolder then
+		for _, child in pairs(activePlayersFolder:GetChildren()) do
+			if child:IsA("Model") then
+				ESPManager:AddESP(child, false)
+			end
+		end
+		table.insert(ESPManager.Connections, activePlayersFolder.ChildAdded:Connect(function(child)
+			onChildAdded(child, false)
+		end))
+		table.insert(ESPManager.Connections, activePlayersFolder.ChildRemoved:Connect(function(child)
 			ESPManager:RemoveESP(child)
 		end))
 	end
@@ -456,6 +511,9 @@ function SilentAimManager:GetClosestTarget()
 			continue
 		end
 		if model == LocalPlayer.Character then
+			continue
+		end
+		if model.Name == "Sleeper" then
 			continue
 		end
 
@@ -779,6 +837,13 @@ ESPSection:AddToggle("MasterESP", {
 	getgenv().Config.ESP.Enabled = value
 end)
 
+ESPSection:AddToggle("CorpseESP", {
+	Text = "Corpse ESP",
+	Default = getgenv().Config.ESP.CorpseESP,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.CorpseESP = value
+end)
+
 ESPSection:AddToggle("VisibleCheck", {
 	Text = "Visible Check",
 	Default = getgenv().Config.ESP.VisibleCheck,
@@ -805,6 +870,20 @@ ChamsSection:AddToggle("NPCChams", {
 	Default = getgenv().Config.ESP.NPCChams,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.NPCChams = value
+end)
+
+ChamsSection:AddToggle("CorpseChams", {
+	Text = "Corpse Chams",
+	Default = getgenv().Config.ESP.CorpseChams,
+}):AddColorPicker("CorpseColor", {
+	Default = getgenv().Config.ESP.CorpseColor,
+	Title = "Corpse Color",
+})
+getgenv().Toggles.CorpseChams:OnChanged(function(value)
+	getgenv().Config.ESP.CorpseChams = value
+end)
+getgenv().Options.CorpseColor:OnChanged(function(value)
+	getgenv().Config.ESP.CorpseColor = value
 end)
 
 ChamsSection:AddLabel("Chams Fill"):AddColorPicker("ChamsFillColor", {
@@ -1152,7 +1231,7 @@ do
 		end
 
 		-- 2. Debounce getgc scan to avoid FPS drops
-		if tick() - lastBehaviorScan < 1 then
+		if tick() - lastBehaviorScan < 2 then
 			return nil
 		end
 		lastBehaviorScan = tick()
@@ -1224,6 +1303,7 @@ do
 
 	RunService.Heartbeat:Connect(function()
 		local rageConfig = getgenv().Config.Rage
+
 		if not rageConfig then
 			return
 		end
