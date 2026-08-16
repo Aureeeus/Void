@@ -120,6 +120,7 @@ function ESPManager:AddESP(model, isNPC)
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "ESP_Highlight_" .. tostring(model.Name)
 	highlight.Adornee = model
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	-- Parent to CoreGui to bypass game deletion/anti-cheat sweeps in Workspace
 	local coreGui = game:GetService("CoreGui")
 	highlight.Parent = coreGui:FindFirstChild("RobloxGui") or coreGui
