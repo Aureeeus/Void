@@ -1499,6 +1499,10 @@ local function applyLoadedConfig(data)
 		safeSetColorPicker("VisibleCheckColor", parseColor(data.ESP.VisibleCheckColor))
 		safeSetColorPicker("VisibleChamsFillColor", parseColor(data.ESP.VisibleChamsFillColor))
 		safeSetColorPicker("VisibleChamsOutlineColor", parseColor(data.ESP.VisibleChamsOutlineColor))
+		
+		safeSetToggle("CorpseESP", data.ESP.CorpseESP)
+		safeSetToggle("CorpseChams", data.ESP.CorpseChams)
+		safeSetColorPicker("CorpseColor", parseColor(data.ESP.CorpseColor))
 	end
 
 	if data.SilentAim then
