@@ -107,7 +107,9 @@ local ESPManager = {
 local ItemsConfig = nil
 local MeshIdToIcon = {}
 task.spawn(function()
-	while not ItemsConfig do
+	local attempts = 0
+	while not ItemsConfig and attempts < 5 do
+		attempts += 1
 		for _, obj in pairs(getgc(true)) do
 			if type(obj) == "table" and rawget(obj, "Wood") and rawget(obj, "Stone") and rawget(obj, "AKM") then
 				ItemsConfig = obj
@@ -115,6 +117,10 @@ task.spawn(function()
 			end
 		end
 		if not ItemsConfig then task.wait(1) end
+	end
+
+	if not ItemsConfig then
+		warn("[Lone Survival ESP] ItemsConfig not found after 5 attempts! Tool ESP will not work. Stopped searching to prevent lag.")
 	end
 
 	pcall(function()
@@ -936,10 +942,9 @@ table.insert(
 	RunService.RenderStepped:Connect(function()
 		local config = getgenv().Config.Lighting
 		if config.CustomFog and config.DisablePostEffects then
-			for _, child in ipairs(Lighting:GetChildren()) do
-				if child:IsA("Atmosphere") then
-					child.Density = 0
-				end
+			local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+			if atmosphere then
+				atmosphere.Density = 0
 			end
 		end
 	end)
