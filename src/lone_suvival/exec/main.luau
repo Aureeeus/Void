@@ -99,6 +99,8 @@ end
 -- ==========================================
 -- ESP Manager Architecture
 -- ==========================================
+local SilentAimManager -- Forward declaration
+
 local ESPManager = {
 	Cache = {},
 	Connections = {},
@@ -583,7 +585,7 @@ table.insert(
 -- ==========================================
 -- Silent Aim Architecture
 -- ==========================================
-local SilentAimManager = {
+SilentAimManager = {
 	FOVCircle = ESPManager:CreateDrawing("Circle", {
 		Thickness = 1,
 		Color = getgenv().Config.SilentAim.FOVColor,
