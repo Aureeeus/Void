@@ -1354,7 +1354,31 @@ end)
 do
 	local currentBehavior = nil
 	local currentBehaviorType = nil
-	local lastBehaviorScan = 0
+	local weaponNeedsScan = true
+
+	local function triggerWeaponScan()
+		weaponNeedsScan = true
+	end
+
+	-- Hook into Camera/Character to detect potential weapon equips instead of endless polling
+	Camera.ChildAdded:Connect(triggerWeaponScan)
+	
+	if LocalPlayer.Character then
+		LocalPlayer.Character.ChildAdded:Connect(triggerWeaponScan)
+	end
+	LocalPlayer.CharacterAdded:Connect(function(char)
+		char.ChildAdded:Connect(triggerWeaponScan)
+	end)
+	
+	-- Fallback: If they click to shoot/aim and we lost track of the weapon, scan again
+	UserInputService.InputBegan:Connect(function(input, gpe)
+		if gpe then return end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
+			if not currentBehavior then
+				triggerWeaponScan()
+			end
+		end
+	end)
 
 	local function GetActiveWeaponBehavior()
 		if type(currentBehavior) == "table" then
@@ -1364,12 +1388,11 @@ do
 			end
 			currentBehavior = nil
 			currentBehaviorType = nil
+			triggerWeaponScan() -- Weapon was unequipped or invalidated, we need a scan next time
 		end
 
-		if tick() - lastBehaviorScan < 2 then
-			return nil, nil
-		end
-		lastBehaviorScan = tick()
+		if not weaponNeedsScan then return nil, nil end
+		weaponNeedsScan = false
 
 		for _, obj in pairs(getgc(true)) do
 			if type(obj) == "table" then
@@ -1673,30 +1696,10 @@ Library.Watermark.Position =
 	UDim2.new(currentPos.X.Scale, currentPos.X.Offset, currentPos.Y.Scale, currentPos.Y.Offset + 100)
 
 -- ==========================================
--- DEBUG: Memory Leak Monitor & Auto-Cleanup
+-- Auto-Cleanup Background Task
 -- ==========================================
 task.spawn(function()
-	local lastEspCacheSize = 0
-	local lastConnectionsSize = 0
-
 	while task.wait(5) do
-		local espCacheSize = 0
-		local invalidEspModels = 0
-		local localPlayerOldChars = 0
-
-		for model, cache in pairs(ESPManager.Cache) do
-			espCacheSize += 1
-
-			-- Check if the model is dead/unparented but still in cache
-			if typeof(model) ~= "Instance" or not model.Parent then
-				invalidEspModels += 1
-			end
-
-			if typeof(model) == "Instance" and model.Name == LocalPlayer.Name and model ~= LocalPlayer.Character then
-				localPlayerOldChars += 1
-			end
-		end
-
 		-- Clean up dead connections in ESPManager to stop array from growing forever
 		local activeConnections = {}
 		for _, conn in ipairs(ESPManager.Connections) do
@@ -1705,41 +1708,5 @@ task.spawn(function()
 			end
 		end
 		ESPManager.Connections = activeConnections
-
-		local hiddenLightingSize = 0
-		if EnvironmentManager and EnvironmentManager.HiddenLightingEffects then
-			hiddenLightingSize = #EnvironmentManager.HiddenLightingEffects
-		end
-
-		local connectionsSize = #ESPManager.Connections
-
-		local hasChanged = (espCacheSize ~= lastEspCacheSize) or (connectionsSize ~= lastConnectionsSize)
-
-		if hasChanged or invalidEspModels > 0 then
-			print("\n[DEBUG] ----- MEMORY LEAK MONITOR -----")
-			print(string.format("[DEBUG] ESP Cache Size: %d", espCacheSize))
-			if invalidEspModels > 0 then
-				warn(
-					string.format(
-						"[DEBUG] WARNING: %d Invalid/Unparented models found in ESP Cache (LEAK!)",
-						invalidEspModels
-					)
-				)
-			end
-			if localPlayerOldChars > 0 then
-				warn(
-					string.format(
-						"[DEBUG] WARNING: %d Old LocalPlayer characters found in ESP Cache (LEAK!)",
-						localPlayerOldChars
-					)
-				)
-			end
-			print(string.format("[DEBUG] ESP Connections Array Size: %d", connectionsSize))
-			print(string.format("[DEBUG] Hidden Lighting Effects Size: %d", hiddenLightingSize))
-			print("[DEBUG] ---------------------------------\n")
-
-			lastEspCacheSize = espCacheSize
-			lastConnectionsSize = connectionsSize
-		end
 	end
 end)
