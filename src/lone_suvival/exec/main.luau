@@ -21,14 +21,15 @@ getgenv().Config = getgenv().Config
 	or {
 		ESP = {
 			Enabled = false,
+			PlayerESP = false,
+			NPCESP = false,
+			ToolHeld = false,
 			MaxDistance = 1500,
 			TextSize = 13,
 			TextColor = Color3.fromRGB(255, 255, 255),
 			OutlineColor = Color3.fromRGB(0, 0, 0),
 			BoxColor = Color3.fromRGB(255, 255, 255),
 			BoxTransparency = 1,
-			PlayerESP = false,
-			NPCESP = false,
 			PlayerChams = false,
 			NPCChams = false,
 			ChamsFillColor = Color3.fromRGB(255, 255, 255),
@@ -39,9 +40,6 @@ getgenv().Config = getgenv().Config
 			VisibleCheckColor = Color3.fromRGB(0, 255, 0),
 			VisibleChamsFillColor = Color3.fromRGB(255, 255, 255),
 			VisibleChamsOutlineColor = Color3.fromRGB(255, 255, 255),
-			CorpseESP = false,
-			CorpseChams = false,
-			CorpseColor = Color3.fromRGB(150, 150, 150),
 		},
 		SilentAim = {
 			Enabled = false,
@@ -71,12 +69,16 @@ getgenv().Config = getgenv().Config
 			RapidFire = false,
 			RapidFireMultiplier = 5,
 			NoRecoil = false,
+			InstantBow = false,
 		},
 	}
 
 local globalRaycastParams = RaycastParams.new()
 globalRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
 globalRaycastParams.IgnoreWater = true
+
+local SharedIgnoreList = { Camera, LocalPlayer.Character }
+local SharedIgnoreListLastUpdate = 0
 
 local function CheckVisibility(targetModel, origin, ignoreList)
 	local head = targetModel:FindFirstChild("Head")
@@ -101,6 +103,47 @@ local ESPManager = {
 	Cache = {},
 	Connections = {},
 }
+
+local ItemsConfig = nil
+local MeshIdToIcon = {}
+task.spawn(function()
+	while not ItemsConfig do
+		for _, obj in pairs(getgc(true)) do
+			if type(obj) == "table" and rawget(obj, "Wood") and rawget(obj, "Stone") and rawget(obj, "AKM") then
+				ItemsConfig = obj
+				break
+			end
+		end
+		if not ItemsConfig then task.wait(1) end
+	end
+
+	pcall(function()
+		local toolsFolder = (game:GetService("ReplicatedStorage"):WaitForChild("Assets", 5) :: any):WaitForChild("Prefabs", 5):WaitForChild("Tools", 5)
+		if toolsFolder then
+			for _, toolFolder in ipairs(toolsFolder:GetChildren()) do
+				local toolName = toolFolder.Name
+				local m = ItemsConfig[toolName]
+				if type(m) == "table" and m.Icon then
+					for _, desc in ipairs(toolFolder:GetDescendants()) do
+						if desc:IsA("MeshPart") and desc.MeshId ~= "" then
+							if not desc:FindFirstAncestor("Attachments") and not desc.Name:match("Attachment") then
+								MeshIdToIcon[desc.MeshId] = m.Icon
+							end
+						end
+					end
+				end
+			end
+		end
+	end)
+end)
+
+local iconUI = Instance.new("ScreenGui")
+iconUI.Name = "ESPManager_IconUI"
+iconUI.ResetOnSpawn = false
+iconUI.IgnoreGuiInset = true
+local coreGui = game:GetService("CoreGui")
+iconUI.Parent = coreGui:FindFirstChild("RobloxGui") or coreGui
+ESPManager.IconUI = iconUI
 
 getgenv().ESPManager = ESPManager
 
@@ -173,11 +216,25 @@ function ESPManager:AddESP(model, isNPC)
 		}),
 	}
 
+	local toolIcon = Instance.new("ImageLabel")
+	toolIcon.Size = UDim2.new(0, 37, 0, 37)
+	toolIcon.BackgroundTransparency = 1
+	toolIcon.Visible = false
+	toolIcon.Parent = self.IconUI
+
 	self.Cache[model] = {
 		Model = model,
 		Drawings = drawings,
 		Highlight = highlight,
+		ToolIcon = toolIcon,
 		IsNPC = isNPC,
+		Humanoid = model:FindFirstChildOfClass("Humanoid"),
+		HRP = model:FindFirstChild("HumanoidRootPart")
+			or model.PrimaryPart
+			or model:FindFirstChild("Torso")
+			or model:FindFirstChild("UpperTorso")
+			or model:FindFirstChild("Head"),
+		Head = model:FindFirstChild("Head"),
 	}
 end
 
@@ -188,6 +245,9 @@ function ESPManager:RemoveESP(model)
 		end
 		if self.Cache[model].Highlight then
 			self.Cache[model].Highlight:Destroy()
+		end
+		if self.Cache[model].ToolIcon then
+			self.Cache[model].ToolIcon:Destroy()
 		end
 		self.Cache[model] = nil
 	end
@@ -203,49 +263,64 @@ function ESPManager:Update()
 			if cache.Highlight then
 				cache.Highlight.Enabled = false
 			end
+			if cache.ToolIcon then
+				cache.ToolIcon.Visible = false
+			end
 		end
 		return
 	end
 
 	local origin = Camera.CFrame.Position
-	local ignoreList = nil -- Built lazily only if needed by visible check
 
 	for model, cache in pairs(self.Cache) do
-		local drawings = cache.Drawings
-		local humanoid = model:FindFirstChildOfClass("Humanoid")
-		local hrp = model:FindFirstChild("HumanoidRootPart") or model.PrimaryPart or model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model:FindFirstChild("Head")
+		if typeof(model) ~= "Instance" or not model.Parent then
+			self:RemoveESP(model)
+			continue
+		end
 
-		if not (model and model.Parent and hrp and humanoid and humanoid.Health > 0) then
+		-- Lazy evaluation if parts were nil when initially cached
+		if not cache.Humanoid then
+			cache.Humanoid = model:FindFirstChildOfClass("Humanoid")
+		end
+		if not cache.HRP then
+			cache.HRP = model:FindFirstChild("HumanoidRootPart")
+				or (model :: any).PrimaryPart
+				or model:FindFirstChild("Torso")
+				or model:FindFirstChild("UpperTorso")
+				or model:FindFirstChild("Head")
+		end
+		if not cache.Head then
+			cache.Head = model:FindFirstChild("Head")
+		end
+
+		local drawings = cache.Drawings
+		local humanoid = cache.Humanoid
+		local hrp = cache.HRP
+
+		if not (hrp and humanoid and humanoid.Health > 0) then
 			for _, drawing in pairs(drawings) do
 				drawing.Visible = false
 			end
 			if cache.Highlight then
 				cache.Highlight.Enabled = false
 			end
+			if cache.ToolIcon then cache.ToolIcon.Visible = false end
 			continue
 		end
 
 		-- Check filters
 		local isLocalPlayer = false
-		local isCorpse = model.Name == "Sleeper"
-		
+
 		if LocalPlayer.Character and model == LocalPlayer.Character then
 			isLocalPlayer = true
 		elseif model.Name == tostring(LocalPlayer.UserId) then
 			isLocalPlayer = true
-		elseif isCorpse and model.Parent and model.Parent.Name == tostring(LocalPlayer.UserId) then
-			isLocalPlayer = true
 		end
-		
-		local showBox = not isLocalPlayer and (cache.IsNPC and espConfig.NPCESP or not cache.IsNPC and espConfig.PlayerESP)
+
+		local showBox = not isLocalPlayer
+			and (cache.IsNPC and espConfig.NPCESP or not cache.IsNPC and espConfig.PlayerESP)
 		local showChams = not isLocalPlayer
 			and (cache.IsNPC and espConfig.NPCChams or not cache.IsNPC and espConfig.PlayerChams)
-			
-		-- Override for corpses
-		if isCorpse and not isLocalPlayer then
-			showBox = espConfig.CorpseESP
-			showChams = espConfig.CorpseChams
-		end
 
 		if not showBox and not showChams then
 			for _, drawing in pairs(drawings) do
@@ -254,6 +329,7 @@ function ESPManager:Update()
 			if cache.Highlight then
 				cache.Highlight.Enabled = false
 			end
+			if cache.ToolIcon then cache.ToolIcon.Visible = false end
 			continue
 		end
 
@@ -265,32 +341,97 @@ function ESPManager:Update()
 			if cache.Highlight then
 				cache.Highlight.Enabled = false
 			end
+			if cache.ToolIcon then cache.ToolIcon.Visible = false end
 			continue
 		end
 
+		if espConfig.ToolHeld and ItemsConfig then
+			local worldModel = model:FindFirstChild("Worldmodel")
+			if worldModel then
+				local firstChild = worldModel:FindFirstChildWhichIsA("Instance")
+				if cache.LastWorldModel ~= worldModel or cache.LastWorldModelFirstChild ~= firstChild then
+					cache.LastWorldModel = worldModel
+					cache.LastWorldModelFirstChild = firstChild
+					
+					local foundIcon = nil
+					
+					for _, child in ipairs(worldModel:GetDescendants()) do
+						if child:IsA("MeshPart") and child.MeshId ~= "" and MeshIdToIcon[child.MeshId] then
+							foundIcon = MeshIdToIcon[child.MeshId]
+							break
+						end
+					end
+
+					if not foundIcon then
+						for _, child in ipairs(worldModel:GetChildren()) do
+							local childName = child.Name
+							local lowerName = string.lower(childName)
+							
+							local m = ItemsConfig[childName]
+							if type(m) == "table" and m.Icon then foundIcon = m.Icon; break end
+							
+							for k, v in pairs(ItemsConfig) do
+								if type(v) == "table" and v.Icon and string.lower(k) == lowerName then
+									foundIcon = v.Icon; break
+								end
+							end
+							if foundIcon then break end
+
+							local noRigLower = string.gsub(lowerName, "rig", "")
+							for k, v in pairs(ItemsConfig) do
+								if type(v) == "table" and v.Icon and string.lower(k) == noRigLower then
+									foundIcon = v.Icon; break
+								end
+							end
+							if foundIcon then break end
+
+							local firstWord = string.match(childName, "^([%w_]+)")
+							if firstWord then
+								local fwLower = string.lower(firstWord)
+								for k, v in pairs(ItemsConfig) do
+									if type(v) == "table" and v.Icon and string.lower(k) == fwLower then
+										foundIcon = v.Icon; break
+									end
+								end
+							end
+							if foundIcon then break end
+						end
+					end
+					
+					cache.HeldItem = foundIcon or false
+				end
+			else
+				cache.LastWorldModel = nil
+				cache.LastWorldModelFirstChild = nil
+				cache.HeldItem = false
+			end
+			
+			local heldItem = cache.HeldItem
+			if heldItem and cache.ToolIcon and cache.ToolIcon.Image ~= heldItem then
+				cache.ToolIcon.Image = heldItem
+			end
+		end
+
+		local isCorpse = (humanoid.Health <= 0)
 		local isVisible = false
 		if espConfig.VisibleCheck and not isCorpse then
-			if not ignoreList then
-				ignoreList = { Camera, LocalPlayer.Character }
+			if tick() - SharedIgnoreListLastUpdate > 0.5 then
+				SharedIgnoreList = { Camera, LocalPlayer.Character }
 				for m, c in pairs(self.Cache) do
-					local hum = m:FindFirstChildOfClass("Humanoid")
+					local hum = c.Humanoid
 					if hum and hum.Health <= 0 then
-						table.insert(ignoreList, m)
+						table.insert(SharedIgnoreList, m)
 					end
 				end
+				SharedIgnoreListLastUpdate = tick()
 			end
-			isVisible = CheckVisibility(model, origin, ignoreList)
+			isVisible = CheckVisibility(model, origin, SharedIgnoreList)
 		end
 
 		if showChams and cache.Highlight then
-			if isCorpse then
-				cache.Highlight.FillColor = espConfig.CorpseColor
-				cache.Highlight.OutlineColor = espConfig.CorpseColor
-			else
-				cache.Highlight.FillColor = isVisible and espConfig.VisibleChamsFillColor or espConfig.ChamsFillColor
-				cache.Highlight.OutlineColor = isVisible and espConfig.VisibleChamsOutlineColor
-					or espConfig.ChamsOutlineColor
-			end
+			cache.Highlight.FillColor = isVisible and espConfig.VisibleChamsFillColor or espConfig.ChamsFillColor
+			cache.Highlight.OutlineColor = isVisible and espConfig.VisibleChamsOutlineColor
+				or espConfig.ChamsOutlineColor
 			cache.Highlight.FillTransparency = espConfig.ChamsFillTransparency
 			cache.Highlight.OutlineTransparency = espConfig.ChamsOutlineTransparency
 			cache.Highlight.Enabled = true
@@ -317,7 +458,7 @@ function ESPManager:Update()
 
 			drawings.Box.Position = boxTopLeft
 			drawings.Box.Size = boxSize
-			drawings.Box.Color = isCorpse and espConfig.CorpseColor or espConfig.BoxColor
+			drawings.Box.Color = espConfig.BoxColor
 			drawings.Box.Transparency = espConfig.BoxTransparency
 			drawings.Box.Visible = true
 
@@ -326,28 +467,36 @@ function ESPManager:Update()
 
 			drawings.HealthOutline.Position = Vector2.new(boxTopLeft.X - 6, boxTopLeft.Y - 1)
 			drawings.HealthOutline.Size = Vector2.new(4, boxHeight + 2)
-			drawings.HealthOutline.Visible = not isCorpse
+			drawings.HealthOutline.Visible = true
 
 			drawings.HealthFill.Position = Vector2.new(boxTopLeft.X - 5, boxTopLeft.Y + (boxHeight - healthBarHeight))
 			drawings.HealthFill.Size = Vector2.new(2, healthBarHeight)
 			drawings.HealthFill.Color = Color3.new(1 - healthPercent, healthPercent, 0)
-			drawings.HealthFill.Visible = not isCorpse
+			drawings.HealthFill.Visible = true
 
-			drawings.Name.Text = isCorpse and "Corpse" or model.Name
+			drawings.Name.Text = model.Name
 			drawings.Name.Position = Vector2.new(pos.X, boxTopLeft.Y - drawings.Name.Size - 2)
 			drawings.Name.Size = espConfig.TextSize
-			drawings.Name.Color = isCorpse and espConfig.CorpseColor or (isVisible and espConfig.VisibleCheckColor or espConfig.TextColor)
+			drawings.Name.Color = isVisible and espConfig.VisibleCheckColor or espConfig.TextColor
 			drawings.Name.Visible = true
 
 			drawings.Distance.Text = string.format("[%d m]", math.floor(distanceMeters))
 			drawings.Distance.Position = Vector2.new(pos.X, boxTopLeft.Y + boxHeight + 2)
 			drawings.Distance.Size = espConfig.TextSize
-			drawings.Distance.Color = isCorpse and espConfig.CorpseColor or (isVisible and espConfig.VisibleCheckColor or espConfig.TextColor)
+			drawings.Distance.Color = isVisible and espConfig.VisibleCheckColor or espConfig.TextColor
 			drawings.Distance.Visible = true
+
+			if espConfig.ToolHeld and cache.HeldItem then
+				cache.ToolIcon.Position = UDim2.new(0, pos.X - 18, 0, boxTopLeft.Y + boxHeight + espConfig.TextSize + 4)
+				cache.ToolIcon.Visible = true
+			else
+				if cache.ToolIcon then cache.ToolIcon.Visible = false end
+			end
 		else
 			for _, drawing in pairs(drawings) do
 				drawing.Visible = false
 			end
+			if cache.ToolIcon then cache.ToolIcon.Visible = false end
 		end
 	end
 end
@@ -357,48 +506,16 @@ end
 -- ==========================================
 local function SetupFolderTracking()
 	local aiFolder = Workspace:FindFirstChild("AI")
-	local offlinePlayersFolder = Workspace:FindFirstChild("OfflinePlayers")
+	local _offlinePlayersFolder = Workspace:FindFirstChild("OfflinePlayers")
 	local activePlayersFolder = Workspace:FindFirstChild("Players")
 
 	local function onChildAdded(child, isNPC)
 		task.wait(0.1) -- small yield to let character build
 		if child:IsA("Model") then
-			local targetModel = child
-			if not isNPC then
-				local sleeper = child:FindFirstChild("Sleeper")
-				if sleeper and sleeper:IsA("Model") then
-					targetModel = sleeper
-				end
-			end
-			ESPManager:AddESP(targetModel, isNPC)
+			ESPManager:AddESP(child, isNPC)
 		end
 	end
 
-	-- Track OfflinePlayers (Live physical bodies, including teammates like confidentnova)
-	if offlinePlayersFolder then
-		for _, child in pairs(offlinePlayersFolder:GetChildren()) do
-			if child:IsA("Model") then
-				local targetModel = child
-				local sleeper = child:FindFirstChild("Sleeper")
-				if sleeper and sleeper:IsA("Model") then
-					targetModel = sleeper
-				end
-				ESPManager:AddESP(targetModel, false)
-			end
-		end
-		table.insert(ESPManager.Connections, offlinePlayersFolder.ChildAdded:Connect(function(child)
-			onChildAdded(child, false)
-		end))
-		table.insert(ESPManager.Connections, offlinePlayersFolder.ChildRemoved:Connect(function(child)
-			local targetModel = child
-			local sleeper = child:FindFirstChild("Sleeper")
-			if sleeper and sleeper:IsA("Model") then
-				targetModel = sleeper
-			end
-			ESPManager:RemoveESP(targetModel)
-		end))
-	end
-	
 	-- Track active moving players (stored in Workspace.Players in this specific game)
 	if activePlayersFolder then
 		for _, child in pairs(activePlayersFolder:GetChildren()) do
@@ -406,12 +523,18 @@ local function SetupFolderTracking()
 				ESPManager:AddESP(child, false)
 			end
 		end
-		table.insert(ESPManager.Connections, activePlayersFolder.ChildAdded:Connect(function(child)
-			onChildAdded(child, false)
-		end))
-		table.insert(ESPManager.Connections, activePlayersFolder.ChildRemoved:Connect(function(child)
-			ESPManager:RemoveESP(child)
-		end))
+		table.insert(
+			ESPManager.Connections,
+			activePlayersFolder.ChildAdded:Connect(function(child)
+				onChildAdded(child, false)
+			end)
+		)
+		table.insert(
+			ESPManager.Connections,
+			activePlayersFolder.ChildRemoved:Connect(function(child)
+				ESPManager:RemoveESP(child)
+			end)
+		)
 	end
 
 	-- Track active LocalPlayer / other player models if they spawn directly in Workspace
@@ -518,13 +641,13 @@ function SilentAimManager:GetClosestTarget()
 			continue
 		end
 
-		local humanoid = model:FindFirstChildOfClass("Humanoid")
+		local humanoid = cache.Humanoid
 		if not humanoid or humanoid.Health <= 0 then
 			continue
 		end
 
-		local hrp = model:FindFirstChild("HumanoidRootPart")
-		local head = model:FindFirstChild("Head")
+		local hrp = cache.HRP
+		local head = cache.Head
 
 		if hrp and head then
 			local distance = (origin - hrp.Position).Magnitude
@@ -569,15 +692,18 @@ function SilentAimManager:Update()
 				self.Snapline.To = Vector2.new(screenPos.X, screenPos.Y)
 
 				local origin = Camera.CFrame.Position
-				local ignoreList = { Camera, LocalPlayer.Character }
-				for m, c in pairs(ESPManager.Cache) do
-					local hum = m:FindFirstChildOfClass("Humanoid")
-					if hum and hum.Health <= 0 then
-						table.insert(ignoreList, m)
+				if tick() - SharedIgnoreListLastUpdate > 0.5 then
+					SharedIgnoreList = { Camera, LocalPlayer.Character }
+					for m, c in pairs(ESPManager.Cache) do
+						local hum = c.Humanoid
+						if hum and hum.Health <= 0 then
+							table.insert(SharedIgnoreList, m)
+						end
 					end
+					SharedIgnoreListLastUpdate = tick()
 				end
 
-				local isVisible = CheckVisibility(self.CurrentTarget, origin, ignoreList)
+				local isVisible = CheckVisibility(self.CurrentTarget, origin, SharedIgnoreList)
 				self.Snapline.Color = isVisible and silentAimConfig.SnaplineVisibleColor
 					or silentAimConfig.SnaplineColor
 				self.Snapline.Visible = true
@@ -749,16 +875,22 @@ function EnvironmentManager:UpdateLighting()
 
 	if config.CustomFog and config.DisablePostEffects then
 		for _, child in ipairs(Lighting:GetChildren()) do
-			if child:IsA("Atmosphere") or child:IsA("PostEffect") then
-				self.HiddenLightingEffects[#self.HiddenLightingEffects + 1] = child
-				child.Parent = nil
+			if child:IsA("Atmosphere") then
+				-- We let RenderStepped handle Atmosphere density to prevent game script errors
+			elseif child:IsA("PostEffect") then
+				if not table.find(self.HiddenLightingEffects, child) then
+					self.HiddenLightingEffects[#self.HiddenLightingEffects + 1] = child
+				end
+				child.Enabled = false
 			end
 		end
 	else
 		for i = 1, #self.HiddenLightingEffects do
 			local child = self.HiddenLightingEffects[i]
 			if child then
-				child.Parent = Lighting
+				if child:IsA("PostEffect") then
+					child.Enabled = true
+				end
 			end
 		end
 		table.clear(self.HiddenLightingEffects)
@@ -787,11 +919,27 @@ table.insert(
 	Lighting.ChildAdded:Connect(function(child)
 		local config = getgenv().Config.Lighting
 		if config.CustomFog and config.DisablePostEffects then
-			if child:IsA("Atmosphere") or child:IsA("PostEffect") then
+			if child:IsA("PostEffect") then
 				task.defer(function()
-					EnvironmentManager.HiddenLightingEffects[#EnvironmentManager.HiddenLightingEffects + 1] = child
-					child.Parent = nil
+					if not table.find(EnvironmentManager.HiddenLightingEffects, child) then
+						EnvironmentManager.HiddenLightingEffects[#EnvironmentManager.HiddenLightingEffects + 1] = child
+					end
+					child.Enabled = false
 				end)
+			end
+		end
+	end)
+)
+
+table.insert(
+	EnvironmentManager.Connections,
+	RunService.RenderStepped:Connect(function()
+		local config = getgenv().Config.Lighting
+		if config.CustomFog and config.DisablePostEffects then
+			for _, child in ipairs(Lighting:GetChildren()) do
+				if child:IsA("Atmosphere") then
+					child.Density = 0
+				end
 			end
 		end
 	end)
@@ -838,13 +986,6 @@ ESPSection:AddToggle("MasterESP", {
 	getgenv().Config.ESP.Enabled = value
 end)
 
-ESPSection:AddToggle("CorpseESP", {
-	Text = "Corpse ESP",
-	Default = getgenv().Config.ESP.CorpseESP,
-}):OnChanged(function(value)
-	getgenv().Config.ESP.CorpseESP = value
-end)
-
 ESPSection:AddToggle("VisibleCheck", {
 	Text = "Visible Check",
 	Default = getgenv().Config.ESP.VisibleCheck,
@@ -871,20 +1012,6 @@ ChamsSection:AddToggle("NPCChams", {
 	Default = getgenv().Config.ESP.NPCChams,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.NPCChams = value
-end)
-
-ChamsSection:AddToggle("CorpseChams", {
-	Text = "Corpse Chams",
-	Default = getgenv().Config.ESP.CorpseChams,
-}):AddColorPicker("CorpseColor", {
-	Default = getgenv().Config.ESP.CorpseColor,
-	Title = "Corpse Color",
-})
-getgenv().Toggles.CorpseChams:OnChanged(function(value)
-	getgenv().Config.ESP.CorpseChams = value
-end)
-getgenv().Options.CorpseColor:OnChanged(function(value)
-	getgenv().Config.ESP.CorpseColor = value
 end)
 
 ChamsSection:AddLabel("Chams Fill"):AddColorPicker("ChamsFillColor", {
@@ -953,6 +1080,13 @@ ESPSection:AddToggle("NPCESP", {
 	Default = getgenv().Config.ESP.NPCESP,
 }):OnChanged(function(value)
 	getgenv().Config.ESP.NPCESP = value
+end)
+
+ESPSection:AddToggle("ToolHeld", {
+	Text = "Tool Held",
+	Default = getgenv().Config.ESP.ToolHeld,
+}):OnChanged(function(value)
+	getgenv().Config.ESP.ToolHeld = value
 end)
 
 ESPSection:AddSlider("MaxDistance", {
@@ -1207,149 +1341,82 @@ RageSection:AddToggle("NoRecoil", {
 	getgenv().Config.Rage.NoRecoil = value
 end)
 
+RageSection:AddToggle("InstantBow", {
+	Text = "Instant Bow",
+	Default = getgenv().Config.Rage.InstantBow,
+}):OnChanged(function(value)
+	getgenv().Config.Rage.InstantBow = value
+end)
+
 -- ==========================================
 -- Rage: Runtime Logic
 -- ==========================================
 do
-	local hookedRecoilFn = nil
-	local recoilHook = nil
-
 	local currentBehavior = nil
+	local currentBehaviorType = nil
 	local lastBehaviorScan = 0
-	local lastRecoilScan = 0
 
-	-- Searches getgc for the DefaultGun / Bolt / Lever etc. behavior instance.
-	-- It caches the behavior and only re-scans at most once per second.
-	local function GetGunBehavior()
-		-- 1. Check if cached behavior is still valid and equipped
+	local function GetActiveWeaponBehavior()
 		if type(currentBehavior) == "table" then
 			local vm = rawget(currentBehavior, "Viewmodel")
 			if type(vm) == "table" and rawget(vm, "Equipped") then
-				return currentBehavior
+				return currentBehavior, currentBehaviorType
 			end
-			-- Invalidated (unequipped or destroyed)
 			currentBehavior = nil
+			currentBehaviorType = nil
 		end
 
-		-- 2. Debounce getgc scan to avoid FPS drops
 		if tick() - lastBehaviorScan < 2 then
-			return nil
+			return nil, nil
 		end
 		lastBehaviorScan = tick()
 
-		-- 3. Scan getgc
 		for _, obj in pairs(getgc(true)) do
-			if
-				type(obj) == "table"
-				and rawget(obj, "RPM") ~= nil
-				and rawget(obj, "DRPM") ~= nil
-				and rawget(obj, "LastFireTick") ~= nil
-				and rawget(obj, "Firing") ~= nil
-			then
+			if type(obj) == "table" then
 				local vm = rawget(obj, "Viewmodel")
 				if type(vm) == "table" and rawget(vm, "Equipped") then
-					currentBehavior = obj
-					return obj
-				end
-			end
-		end
-		return nil
-	end
-
-	-- Searches getgc for the live Recoil function stored as upvalue r12
-	-- inside the DefaultGun Fire closure.
-	local function FindAndHookRecoil()
-		if hookedRecoilFn then
-			return
-		end -- already hooked
-
-		-- Debounce
-		if tick() - lastRecoilScan < 1 then
-			return
-		end
-		lastRecoilScan = tick()
-
-		for _, fn in pairs(getgc(true)) do
-			if type(fn) == "function" then
-				local ok, ups = pcall(getupvalues, fn)
-				if ok and ups then
-					local hasR12 = false
-					local r12Ref = nil
-					local hasR30 = false
-
-					for k, v in pairs(ups) do
-						if type(v) == "function" then
-							hasR12 = true
-							r12Ref = v
-						elseif type(v) == "number" and v >= 0 and v <= 1 then
-							hasR30 = true
-						end
-					end
-
-					if hasR12 and hasR30 and r12Ref then
-						hookedRecoilFn = r12Ref
-						recoilHook = hookfunction(r12Ref, function(...)
-							if getgenv().Config.Rage.NoRecoil then
-								-- Return inputs unchanged so no impulse is given
-								return ...
-							end
-							return recoilHook(...)
-						end)
-						break
+					if rawget(obj, "RPM") ~= nil and rawget(obj, "LastFireTick") ~= nil then
+						currentBehavior = obj
+						currentBehaviorType = "Gun"
+						return obj, "Gun"
+					elseif rawget(obj, "ArrowParts") ~= nil and rawget(obj, "Ready") ~= nil then
+						currentBehavior = obj
+						currentBehaviorType = "Bow"
+						return obj, "Bow"
 					end
 				end
 			end
 		end
+		return nil, nil
 	end
 
 	RunService.Heartbeat:Connect(function()
 		local rageConfig = getgenv().Config.Rage
+		if not rageConfig then return end
 
-		if not rageConfig then
-			return
-		end
-
-		-- Rapid Fire: find behavior and clamp RPM
-		if rageConfig.RapidFire or rageConfig.NoRecoil then
-			local behavior = GetGunBehavior()
-			if behavior then
-				if rageConfig.RapidFire then
-					-- Divide the default RPM by the multiplier
-					local multiplier = math.max(1, rageConfig.RapidFireMultiplier or 5)
-					behavior.RPM = (behavior.DRPM or behavior.RPM) / multiplier
-				else
-					-- Restore default when toggled off
-					if behavior.DRPM then
-						behavior.RPM = behavior.DRPM
-					end
-				end
-
-				-- No Recoil: additionally zero the recoil spring if accessible
-				if rageConfig.NoRecoil then
-					local springs = rawget(behavior.Viewmodel or {}, "Springs")
-					if springs then
-						local rot = rawget(springs, "Rotation")
-						if rot then
-							for _, key in ipairs({ "Recoil", "Extra" }) do
-								local spring = rawget(rot, key)
-								if spring then
-									if spring.Target then
-										spring.Target = Vector3.zero
-									end
-									if spring.Velocity then
-										spring.Velocity = Vector3.zero
-									end
-								end
+		if rageConfig.InstantBow then
+			local behavior, wType = GetActiveWeaponBehavior()
+			
+			if behavior and wType == "Bow" then
+				if rageConfig.InstantBow then
+					behavior.Ready = true
+					if behavior.Viewmodel and behavior.Viewmodel.Animator and behavior.Viewmodel.Animator.LoadedAnimations and behavior.Viewmodel.Animator.LoadedAnimations.Pull then
+						pcall(function()
+							local pullAnim = behavior.Viewmodel.Animator.LoadedAnimations.Pull
+							if not behavior.OriginalPullLength then
+								behavior.OriginalPullLength = pullAnim.Length
 							end
-						end
+							pullAnim.Length = 0
+						end)
+					end
+				else
+					if behavior.OriginalPullLength and behavior.Viewmodel and behavior.Viewmodel.Animator and behavior.Viewmodel.Animator.LoadedAnimations and behavior.Viewmodel.Animator.LoadedAnimations.Pull then
+						pcall(function()
+							behavior.Viewmodel.Animator.LoadedAnimations.Pull.Length = behavior.OriginalPullLength
+						end)
 					end
 				end
 			end
-		end
-
-		-- Attempt to hook the Recoil function if NoRecoil is on and not yet hooked
-		if rageConfig.NoRecoil and not hookedRecoilFn then
-			pcall(FindAndHookRecoil)
 		end
 	end)
 end
@@ -1487,6 +1554,7 @@ local function applyLoadedConfig(data)
 		safeSetOption("BoxTransparency", data.ESP.BoxTransparency)
 		safeSetToggle("PlayerESP", data.ESP.PlayerESP)
 		safeSetToggle("NPCESP", data.ESP.NPCESP)
+		safeSetToggle("ToolHeld", data.ESP.ToolHeld)
 
 		safeSetToggle("PlayerChams", data.ESP.PlayerChams)
 		safeSetToggle("NPCChams", data.ESP.NPCChams)
@@ -1499,10 +1567,6 @@ local function applyLoadedConfig(data)
 		safeSetColorPicker("VisibleCheckColor", parseColor(data.ESP.VisibleCheckColor))
 		safeSetColorPicker("VisibleChamsFillColor", parseColor(data.ESP.VisibleChamsFillColor))
 		safeSetColorPicker("VisibleChamsOutlineColor", parseColor(data.ESP.VisibleChamsOutlineColor))
-		
-		safeSetToggle("CorpseESP", data.ESP.CorpseESP)
-		safeSetToggle("CorpseChams", data.ESP.CorpseChams)
-		safeSetColorPicker("CorpseColor", parseColor(data.ESP.CorpseColor))
 	end
 
 	if data.SilentAim then
@@ -1536,6 +1600,7 @@ local function applyLoadedConfig(data)
 		safeSetToggle("RapidFire", data.Rage.RapidFire)
 		safeSetOption("RapidFireMultiplier", data.Rage.RapidFireMultiplier)
 		safeSetToggle("NoRecoil", data.Rage.NoRecoil)
+		safeSetToggle("InstantBow", data.Rage.InstantBow)
 	end
 end
 
@@ -1606,3 +1671,75 @@ Library:SetWatermark("Bisaya | Dev Version | " .. currentDate)
 local currentPos = Library.Watermark.Position
 Library.Watermark.Position =
 	UDim2.new(currentPos.X.Scale, currentPos.X.Offset, currentPos.Y.Scale, currentPos.Y.Offset + 100)
+
+-- ==========================================
+-- DEBUG: Memory Leak Monitor & Auto-Cleanup
+-- ==========================================
+task.spawn(function()
+	local lastEspCacheSize = 0
+	local lastConnectionsSize = 0
+
+	while task.wait(5) do
+		local espCacheSize = 0
+		local invalidEspModels = 0
+		local localPlayerOldChars = 0
+
+		for model, cache in pairs(ESPManager.Cache) do
+			espCacheSize += 1
+
+			-- Check if the model is dead/unparented but still in cache
+			if typeof(model) ~= "Instance" or not model.Parent then
+				invalidEspModels += 1
+			end
+
+			if typeof(model) == "Instance" and model.Name == LocalPlayer.Name and model ~= LocalPlayer.Character then
+				localPlayerOldChars += 1
+			end
+		end
+
+		-- Clean up dead connections in ESPManager to stop array from growing forever
+		local activeConnections = {}
+		for _, conn in ipairs(ESPManager.Connections) do
+			if typeof(conn) == "RBXScriptConnection" and conn.Connected then
+				table.insert(activeConnections, conn)
+			end
+		end
+		ESPManager.Connections = activeConnections
+
+		local hiddenLightingSize = 0
+		if EnvironmentManager and EnvironmentManager.HiddenLightingEffects then
+			hiddenLightingSize = #EnvironmentManager.HiddenLightingEffects
+		end
+
+		local connectionsSize = #ESPManager.Connections
+
+		local hasChanged = (espCacheSize ~= lastEspCacheSize) or (connectionsSize ~= lastConnectionsSize)
+
+		if hasChanged or invalidEspModels > 0 then
+			print("\n[DEBUG] ----- MEMORY LEAK MONITOR -----")
+			print(string.format("[DEBUG] ESP Cache Size: %d", espCacheSize))
+			if invalidEspModels > 0 then
+				warn(
+					string.format(
+						"[DEBUG] WARNING: %d Invalid/Unparented models found in ESP Cache (LEAK!)",
+						invalidEspModels
+					)
+				)
+			end
+			if localPlayerOldChars > 0 then
+				warn(
+					string.format(
+						"[DEBUG] WARNING: %d Old LocalPlayer characters found in ESP Cache (LEAK!)",
+						localPlayerOldChars
+					)
+				)
+			end
+			print(string.format("[DEBUG] ESP Connections Array Size: %d", connectionsSize))
+			print(string.format("[DEBUG] Hidden Lighting Effects Size: %d", hiddenLightingSize))
+			print("[DEBUG] ---------------------------------\n")
+
+			lastEspCacheSize = espCacheSize
+			lastConnectionsSize = connectionsSize
+		end
+	end
+end)
