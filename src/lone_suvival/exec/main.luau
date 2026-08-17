@@ -106,6 +106,7 @@ local ESPManager = {
 
 local ItemsConfig = nil
 local MeshIdToIcon = {}
+local ItemNameToIcon = {}
 task.spawn(function()
 	local attempts = 0
 	while not ItemsConfig and attempts < 5 do
@@ -121,6 +122,13 @@ task.spawn(function()
 
 	if not ItemsConfig then
 		warn("[Lone Survival ESP] ItemsConfig not found after 5 attempts! Tool ESP will not work. Stopped searching to prevent lag.")
+		return
+	end
+
+	for k, v in pairs(ItemsConfig) do
+		if type(v) == "table" and v.Icon then
+			ItemNameToIcon[string.lower(k)] = v.Icon
+		end
 	end
 
 	pcall(function()
@@ -373,34 +381,18 @@ function ESPManager:Update()
 							local childName = child.Name
 							local lowerName = string.lower(childName)
 							
-							local m = ItemsConfig[childName]
-							if type(m) == "table" and m.Icon then foundIcon = m.Icon; break end
-							
-							for k, v in pairs(ItemsConfig) do
-								if type(v) == "table" and v.Icon and string.lower(k) == lowerName then
-									foundIcon = v.Icon; break
-								end
-							end
+							foundIcon = ItemNameToIcon[lowerName]
 							if foundIcon then break end
 
 							local noRigLower = string.gsub(lowerName, "rig", "")
-							for k, v in pairs(ItemsConfig) do
-								if type(v) == "table" and v.Icon and string.lower(k) == noRigLower then
-									foundIcon = v.Icon; break
-								end
-							end
+							foundIcon = ItemNameToIcon[noRigLower]
 							if foundIcon then break end
 
 							local firstWord = string.match(childName, "^([%w_]+)")
 							if firstWord then
-								local fwLower = string.lower(firstWord)
-								for k, v in pairs(ItemsConfig) do
-									if type(v) == "table" and v.Icon and string.lower(k) == fwLower then
-										foundIcon = v.Icon; break
-									end
-								end
+								foundIcon = ItemNameToIcon[string.lower(firstWord)]
+								if foundIcon then break end
 							end
-							if foundIcon then break end
 						end
 					end
 					
@@ -421,17 +413,9 @@ function ESPManager:Update()
 		local isCorpse = (humanoid.Health <= 0)
 		local isVisible = false
 		if espConfig.VisibleCheck and not isCorpse then
-			if tick() - SharedIgnoreListLastUpdate > 0.5 then
-				SharedIgnoreList = { Camera, LocalPlayer.Character }
-				for m, c in pairs(self.Cache) do
-					local hum = c.Humanoid
-					if hum and hum.Health <= 0 then
-						table.insert(SharedIgnoreList, m)
-					end
-				end
-				SharedIgnoreListLastUpdate = tick()
+			if SilentAimManager and SilentAimManager.CurrentTarget == model then
+				isVisible = SilentAimManager.CurrentTargetIsVisible
 			end
-			isVisible = CheckVisibility(model, origin, SharedIgnoreList)
 		end
 
 		if showChams and cache.Highlight then
@@ -447,8 +431,7 @@ function ESPManager:Update()
 
 		local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
 		if onScreen and showBox then
-			local head = model:FindFirstChild("Head")
-			local headPos = head and Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+			local headPos = cache.Head and Camera:WorldToViewportPoint(cache.Head.Position + Vector3.new(0, 0.5, 0))
 				or Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 2.5, 0))
 			local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
 
@@ -617,6 +600,7 @@ local SilentAimManager = {
 		Visible = false,
 	}),
 	CurrentTarget = nil,
+	CurrentTargetIsVisible = false,
 	CurrentProjectileStats = nil,
 }
 getgenv().SilentAimManager = SilentAimManager
@@ -689,28 +673,30 @@ function SilentAimManager:Update()
 		self.CurrentTarget = nil
 	end
 
-	if self.CurrentTarget and silentAimConfig.SnaplineVisible and enabled then
+	self.CurrentTargetIsVisible = false
+
+	if self.CurrentTarget and enabled then
 		local head = self.CurrentTarget:FindFirstChild("Head")
 		if head then
+			local origin = Camera.CFrame.Position
+			if tick() - SharedIgnoreListLastUpdate > 0.5 then
+				SharedIgnoreList = { Camera, LocalPlayer.Character }
+				for m, c in pairs(ESPManager.Cache) do
+					local hum = c.Humanoid
+					if hum and hum.Health <= 0 then
+						table.insert(SharedIgnoreList, m)
+					end
+				end
+				SharedIgnoreListLastUpdate = tick()
+			end
+
+			self.CurrentTargetIsVisible = CheckVisibility(self.CurrentTarget, origin, SharedIgnoreList)
+
 			local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-			if onScreen then
+			if onScreen and silentAimConfig.SnaplineVisible then
 				self.Snapline.From = mousePos
 				self.Snapline.To = Vector2.new(screenPos.X, screenPos.Y)
-
-				local origin = Camera.CFrame.Position
-				if tick() - SharedIgnoreListLastUpdate > 0.5 then
-					SharedIgnoreList = { Camera, LocalPlayer.Character }
-					for m, c in pairs(ESPManager.Cache) do
-						local hum = c.Humanoid
-						if hum and hum.Health <= 0 then
-							table.insert(SharedIgnoreList, m)
-						end
-					end
-					SharedIgnoreListLastUpdate = tick()
-				end
-
-				local isVisible = CheckVisibility(self.CurrentTarget, origin, SharedIgnoreList)
-				self.Snapline.Color = isVisible and silentAimConfig.SnaplineVisibleColor
+				self.Snapline.Color = self.CurrentTargetIsVisible and silentAimConfig.SnaplineVisibleColor
 					or silentAimConfig.SnaplineColor
 				self.Snapline.Visible = true
 			else
@@ -758,54 +744,44 @@ end
 -- Hooking ScreenPointToRay for Bullet Redirect
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-	if checkcaller() then
-		return oldNamecall(self, ...)
-	end
+	if getnamecallmethod() == "ScreenPointToRay" and not checkcaller() then
+		if getgenv().Config.SilentAim.Enabled then
+			local target = SilentAimManager.CurrentTarget
+			local stats = SilentAimManager.CurrentProjectileStats
 
-	local method = getnamecallmethod()
-	local silentAimConfig = getgenv().Config.SilentAim
+			if target and stats then
+				local hrp = target:FindFirstChild("HumanoidRootPart")
+				local head = target:FindFirstChild("Head")
 
-	if method == "ScreenPointToRay" and silentAimConfig.Enabled then
-		local target = SilentAimManager.CurrentTarget
-		local stats = SilentAimManager.CurrentProjectileStats
+				if hrp and head then
+					local origin = Camera.CFrame.Position
+					local headPos = head.Position
 
-		if target and stats then
-			local hrp = target:FindFirstChild("HumanoidRootPart")
-			local head = target:FindFirstChild("Head")
+					local velocity = (stats.Velocity or 1500) * 2 -- The game multiplies Velocity by 2 for studs/sec
+					local dropMultiplier = stats.Drop or 0
 
-			if hrp and head then
-				local origin = Camera.CFrame.Position
-				local headPos = head.Position
+					-- Grab velocity of target
+					local targetVelocity = hrp.AssemblyLinearVelocity
 
-				local velocity = (stats.Velocity or 1500) * 2 -- The game multiplies Velocity by 2 for studs/sec
-				local dropMultiplier = stats.Drop or 0
+					local timeToHit = (headPos - origin).Magnitude / velocity
+					-- One-pass approximation of target movement + drop
+					local predictedPos = headPos + (targetVelocity * timeToHit)
+					
+					-- Re-calculate exact time to hit based on new predicted position
+					local exactTimeToHit = (predictedPos - origin).Magnitude / velocity
+					local drop = 0.5 * dropMultiplier * (exactTimeToHit * exactTimeToHit)
 
-				-- Grab velocity of target
-				local targetVelocity = hrp.AssemblyLinearVelocity
+					-- Aim above the predicted target to compensate for the drop
+					local aimPos = predictedPos + Vector3.new(0, drop, 0)
 
-				-- Iterative Time to Hit calculation (predictive)
-				local timeToHit = (headPos - origin).Magnitude / velocity
-				local predictedPos = headPos
+					-- We don't want to permanently lock this, so we clear it after use
+					SilentAimManager.CurrentProjectileStats = nil
 
-				for i = 1, 3 do
-					predictedPos = headPos + (targetVelocity * timeToHit)
-					timeToHit = (predictedPos - origin).Magnitude / velocity
+					return Ray.new(origin, (aimPos - origin).Unit)
 				end
-
-				-- Calculate bullet drop expected (1/2 * drop * t^2)
-				local drop = 0.5 * dropMultiplier * (timeToHit * timeToHit)
-
-				-- Aim above the predicted target to compensate for the drop
-				local aimPos = predictedPos + Vector3.new(0, drop, 0)
-
-				-- We don't want to permanently lock this, so we clear it after use
-				SilentAimManager.CurrentProjectileStats = nil
-
-				return Ray.new(origin, (aimPos - origin).Unit)
 			end
 		end
 	end
-
 	return oldNamecall(self, ...)
 end)
 
