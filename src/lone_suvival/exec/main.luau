@@ -286,7 +286,8 @@ function ESPManager:Update()
 		return
 	end
 
-	local origin = Camera.CFrame.Position
+	local currentCamera = Workspace.CurrentCamera
+	local origin = currentCamera.CFrame.Position
 
 	for model, cache in pairs(self.Cache) do
 		if typeof(model) ~= "Instance" or not model.Parent then
@@ -431,11 +432,11 @@ function ESPManager:Update()
 			cache.Highlight.Enabled = false
 		end
 
-		local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+		local pos, onScreen = currentCamera:WorldToViewportPoint(hrp.Position)
 		if onScreen and showBox then
-			local headPos = cache.Head and Camera:WorldToViewportPoint(cache.Head.Position + Vector3.new(0, 0.5, 0))
-				or Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 2.5, 0))
-			local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+			local headPos = cache.Head and currentCamera:WorldToViewportPoint(cache.Head.Position + Vector3.new(0, 0.5, 0))
+				or currentCamera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 2.5, 0))
+			local legPos = currentCamera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
 
 			local boxHeight = math.abs(headPos.Y - legPos.Y)
 			local boxWidth = boxHeight * 0.6
@@ -614,7 +615,8 @@ function SilentAimManager:GetClosestTarget()
 	local mousePos = UserInputService:GetMouseLocation()
 	local closestModel = nil
 	local closestDist = silentAimConfig.FOV
-	local origin = Camera.CFrame.Position
+	local currentCamera = Workspace.CurrentCamera
+	local origin = currentCamera.CFrame.Position
 	local targetType = silentAimConfig.TargetType
 	local maxDist = espConfig.MaxDistance
 
@@ -680,9 +682,10 @@ function SilentAimManager:Update()
 	if self.CurrentTarget and enabled then
 		local head = self.CurrentTarget:FindFirstChild("Head")
 		if head then
-			local origin = Camera.CFrame.Position
+			local currentCamera = Workspace.CurrentCamera
+			local origin = currentCamera.CFrame.Position
 			if tick() - SharedIgnoreListLastUpdate > 0.5 then
-				SharedIgnoreList = { Camera, LocalPlayer.Character }
+				SharedIgnoreList = { currentCamera, LocalPlayer.Character }
 				for m, c in pairs(ESPManager.Cache) do
 					local hum = c.Humanoid
 					if hum and hum.Health <= 0 then
@@ -694,7 +697,7 @@ function SilentAimManager:Update()
 
 			self.CurrentTargetIsVisible = CheckVisibility(self.CurrentTarget, origin, SharedIgnoreList)
 
-			local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+			local screenPos, onScreen = currentCamera:WorldToViewportPoint(head.Position)
 			if onScreen and silentAimConfig.SnaplineVisible then
 				self.Snapline.From = mousePos
 				self.Snapline.To = Vector2.new(screenPos.X, screenPos.Y)
